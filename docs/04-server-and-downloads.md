@@ -20,7 +20,7 @@ Record the actual target server release and capture sanitized fixtures, includin
 |---|---|---|
 | Probe and sign in | `GET /status`, `POST /login` with mobile header `x-return-tokens: true` | Use status for reachability, authenticated data for pairing. Read the user ID and current access/refresh token pair. |
 | Renew session | `POST /auth/refresh` with `x-refresh-token` | Serialize refresh per address, persist rotated credentials together and retry an eligible read once. |
-| List libraries | `GET /api/libraries` | Filter to accessible book libraries. Handle zero or several libraries. |
+| List libraries | `GET /api/libraries` | Filter to accessible book libraries. Persist the chosen library per profile and restore it on relaunch. Handle zero libraries with an explicit empty state, and several with a selector defaulting to the last choice. |
 | List catalog | `GET /api/libraries/{libraryId}/items` with `page` and `limit` | Walk pages in a stable order, deduplicate IDs, and refresh atomically. Cached search by title/author covers all fetched pages. Explicitly indicate when the initial catalog is still filling. |
 | Fetch book and cover | `GET /api/items/{itemId}?expanded=1` and `GET /api/items/{itemId}/cover` | Read ordered playable tracks, corresponding file IDs and sizes, chapters and descriptive metadata. Skip ebook-only entries. Cover failure is recoverable. |
 | Download an original file | `GET /api/items/{itemId}/file/{fileId}/download` | Map the track to the actual file identifier on the target release (often `ino`). Treat it as a string. Check download permission and response integrity. |
