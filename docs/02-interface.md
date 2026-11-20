@@ -48,10 +48,10 @@ A tab tap switches destinations immediately and animates the tail over about 140
 | Control | Face and mark | Interaction |
 |---|---|---|
 | Full Play/Pause | 72 dp oxblood round key, fine antique-brass rim, ivory triangle or two bars | One tap toggles through the media controller. Draw Pause when audio is playing and Play when paused. |
-| Skip back / forward | Roughly 60 × 44 dp ivory key, dark engraved arrow and 15 / 30 numeral | Skip backward 15 s or forward 30 s. Clamp at the book edges. |
+| Skip back / forward | Ivory pill key about 44 dp tall at the art’s own 1.8:1 proportion, so roughly 80 × 44 dp, with a dark engraved arrow and 15 / 30 numeral | Skip backward 15 s or forward 30 s. Clamp at the book edges. |
 | Row and mini-player Play/Pause | 30–36 dp oxblood key in at least a 48 dp hit region | Use the same icons and state source as the full player. |
 | Pause transfer | Small ivory key with dark pause bars, within the transfer row | Pauses this download. Accessible name includes the title and the word “download”. |
-| Lower utility row | 24–28 dp pencil mark and a typeset label for Speed, Chapters or Sleep | Open accessible sheets. Speed displays the actual multiplier. Active sleep mode exposes its target or time remaining. |
+| Lower utility row | 24–28 dp pencil mark and a typeset label for Speed, Chapters or Tracks, and Sleep | Open accessible sheets. Speed displays the actual multiplier. Active sleep mode exposes its target or time remaining. The Chapters utility reads Tracks for a multi-file edition without chapter marks. For a single undivided file it stays in place, disabled, with the reason “This book has no chapters.” |
 
 On press, depress the face visually by about 1–2 dp, tighten its lower shadow, then release. Trigger one subtle haptic for an accepted transport tap when the user’s device settings allow it. Keep the glyph aligned with the key. Media-session callbacks govern the visible playing state. Audio focus loss, sleep expiry and notification actions must update all instances together.
 
@@ -67,17 +67,29 @@ Change the speed drawing when playback speed changes. The supplied 1× image is 
 
 | Screen | Main content and states |
 |---|---|
-| Connect | Heading “Connect to server”, address and optional label, Continue, then account fields. Indicate invalid URL, certificate/identity mismatch, failed credentials, and unreachable address separately. The unreachable state offers Retry. |
-| Library | Heading, Settings, optional library selector, search, catalog rows. A remote book shows Download, or the download-disabled message when the account cannot download. A transfer shows progress, and a ready book offers a Play or Resume key and an accessible “Downloaded” state. Use the graphite check when showing completion without a playback action. A remote cover tap opens details. |
-| Downloaded | In-progress transfers first, followed by locally ready books. Show bytes for unknown totals. “New”, chapter/time remaining, “Finished”, and “Repair needed” distinguish local states. Airplane mode retains all local controls. |
-| Book detail | Back, cover, title, author/narrator, total duration and available size, primary stateful action, description and chapter list. Selecting a downloaded chapter starts local playback at its beginning. |
-| Player | Back/collapse, art, live title and chapter, time and controls. The chapter slider is book-wide only when the edition has a single undivided segment. |
+| Connect | Heading “Connect to server”, address and optional label, Continue, then account fields. Indicate invalid URL, certificate/identity mismatch, failed credentials, unreachable address and denied local-network permission separately. The unreachable state offers Retry. |
+| Library | Heading, Settings, optional library selector, search, catalog rows. A remote book shows Download, or the download-disabled message when the account cannot download. A transfer shows progress, and a ready book offers a Play or Resume key and an accessible “Downloaded” state. Use the graphite check when showing completion without a playback action. A remote cover tap opens details. A first load that is still filling, an incomplete first load and an unreachable server over a cached catalog each show a [status line](#status-lines-and-empty-states) above the rows, which stay browsable and searchable from the pages or cache at hand. With no accessible book library, the selector, search and rows give way to the empty state. |
+| Downloaded | In-progress transfers first, followed by locally ready books. Show bytes for unknown totals. “New”, chapter/time remaining, “Finished”, and “Repair needed” distinguish local states. Order ready books by the [sort in the product brief](01-product.md#launch-and-state-priorities). With no transfers and no local books, show the no-downloads empty state. Airplane mode retains all local controls. |
+| Book detail | Back, cover, title, author/narrator, total duration and available size, primary stateful action, description and chapter list. Selecting a downloaded chapter starts local playback at its beginning. The list is headed Tracks for a multi-file edition without chapter marks and is omitted for a single undivided file. |
+| Player | Back/collapse, art, live title and chapter, time and controls. The chapter slider is book-wide only when the edition has a single undivided segment. A multi-file edition without chapter marks shows the track title or ordinal where the chapter goes, and the slider spans the track. A single undivided file omits the chapter line and the separate whole-book readout, since the slider already spans the book. After a playback failure, keep the saved position visible, show the audio-stopped message with its Repair download action below the title block, and disable the transport keys with that reason. |
 | Speed | 0.75×, 1×, 1.25×, 1.5×, 1.75× and 2×. Show one selected radio for the current speed. A choice applies on tap, persists as the last selected speed, and dismisses the sheet. |
-| Chapters | Ordered titles and durations. Pair a place marker with the current chapter’s accessible state. On activation seek and dismiss. |
+| Chapters | Ordered titles and durations. Pair a place marker with the current chapter’s accessible state. On activation seek and dismiss. Generated Opening and Interlude segments are listed in order like any chapter, in secondary ink. For a multi-file edition without chapter marks the sheet is titled Tracks and lists track titles or ordinals. |
 | Sleep | Off, 15/30/45/60 minutes, End of chapter. Show one selected radio. Display “End of track” or “End of book” for editions without chapter marks as applicable. Choices apply on tap. |
-| Server addresses | A setting to edit, pair, prioritize and test Home/Tailscale or other aliases. Include keyboard/TalkBack reorder actions. Changes to address selection preserve the local book identity. |
+| Server addresses | A setting to edit, pair, prioritize and test Home/Tailscale or other aliases. Include keyboard/TalkBack reorder actions. Changes to address selection preserve the local book identity. An address blocked by a denied local-network permission says so and offers its Allow access action. |
 
 Catalog and transfer rows reflect the [download lifecycle](04-server-and-downloads.md#download-lifecycle): available, queued, transferring, waiting for connection, paused or recoverable failure, verifying, ready or repair needed. Pair an icon with state text, and never label a paused or waiting transfer as active.
+
+### Status lines and empty states
+
+Recoverable conditions stay on the page. None of them opens a dialog. Each shows its sentence from the [copy table](01-product.md#copy-and-recovery) as live type on the paper, in one of three forms. A text action is a short label in the accent color with button semantics and a 48 dp target.
+
+| Form | Placement and style | Used for |
+|---|---|---|
+| Status line | Between the heading block and the first row, below search in Library. 14/20 sans in secondary ink, wrapping as needed, with at most one text action. The rows below stay usable. | Library still loading, with a small native indeterminate progress mark. Library incomplete, with Retry. Unreachable server over a cached catalog, with the last refresh time and Retry. Session expired. Notifications disabled, in Downloaded, with its settings action. |
+| Empty state | In place of the rows, starting at the first row position. 16/22 sans in secondary ink, with its action below as a text action. No illustration and no app name. | No downloads. No audiobook libraries. Empty library. No search results. Unreachable server with no cached catalog. |
+| Row or detail message | On the row’s metadata line, under the detail’s primary action, or below the player’s title block, in 14/20 sans in secondary ink, paired with the state icon. The row, detail or player keeps its own actions. | Download permission missing, storage full, removed audio, damaged copy, audio stopped during playback and local network access denied. |
+
+Where the copy table names two actions for a status line or empty state, the first is its text action. The second is the control already on screen, such as the Downloaded bookmark, the library selector or the address list. Announce a status line once, politely, when it appears or its text changes. Keep its action separately focusable. Remove the line as soon as its condition ends.
 
 ## Accessibility and acceptance
 

@@ -181,7 +181,8 @@
       "viewport": [
         28,
         28
-      ]
+      ],
+      "transparent": true
     },
     {
       "path": "art/inlays/pw_inlay_forward_30.png",
@@ -200,7 +201,8 @@
       "viewport": [
         28,
         28
-      ]
+      ],
+      "transparent": true
     },
     {
       "path": "art/inlays/pw_inlay_pause.png",
@@ -219,7 +221,8 @@
       "viewport": [
         28,
         28
-      ]
+      ],
+      "transparent": true
     },
     {
       "path": "art/inlays/pw_inlay_play.png",
@@ -238,7 +241,8 @@
       "viewport": [
         28,
         28
-      ]
+      ],
+      "transparent": true
     },
     {
       "path": "art/materials/pw_binding_cloth.png",

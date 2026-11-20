@@ -26,7 +26,7 @@ In this fixture, chapter 2 at +40 s is book position **115 s**, or **25 s into t
 
 1. Use book-level Audiobookshelf chapters first, but validate them against the edition’s verified duration before storing: drop intervals that start outside `[0, duration)`, drop empty intervals, trim overlapping ends to the next start, deduplicate identical starts, and clamp an overflowing end to the book end. This preserves chapter edits made on the server while keeping a stale or malformed server list from breaking navigation or the sleep timer. Store the validated map in the local edition so navigation works without a network.
 2. When the validated server chapter list is empty or unusable, import valid embedded chapter markers if available. Convert per-file times to absolute times, normalize them, and apply the same validation as step 1. Keep available titles. Fill a missing title with “Chapter 1”, “Chapter 2”, and so on.
-3. Tolerate missing end times by using the next valid start or the book end. Preserve uncovered audio as a navigable segment: label audio before the first chapter “Opening” and any later gap “Interlude”. Never merge uncovered audio into a neighboring chapter. Never combine server and embedded markers when the validated server map is usable.
+3. Tolerate missing end times by using the next valid start or the book end. Preserve uncovered audio as a navigable segment: label audio before the first chapter “Opening” and any later gap, including one after the last chapter, “Interlude”. Store the segment with a generated origin. It behaves as a chapter everywhere: it is listed in Chapters, bounds the chapter scrubber, and end-of-chapter sleep armed inside it stops at its end. Never merge uncovered audio into a neighboring chapter. Never combine server and embedded markers when the validated server map is usable.
 4. If markers are unavailable, list a multi-file book as **Tracks** using track titles or ordinals. For a single file show a whole-book timeline. Offer **End of track** or **End of book** in the corresponding sleep sheet. Never display invented chapter titles as author-supplied metadata.
 
 ## Media format acceptance
@@ -60,11 +60,13 @@ For each row, record a redistributable or generated fixture ID, extension, conta
 
 A decoder, demuxer or read failure during playback is distinct from a damaged edition found before opening. When a track cannot be initialized, decoded or read:
 
-- Pause at the last successfully decoded checkpoint and persist that book position. The loss stays within five seconds of book time at every supported speed, plus the measured seek error when playback resumes. Never advance into the following chapter or track.
+- Pause at the last successfully decoded checkpoint and persist that book position. The loss stays within five seconds of book time at every supported speed, plus the measured seek error when playback resumes. Never skip past the failing audio into a later chapter or track.
+- A track that cannot be opened fails only when playback reaches it. Play the current track to its end and save the boundary itself. Under the half-open rule that position is the failing track at offset zero, and none of its audio has played. If a sleep stop lands on the same boundary, the timer fires first and completes normally, and the failure surfaces on the next play. A seek or resume that lands inside a track which cannot be opened plays nothing from it: a failed seek keeps the position saved before the seek, and a failed resume keeps the saved place.
 - Set the edition to **Repair needed** while leaving its saved place, duration snapshot and finished flag unchanged. Do not mark the book finished.
 - Never fall back to a server stream or hide the item. Surface the “Audio stopped during playback” copy from the [product brief](01-product.md).
-- A transient read error may be retried once from the same position. Unsupported codecs and DRM-protected files keep the existing format rules and preserve the place.
+- Retry a transient read error once from the same position. If the retry also fails, pause as described above. Unsupported codecs and DRM-protected files keep the existing format rules and preserve the place.
 - After repair or re-download, restore the saved position when the edition fingerprint still matches. Otherwise use the previous-position choice required for materially changed audio.
+- The failure pause clears any armed sleep timer and cancels any pending auto-resume, as the [sleep table](#sleep-behavior) states.
 
 ## Sleep behavior
 
@@ -79,6 +81,7 @@ A decoder, demuxer or read failure during playback is distinct from a damaged ed
 | Expiry lands exactly on an internal track or chapter boundary | Commit the boundary position and stop before any audio from the following interval. No audible cue from the next track or chapter plays. |
 | End-of-track sleep armed near a track end | Stop exactly at the track boundary and commit it. When another track follows, the book stays unfinished and the next play continues into that track. |
 | End-of-chapter sleep armed for the final chapter, or End of book | Pause at book end, mark the book finished, clear the timer, and do not arm a next chapter. |
+| Playback fails | The failure pause clears every armed timer and cancels any pending auto-resume. A transient read error that its single retry clears leaves the timer and its deadline unchanged. If a timer expires during the retry, the timer fires and the retry does not restart playback. |
 | Process dies | Playback stops. Restore the last durable position in a paused state on relaunch and clear the stale sleep request. Moving between activity screens leaves the service timer intact. |
 
 ## References

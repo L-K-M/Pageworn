@@ -32,7 +32,7 @@ The documents use these terms precisely. Server fields keep their Audiobookshelf
 | Book or item | One Audiobookshelf library item. Its identity is the server item ID within the profile. |
 | Track | One playable audio file in the server’s play order. A track may contain several chapters. |
 | File | One audio file: the server’s original, identified by its file ID, or its local copy. A file stores one track. |
-| Chapter | A server or embedded navigation marker with an absolute book interval. A generated Opening or Interlude segment navigates like a chapter. |
+| Chapter | A server or embedded navigation marker with an absolute book interval. A generated Opening or Interlude segment counts as a chapter for navigation, the scrubber and end-of-chapter sleep. |
 | Edition | One verified local generation of a book: files, timeline and chapter map. |
 | Generation | A staged revision of an edition, identified by a local ID. Only one generation is published at a time. |
 | Refresh generation | One attempt to refresh a library’s catalog, staged under its own ID and published only when complete. It is unrelated to an edition’s generation. |

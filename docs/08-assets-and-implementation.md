@@ -33,7 +33,7 @@ Use a neutral `Image` or untinted `painterResource` for cloth, book art, key fac
 
 ### Play, pause and skip
 
-For a standard key, use `pw_play.png`, `pw_pause.png`, `pw_rewind_15.png` or `pw_forward_30.png` inside a native button with the default background removed. For a layered key, place `pw_inlay_play.xml` or `pw_inlay_pause.xml` over `pw_key_oxblood.png`. Apply the dark inlay tint for `pw_key_ivory_round.png`. Put the skip inlays over `pw_key_ivory_skip.png`. Size the central inlay to about 40–45% of the face width. Avoid double shadows around pre-shaded art.
+For a standard key, use `pw_play.png`, `pw_pause.png`, `pw_rewind_15.png` or `pw_forward_30.png` inside a native button with the default background removed. For a layered key, place `pw_inlay_play.xml` or `pw_inlay_pause.xml` over `pw_key_oxblood.png`. Apply the dark inlay tint for `pw_key_ivory_round.png`. Put the skip inlays over `pw_key_ivory_skip.png`. Size the central inlay to about 40–45% of the face width. Keep each face at its own aspect ratio. The round faces are near 1:1 and the skip faces about 1.8:1, so a skip key 44 dp tall is about 80 dp wide. The player mockup draws the skip keys squarer, and the delivered faces set the proportion. Avoid double shadows around pre-shaded art.
 
 | State | Drawing | Behavior and semantics |
 |---|---|---|

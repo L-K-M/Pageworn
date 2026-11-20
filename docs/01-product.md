@@ -39,9 +39,15 @@ Pageworn v1 serves audiobooks. Ebooks, podcasts, streaming, remote playback, cro
 | Situation | What the listener sees | Action |
 |---|---|---|
 | No downloads | “Your downloaded books will appear here.” | Browse library |
+| Library still loading | “Loading your library…” | Browse the books shown so far |
+| Library incomplete | “Your library didn’t finish loading.” | Retry |
+| No audiobook libraries | “This account has no audiobook libraries.” | Check again, or open Downloaded |
+| Empty library | “This library has no audiobooks yet.” | Check again, or choose another library |
+| No search results | “No books match your search.” | Clear the search |
 | No reachable address | “Can’t reach your server.” Show the last successful refresh if available. | Retry or open Downloaded |
+| Local network access denied | “Allow local network access to reach [address label].” | Allow access, or use another address |
 | Session expired | “Sign in to refresh your library.” | Sign in to the affected address |
-| Download permission missing | “This account can browse this book. Downloads are disabled.” | Back to Library |
+| Download permission missing | “This account can browse this book. Downloads are disabled.” | Back to Library, or Retry a transfer that the denial stopped |
 | Storage full | “More space is needed to finish this download.” Show required additional space when known. | Manage downloads or retry |
 | Audio removed locally | “Download removed. Your place is saved.” | Download again from details |
 | Damaged local copy | “This copy couldn’t be opened.” | Repair download, preserving progress |
