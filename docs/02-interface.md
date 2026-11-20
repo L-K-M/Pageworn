@@ -60,7 +60,7 @@ At short heights, shrink or hide decorative artwork first. Allow vertical scroll
 
 ### Component states and accessibility
 
-- A catalog row can be remote, transferring, ready or damaged. Use an icon **and** state text. An indeterminate transfer shows “Downloading…” with bytes received. Show a percentage only with a known total.
+- A catalog row reflects the [download lifecycle](04-server-and-downloads.md): available, queued, transferring, waiting for connection, paused, verifying, ready or repair needed. Use an icon **and** state text, and never label a paused or waiting transfer as active. An indeterminate transfer shows “Downloading…” with bytes received. Show a percentage only with a known total.
 - Give every action at least a 48 × 48 dp touch area. The play button is 64 dp on the full player. Important controls require a visible focus state, a stable TalkBack label and a non-gesture alternative.
 - Expose slider range and position through accessibility semantics. Support adjustable steps, skip buttons and chapter selection. Avoid live announcements for every second of playback or percentage point of a transfer.
 - For the sleep sheet, announce the chosen mode once. For download completion, use one status announcement. Treat decorative fibers, shadows and ribbons as invisible to accessibility services when the adjacent label carries the meaning.

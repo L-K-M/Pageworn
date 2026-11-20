@@ -22,7 +22,7 @@ Pageworn v1 serves audiobooks. Ebooks, podcasts, streaming, remote playback, cro
 ## Four journeys to implement end to end
 
 1. **First book.** Enter a server address, sign in, choose a book in Library, and tap Download. Leave the screen. Open the completion notification or find the book under Downloaded. The first Play starts at the beginning.
-2. **A second route home.** Add the Tailscale URL for the same account and server. Leave home during a download. The app renegotiates the transfer through a paired reachable address and finishes one local copy. A safe restart of the current track is acceptable when continuation cannot be verified.
+2. **A second route home.** Add the Tailscale URL for the same account and server. Leave home during a download. The app renegotiates the transfer through a paired reachable address and finishes one local copy. When continuation cannot be verified, restart the current file from byte zero; the saved playback position is unaffected.
 3. **Two books on the go.** Pause book A, play book B, then return to A. Resume A at its saved whole-book position. Remove A’s audio to free space. Re-download the same edition and resume at the saved position.
 4. **Bedtime.** From the player, choose End of chapter. Lock the phone. At the boundary, audio stops, progress is committed, and the timer clears. Pressing Play the next morning continues from the boundary.
 
@@ -30,7 +30,7 @@ Pageworn v1 serves audiobooks. Ebooks, podcasts, streaming, remote playback, cro
 
 - First install opens connection setup. With a saved profile, remember the last main section. If the catalog is unreachable and local books exist, a cold launch opens Downloaded; if no local books exist, it opens connection setup showing the unreachable-server state with Retry. Downloaded always renders from local state alone — a network probe never blocks, delays or replaces the local list.
 - A warm start preserves the current screen, scrolling position, and open player. Changing connectivity never takes the listener away from a book.
-- Sort Downloaded by last listened, then by download completion for unplayed books. Keep finished books available until removed. Library defaults to title order and uses stable item IDs during refresh.
+- Sort Downloaded by last-listened time descending, then by download completion descending for never-played books, then by title and stable item ID. Keep finished books available until removed. Library defaults to title order and uses stable item IDs during refresh.
 - Distinguish **Downloaded** (file availability) from **Finished** (reading progress). Both can be true. A listener can replay a finished book.
 - One profile owns one collection of local data. An expired login affects new network work. Opening a previously downloaded book requires no successful server request.
 
