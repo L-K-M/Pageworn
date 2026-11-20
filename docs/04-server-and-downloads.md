@@ -28,6 +28,12 @@ Record the actual target server release and capture sanitized fixtures, includin
 
 Use a non-admin test account with and without download permission. A Play tap on a completed download makes zero playback-session or audio HTTP requests. The app stores per-book progress locally. It does not send listening sessions or progress updates to the server in v1. If a server requires OIDC-only login, explain the required login method. Native OIDC is a separate integration from the proposed username/password baseline.
 
+### Publishing a library refresh
+
+Scope each refresh to its profile and library. Give the attempt a generation ID and stage its pages under that ID. While it runs, browsing and search continue to use the last complete generation. On first load, the UI may show the staged pages with the existing loading indicator. If that attempt fails, show the incomplete status and Retry.
+
+Once the final page succeeds, use one Room transaction to check that this attempt still owns the refresh, publish its membership and metadata, and advance the last-successful-refresh time. A successful empty result clears that library’s remote listing. A failed page or a superseded attempt leaves the published listing and timestamp intact. Discard only that attempt’s staging rows. Removing a remote listing preserves the local edition and saved position.
+
 ## Download lifecycle
 
 | State | Visible actions | Transition |
