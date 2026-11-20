@@ -27,6 +27,7 @@ For M0, read [playback and formats](05-playback-and-formats.md). For M1 use the 
 - **Single M4B.** One DRM-free AAC M4B with three embedded titled chapters and a cover. Supply a second server chapter list with edited titles to prove that server edits win. Repeat with the server list removed to exercise embedded fallback.
 - **No chapters.** A single-file book and a multi-file book with no markers. Include missing artwork and narrator, a long title, two authors, and two distinct item IDs with the same title.
 - **Formats.** Generate short samples for the [format matrix](05-playback-and-formats.md) and at least one long VBR MP3 with identifiable cues near the end. Keep generation commands, tool versions, checksums and redistribution rights with the fixtures. Generate large audio locally instead of adding hours of binary media to Git.
+- **Fixture manifest.** Keep a machine-readable manifest beside generated fixtures with the fixture ID, generation command, tool and version, container, codec, duration, checksum, redistribution right and the server release that admitted it. Tests reference fixtures by ID rather than by a machine-specific path.
 - **Network.** Serve a sanitized catalog from a controllable HTTP fixture with two origins and optional path prefix. Include paginated results, an empty library, denied download, token rotation, mismatched account/library IDs, 200/206/416 responses, truncated bodies and incompatible entity validators. Run at least one full smoke test against the pinned Audiobookshelf version.
 
 ## Acceptance matrix
@@ -56,6 +57,43 @@ For M0, read [playback and formats](05-playback-and-formats.md). For M1 use the 
 | A16b | Fresh install with notifications denied: enqueue a download, background the app, finish it, then play a completed book | The transfer finishes and its state and actions stay reachable in Downloaded without a notification; local playback controls work. Granting the permission later makes the completion notification appear. |
 | A16c | Trigger playback from the background on a build that restricts foreground-service starts | No crash or silent stall. Either the user's action starts audible playback or the in-app state remains accurate when the listener returns. |
 | A17 | Give the boundary book a server chapter list containing an out-of-range interval, an overlap and a duplicate start; then remove the server list | The stored map matches the validated 210 s timeline, and end-of-chapter sleep clamps to the book end. Without a usable server list, embedded markers are imported and titled instead. |
+| A17 | Cold launch with an unreachable server and at least one downloaded book; then warm-start from a list and from the player | Cold launch opens Downloaded and renders local content before network checks finish. The cached library shows its last refresh time and an offline status. A warm start preserves the screen, list scroll, query and open player. |
+| A18 | With one finished book, one partially listened book and one never-played download, relaunch and replay the finished book | Downloaded sorts by last-listened time, then by download completion for never-played books, then by title and item ID. Replay starts at zero and the partially listened book resumes at its place. |
+| A19 | Add, rename, reorder, test and remove a second address for one profile; then remove the active address | Each action updates the ordered list and the active route. Removing an address preserves the profile, downloads and saved positions. A cleartext route needs an explicit per-origin opt-in with the tradeoff explained. |
+| A20 | Open a book with an account that can browse but cannot download; corrupt a committed file; run Repair and fail it | The first shows the download-disabled state and starts no transfer. The second shows the damaged state. A failed repair preserves the last usable edition and saved position; a successful repair resumes at the saved place. |
+| A21 | Fill storage during a download, observe the error, free space and retry | The error shows the required additional space when it is known. Retry completes without duplicating bytes. Cancel releases the staging bytes. |
+| A22 | With airplane mode and an expired login, play, seek, change speed and set each timed sleep choice; then kill and relaunch | Playback, chapters, sleep, cover and progress remain usable with zero outgoing requests. Speed persists. Each timed choice expires on wall-clock time and clears; Off leaves playback running. |
+| A23 | Inspect captured network diagnostics, a backup snapshot and a Room upgrade from a previous schema | Diagnostics redact credentials, URL queries and filenames. Backups exclude credentials, media and device-bound transfer state. The upgrade preserves downloads, editions and saved positions. |
+| A24 | Play a chapterless single-file book and a chapterless multi-file book | The single-file book shows one whole-book timeline. The multi-file book lists Tracks with titles or ordinals and offers End of track and End of book. Both seek and sleep work. |
+| A25 | With several libraries, search by title and by author, and open a mixed-media item | Only accessible audio items appear; the mixed-media item appears only when it has playable tracks. Search matches title and author in the selected library. Zero and several libraries both resolve. |
+| A26 | During connection setup, enter an invalid URL, an unreachable host, a certificate failure and wrong credentials | Each condition surfaces its own message, no partial profile is created, and a later valid sign-in still succeeds. |
+| A27 | With one active, one waiting and one failed transfer plus one completed book, open Downloaded and pause the active transfer | Transfers appear in a separate in-progress group with status and the actions that state allows; completed books stay below. A paused transfer never shows as active. |
+
+## Coverage map
+
+Every release-scope requirement needs at least one acceptance case. A requirement without a case stays open until a case is added or the requirement is cut.
+
+| Requirement area | Acceptance |
+|---|---|
+| One account, one server, several addresses | A02, A04, A19 |
+| Library browse, search and details | A01, A25 |
+| Downloaded works offline and removes cleanly | A07, A08, A15, A20 |
+| Partial transfer progress, pause, resume and cancel | A04, A05, A07, A21 |
+| Per-book progress across book switches, app death, address changes and re-download | A07, A10, A11 |
+| Format and chapter coverage | A09, A14, A24 |
+| Sleep | A12, A13, A22 |
+| Launch and state priorities | A17 |
+| Sort and replay | A18 |
+| Diagnostics, keys and backups | A23 |
+| Connection and setup errors | A26 |
+| Transfer grouping and row states | A27 |
+
+## Open questions to close in M0
+
+- Whether the pinned server exposes a stable server instance ID for pairing, or only account and library IDs.
+- Whether the server supplies trusted per-file digests or only lengths, media types and validators.
+- The storage headroom margin for download preflight and the default download concurrency.
+- Which Audiobookshelf release is the support floor and which release is the test target.
 
 ## Verification and handoff
 
