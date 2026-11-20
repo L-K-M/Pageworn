@@ -52,13 +52,17 @@ Cancellation targets the current job ID. If cancellation commits first, the tran
 
 1. Capture the ordered playable source list, lengths and revision evidence (for example file ID, size and modification time). Join audio files to the server’s play order. Disabled tracks, artwork and ebooks cannot silently become audio files. An ambiguous join fails with a refresh action.
 2. Preflight remaining bytes plus working headroom. When the total is unknown, show bytes received and handle a write failure by preserving safe partials. Check free space again before any optional conversion or replacement that requires a second copy.
-3. Resume a partial file only if the response identifies the same entity. Prefer a strong validator with `Range` and `If-Range`. Append only on a matching 206 and an exact `Content-Range` start and total. A full 200 replaces the partial from byte zero. If an alias changes and equivalence cannot be verified, restart the current file. Reuse complete validated files from the same manifest.
+3. Bind each partial to a fingerprint of the effective download URL, the source revision and any strong entity tag. Request identity content coding so local file offsets map directly to HTTP byte offsets. For the same URL and revision with a saved strong tag and known length, send one byte range and that tag in `If-Range`. Otherwise start from zero. Accept a single-part 206 only when the strong tag matches, the content coding is identity, and `Content-Range: bytes start-end/total` satisfies `start == localLength`, `start <= end < total` and `total == expectedLength`. Check that the body delivers exactly `end - start + 1` bytes before accepting the response as complete. A valid range ending before the last byte leaves the file partial. A malformed response leaves the preceding usable prefix intact. A full 200 replaces the partial from byte zero.
+
+   When the URL changes, refresh the manifest on the new route. Restart the partial track by default, even if the two URLs report equal ETags and sizes. A cross-route resume requires independent byte-identity evidence, such as a trusted whole-file digest for the same revision that the assembled file must match before publication. Reuse complete validated files from the same manifest.
 4. On a 416, reconcile the expected size and source version. Treat a fully verified file as complete, otherwise restart it. On a 404 for a track, refetch item details once. If the manifest changed, stage that revision coherently. A persistent mismatch becomes a repairable error.
 5. Check expected length or a trusted digest when supplied. For unknown lengths require a successful, complete transport and validate the local media through the selected parser before committing. Reject unexpected HTML/login responses, empty audio, truncated transfers and out-of-scope redirects. Probe each local track’s actual container and codec before marking it playable. Complete any required local preparation and verify the resulting timeline before publication.
 6. After a process restart, compare persisted offsets with disk and run publication recovery. A notification, UI double-tap, OS retry or route switch must still result in one completed book. See the [storage transaction](03-android-and-data.md).
 
 ## References
 
+- [HTTP validators and their scope](https://www.rfc-editor.org/rfc/rfc9110.html#section-8.8.1)
+- [HTTP Content-Range validation](https://www.rfc-editor.org/rfc/rfc9110.html#section-14.4)
 - [server OpenAPI document](https://github.com/advplyr/audiobookshelf/blob/master/docs/openapi.json)
 - [API response examples](https://api.audiobookshelf.org/)
 - [mobile JWT authentication](https://github.com/advplyr/audiobookshelf/discussions/4460)
