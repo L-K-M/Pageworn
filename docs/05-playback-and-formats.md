@@ -56,6 +56,16 @@ For each row, record a redistributable or generated fixture ID, extension, conta
 - Persist on explicit seek, pause and other checkpoints in the [storage contract](03-android-and-data.md). The maximum intended loss after unexpected process death during continuous playback is five seconds. A deliberate pause or completed seek should resume within the format’s measured seek tolerance.
 - Mark finished on natural end or an explicit seek to book end. Listening to an intermediate chapter end continues into the next chapter unless a timer requests a pause. Replay resets position and finished status through one transaction.
 
+## Playback failure handling
+
+A decoder, demuxer or read failure during playback is distinct from a damaged edition found before opening. When a track cannot be initialized, decoded or read:
+
+- Pause at the last successfully decoded checkpoint and persist that book position. The loss stays within the normal checkpoint interval; never advance into the following chapter or track.
+- Set the edition to **Repair needed** while leaving its saved place, duration snapshot and finished flag unchanged. Do not mark the book finished.
+- Never fall back to a server stream or hide the item. Surface the actionable explanation from the interface table.
+- A transient read error may be retried once from the same position. Unsupported codecs and DRM-protected files keep the existing format rules and preserve the place.
+- After repair or re-download, restore the saved position when the timeline still matches; otherwise use the previous-position choice required for materially changed audio.
+
 ## Sleep behavior
 
 | Situation | Required result |
