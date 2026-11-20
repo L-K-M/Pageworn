@@ -6,7 +6,7 @@ Build one end-to-end behavior at a time. A milestone is complete when its checks
 
 | ID | Deliverable | Depends on | Exit check |
 |---|---|---|---|
-| M0 | Thin Android shell, compatibility inventory, and local playback spike | Existing repo conventions | Build and run an installable debug app. Play a bundled chaptered M4B and a multi-file reference book through a service. A seek to book time 115 s yields track B at 25 s. Pin the Android/server targets and list scanner-admitted formats and any decoder gaps. |
+| M0 | Thin Android shell, compatibility inventory, and local playback spike | See [M0 build and test baseline](#m0-build-and-test-baseline) | Build and run an installable debug app. Play a bundled chaptered M4B and a multi-file reference book through a service. A seek to book time 115 s yields track B at 25 s. Pin the Android/server targets and list scanner-admitted formats and any decoder gaps. |
 | M1 | Book identity, Room state, and two working destinations styled with the design tokens | M0 | In Library and Downloaded, demonstrate remote, transferring and ready states from fixture data. Pause A, listen to B, restart, and restore each book independently. Verify one light and one dark screen at large text. |
 | M2 | Real sign-in, pairing, failover and catalog | M1 | With a non-admin account, browse every catalog page including duplicate titles. Pair LAN and Tailscale addresses. Switching between them keeps one book record. Test incorrect credentials, mismatched pairing and denied local-network permission. |
 | M3 | Durable download path | M2 | A real server book downloads, publishes once and plays in airplane mode. Simulate a dropped connection, pause/resume, origin change, process death, storage failure, and a server that ignores Range. Cancel and remove have distinct outcomes. |
@@ -14,6 +14,12 @@ Build one end-to-end behavior at a time. A milestone is complete when its checks
 | M5 | Sleep behavior, accessibility, and final visual pass | M4 | Run the locked-screen tests below, review the compact and wide layouts, and confirm every primary action with TalkBack at 200% text. Verify all four product journeys on a physical phone. |
 
 For M0, read [playback and formats](05-playback-and-formats.md). For M1 use the [interface](02-interface.md) and [data model](03-android-and-data.md). For M2–M3 use the [server and download contract](04-server-and-downloads.md). For M4–M5 use the [product journeys](01-product.md) as the final walkthrough.
+
+### M0 build and test baseline
+
+- If the repository has no Android project, initialize the single-module project at the repository root. Check in the Gradle wrapper and pinned build and dependency versions. Record the JDK and Android SDK requirements and the build, install and test commands so a fresh checkout can reproduce the spike.
+- Build, install and exercise the playback service using local fixtures. Record the Android device or emulator and API level used. The reference seek uses the Boundary book defined below.
+- Identify the intended Audiobookshelf release. If it is unknown, pin a reference release and label it provisional. Inventory that release's scanner and use a local instance with a disposable account to check sign-in and capture the sanitized track-to-download mapping. Record the release and distinguish observations from the reference instance from checks against the listener's deployment. Keep deployment-specific checks pending when the deployment is unavailable.
 
 ## Fixtures a contributor can reproduce
 

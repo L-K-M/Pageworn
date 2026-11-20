@@ -2,7 +2,7 @@
 
 Pageworn is an Android audiobook player for one listener with an Audiobookshelf server. Choose a book in **Library**, download it, and listen from **Downloaded**. A book keeps its place even when a download is removed. Its cloth cover, paper surfaces and place ribbon come from a well-used hardcover.
 
-Place this directory at `docs/pageworn/`. The documents use relative links and can move together. This is a build specification. Test cases describe expected behavior and have yet to be run against an implementation.
+The plan lives in `docs/`. This is a build specification. Test cases describe expected behavior and have yet to be run against an implementation.
 
 ## Reading map
 
@@ -21,7 +21,7 @@ Read the product brief, then the first unfinished milestone in the delivery plan
 
 ### First prompt for a coding agent
 
-> Read `docs/pageworn/README.md`, `01-product.md`, and milestone M0 in `06-delivery-and-tests.md` under the same directory. Inspect this repo. Implement M0 and run its checks. Use the fixture timelines in the playback spec. Report the files changed, the checks run, and any real-device or server checks still outstanding. Leave later milestones for subsequent changes.
+> Read `docs/README.md`, `docs/01-product.md`, and milestone M0 in `docs/06-delivery-and-tests.md`. Inspect this repo. Implement M0 and run its checks. Use the fixture timelines in `docs/05-playback-and-formats.md`. Report the files changed, the checks run, and any real-device or server checks still outstanding. Leave later milestones for subsequent changes.
 
 ## Decisions carried into the plan
 
