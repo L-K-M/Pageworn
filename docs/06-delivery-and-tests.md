@@ -43,6 +43,8 @@ For M0, read [playback and formats](05-playback-and-formats.md). For M1 use the 
 | A14 | Run all format fixtures near the start and near 90% duration, on minimum and current Android targets | Decode, seek, resume, chapter fallback and reported duration pass. Target audible seek error ≤1 s on valid fixtures. Record any exception by format/device and leave coverage open until fixed. |
 | A15 | At 320 dp and 200% font, use TalkBack to download, play, choose a chapter, set sleep and remove a download | Controls retain unique names, logical focus order, 48 dp targets, visible state and reachable actions. Artwork can shrink while transport remains usable. |
 | A16 | Pull headphones, use notification Play/Pause, reopen from the mini-player, then replay a finished book | One session owns playback. Headphone removal pauses once. All surfaces agree on the state. Replay starts at zero. |
+| A13b | In the boundary book, seek to 200 s, choose End of chapter, lock the phone, and wait for book end | Playback pauses exactly at 210 s, marks the book finished, clears the timer, and offers Replay. No next chapter is armed or plays. |
+| A13c | In a no-chapter multi-file fixture, arm End of track at 89 s and lock the phone | Playback stops exactly at 90 s with no audible track B audio, stays unfinished, and the next play starts at track B. |
 
 ## Verification and handoff
 

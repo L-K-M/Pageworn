@@ -10,7 +10,7 @@ Use Android speech audio attributes, audio focus and standard media-session faci
 
 Convert server seconds to 64-bit milliseconds once at import, rounding to the nearest millisecond. Order tracks by the server’s playable sequence. Prefer its valid book-relative offsets and cross-check with file durations. When offsets are missing, construct contiguous starts from the ordered verified durations. Normalize rounding discrepancies of a few milliseconds consistently. Investigate material gaps, overlaps or unknown duration using the downloaded files before publishing.
 
-Use half-open intervals `[start, end)`. An internal boundary belongs to the following track or chapter. The book end is a distinct finished state. A global seek maps to the track containing the requested position and a track-local offset. For a chapter-relative seek, add the chapter start before mapping. A player timestamp becomes the saved book position by adding the active track start. Clamp all external seek requests to the edition’s duration.
+Use half-open intervals `[start, end)`. An internal boundary belongs to the following track or chapter. The book end is a distinct finished state. A global seek maps to the track containing the requested position and a track-local offset. For a chapter-relative seek, add the chapter start before mapping. A player timestamp becomes the saved book position by adding the active track start. Clamp all external seek requests to the edition’s duration. The same mapping resolves every timer and scrubber decision: a boundary callback at an interval edge selects the following track or chapter at offset zero and commits that edge as the saved position.
 
 | Example fixture | Value |
 |---|---|
@@ -66,6 +66,9 @@ For each row, record a redistributable or generated fixture ID, extension, conta
 | Listener pauses or gets a call | Timed mode keeps its original wall-clock deadline. Expiry while paused prevents interruption recovery from starting playback. Chapter mode stays armed while paused on the same book. |
 | Listener seeks | A timed deadline stays fixed. A chapter timer retargets to the end of the destination chapter and updates its label. Natural progression leaves the original end armed. |
 | Listener changes mode, book or explicitly stops | Changing mode atomically replaces the previous timer. Switching book, reaching book end or explicitly stopping clears it. |
+| Expiry lands exactly on a track or chapter boundary | Commit the boundary position and stop before any audio from the following interval. No audible cue from the next track or chapter plays. |
+| End-of-track sleep armed near a track end | Stop exactly at the track boundary, commit it, and leave the book unfinished. The next play continues into the following track. |
+| End-of-chapter sleep armed for the final chapter | Pause at book end, mark the book finished, clear the timer, and do not arm a next chapter. |
 | Process dies | Playback stops. Restore the last durable position in a paused state on relaunch and clear the stale sleep request. Moving between activity screens leaves the service timer intact. |
 
 ## References
