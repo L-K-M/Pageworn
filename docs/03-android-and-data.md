@@ -31,9 +31,11 @@ Treat server IDs as opaque strings. Use 64-bit integers for times in millisecond
 
 Keep source metadata, credential material and display metadata separate. Avoid storing server absolute filesystem paths. Generate local paths from internal IDs and sanitized file extensions. Keep audio under persistent app-private storage, outside cache and OS backup. Exclude credentials and device-bound transfer state from backup. Cache artwork can be evicted. Copy a thumbnail into the committed edition so Downloaded still renders offline.
 
+Define the edition fingerprint as a digest of the ordered source file IDs, sizes and modification times, the ordered track durations and the chapter map. Cover, title, author and description changes leave it intact; reordering, replacing or re-encoding audio changes it. Rule 7 uses this fingerprint to tell a metadata refresh from a material audio change.
+
 ## Persistence and recovery rules
 
-1. Enqueue under a unique book key. Repeated taps attach to the existing transfer. Journal file lengths for display, but use the bytes on disk when deciding where to resume.
+1. Enqueue under a unique book key. Repeated taps attach to the existing transfer. Journal file lengths for display, but use the bytes on disk when deciding where to resume. Run one active book at a time by default; a user-paused book yields the slot to the next queued book and resumes when the listener resumes it.
 2. Write all audio, a compact manifest, and optional cover to a staging directory on the same volume as the final edition. Missing artwork uses the cloth fallback. Missing mandatory tracks keep the edition in staging.
 3. Verify every file as defined in the [transfer contract](04-server-and-downloads.md), finish the chapter map, and atomically rename the directory. In a Room transaction point the published edition at that directory, install its track/chapter rows, and mark the transfer complete. The filesystem rename and the database transaction have separate failure boundaries.
 4. On startup or before opening a book, recover an interrupted publish from the finalized manifest and generation ID. Promote only a complete matching generation. Quarantine or remove abandoned staging that belongs to a cancelled job. A missing published file changes state to Repair needed while keeping progress.
@@ -45,7 +47,9 @@ Keep source metadata, credential material and display metadata separate. Avoid s
 
 - Use a `MediaSessionService` and a media session for playback. Declare the appropriate playback service type and permissions for the target SDK. The activity binds via a controller and releases it on lifecycle changes. Only a user play action starts or resumes audible playback.
 - Downloads are user-initiated, durable work. On Android 14+ prefer a user-initiated data transfer job for a long foreground-requested transfer. On older supported versions use a foreground-capable worker with a progress notification. Both paths use the same queue, storage contract and cancellation semantics. Recover a stopped job through its recorded state under platform scheduling rules.
-- Keep tokens encrypted using a key protected by Android Keystore. Replace refreshed token pairs together. Redact credentials, URL queries and book filenames from network diagnostics. Reauthentication leaves local media accessible to the paired profile.
+- Keep audio, editions and device-bound transfer state out of OS backup with `fullBackupContent` and `dataExtractionRules`; cache artwork may be backed up or evicted. Keep tokens encrypted using a key protected by Android Keystore. Replace refreshed token pairs together. Redact credentials, URL queries and book filenames from network diagnostics. Reauthentication leaves local media accessible to the paired profile.
+- Record the target SDK and the resulting local-network permission behavior in M0. Android 16 uses `NEARBY_WIFI_DEVICES`; Android 17 (target SDK 37) uses `ACCESS_LOCAL_NETWORK` and blocks local network access by default. Do not declare the Android 17 permission when targeting SDK 36 or lower.
+- For an explicit cleartext origin, scope the allowance as narrowly as the platform allows and record the tradeoff. Never let a cleartext allowance weaken certificate validation for HTTPS origins or send credentials to an unpaired destination.
 - Migrate the Room schema additively. Run an upgrade test with an existing download and saved place before shipping a schema change. A schema mismatch must never trigger silent deletion of the listening library.
 
 ## References
