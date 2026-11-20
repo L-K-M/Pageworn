@@ -46,7 +46,7 @@ Once the final page succeeds, use one Room transaction to check that this attemp
 | Ready | Play or resume, remove | A local session may start. Removal keeps the progress record. |
 | Repair needed | Repair download, remove | Stage a fresh generation. Preserve the saved book position. |
 
-Cancellation clears the unfinished generation and releases space. A repair attempt that fails must preserve any usable previously committed edition. Keep one transfer active at a time by default, queue additional books, and use a per-book uniqueness constraint to handle duplicate requests.
+Cancellation targets the current job ID. If cancellation commits first, the transfer remains cancelled across relaunch and its unfinished generation is reclaimed. If publication commits first, the book is Ready and the listener can remove it explicitly. A delayed Cancel command leaves the published edition and any later job intact. A repair attempt that fails must preserve any usable previously committed edition. Keep one transfer active at a time by default, queue additional books, and use a per-book uniqueness constraint to handle duplicate requests.
 
 ### Safe continuation across routes
 
