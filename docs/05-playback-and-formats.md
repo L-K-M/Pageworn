@@ -10,7 +10,7 @@ Use Android speech audio attributes, audio focus and standard media-session faci
 
 Convert server seconds to 64-bit milliseconds once at import, rounding to the nearest millisecond. Order tracks by the server’s playable sequence. Prefer its valid book-relative offsets and cross-check with file durations. When offsets are missing, construct contiguous starts from the ordered verified durations. Normalize rounding discrepancies of a few milliseconds consistently. Investigate material gaps, overlaps or unknown duration using the downloaded files before publishing.
 
-Use half-open intervals `[start, end)`. An internal boundary belongs to the following track or chapter. The book end is a distinct finished state. A global seek maps to the track containing the requested position and a track-local offset. For a chapter-relative seek, add the chapter start before mapping. A player timestamp becomes the saved book position by adding the active track start. Clamp all external seek requests to the edition’s duration. The same mapping resolves every timer and scrubber decision: a boundary callback at an interval edge selects the following track or chapter at offset zero and commits that edge as the saved position.
+Use half-open intervals `[start, end)`. An internal boundary belongs to the following track or chapter. The book end is a distinct finished state. A global seek maps to the track containing the requested position and a track-local offset. For a chapter-relative seek, add the chapter start before mapping. A player timestamp becomes the saved book position by adding the active track start. Clamp all external seek requests to the edition’s duration. The same mapping resolves every timer and scrubber decision: a boundary callback at an internal interval edge selects the following track or chapter at offset zero and commits that edge as the saved position.
 
 | Example fixture | Value |
 |---|---|
@@ -24,9 +24,9 @@ In this fixture, chapter 2 at +40 s is book position **115 s**, or **25 s into t
 
 ## Chapter map and fallback
 
-1. Use book-level Audiobookshelf chapters first, but validate them against the published edition before storing: drop intervals outside `[0, duration]`, drop empty intervals, trim overlapping ends to the next start, deduplicate identical starts, and clamp a missing or overflowing end to the book end. This preserves chapter edits made on the server while keeping a stale or malformed server list from breaking navigation or the sleep timer. Store the validated map in the local edition so navigation works without a network.
-2. When the validated server chapter list is empty or unusable, import valid embedded chapter markers if available. Convert per-file times to absolute times, then apply the same validation: normalize, deduplicate, drop empty or out-of-range intervals, and trim overlapping ends. Keep available titles. Fill a missing title with “Chapter 1”, “Chapter 2”, and so on.
-3. Tolerate missing end times by using the next valid start or the book end. Preserve uncovered audio as a navigable segment: label audio before the first chapter “Opening” and gaps between chapters “Interlude”. Never merge uncovered audio into a neighboring chapter. Never combine server and embedded markers when the validated server map is usable.
+1. Use book-level Audiobookshelf chapters first, but validate them against the edition’s verified duration before storing: drop intervals that start outside `[0, duration)`, drop empty intervals, trim overlapping ends to the next start, deduplicate identical starts, and clamp an overflowing end to the book end. This preserves chapter edits made on the server while keeping a stale or malformed server list from breaking navigation or the sleep timer. Store the validated map in the local edition so navigation works without a network.
+2. When the validated server chapter list is empty or unusable, import valid embedded chapter markers if available. Convert per-file times to absolute times, normalize them, and apply the same validation as step 1. Keep available titles. Fill a missing title with “Chapter 1”, “Chapter 2”, and so on.
+3. Tolerate missing end times by using the next valid start or the book end. Preserve uncovered audio as a navigable segment: label audio before the first chapter “Opening” and any later gap “Interlude”. Never merge uncovered audio into a neighboring chapter. Never combine server and embedded markers when the validated server map is usable.
 4. If markers are unavailable, list a multi-file book as **Tracks** using track titles or ordinals. For a single file show a whole-book timeline. Offer **End of track** or **End of book** in the corresponding sleep sheet. Never display invented chapter titles as author-supplied metadata.
 
 ## Media format acceptance
@@ -54,17 +54,17 @@ For each row, record a redistributable or generated fixture ID, extension, conta
 - Start new books at zero and resumed books at the stored global offset. Support 15-second rewind, 30-second advance, Play/Pause, whole chapter selection, and the chapter scrubber. Clamp skips at the book edges. The slider spans the book when it has no chapter or track divisions.
 - Provide 0.75×, 1×, 1.25×, 1.5×, 1.75× and 2×. Persist the last selected speed. Progress stays in media time at all speeds. Sleep duration uses elapsed wall time.
 - Persist on explicit seek, pause and other checkpoints in the [storage contract](03-android-and-data.md). The maximum intended loss after unexpected process death during continuous playback is five seconds on the book timeline at every supported speed, plus the measured seek error when playback resumes. A deliberate pause or completed seek should resume within the format’s measured seek tolerance.
-- Mark finished on natural end or an explicit seek to book end. Listening to an intermediate chapter end continues into the next chapter unless a timer requests a pause. Replay resets position and finished status through one transaction.
+- Mark finished on natural end, an explicit seek to book end, or a sleep stop at book end. Listening to an intermediate chapter end continues into the next chapter unless a timer requests a pause. Replay resets position and finished status through one transaction.
 
 ## Playback failure handling
 
 A decoder, demuxer or read failure during playback is distinct from a damaged edition found before opening. When a track cannot be initialized, decoded or read:
 
-- Pause at the last successfully decoded checkpoint and persist that book position. The loss stays within the normal checkpoint interval; never advance into the following chapter or track.
+- Pause at the last successfully decoded checkpoint and persist that book position. The loss stays within five seconds of book time at every supported speed, plus the measured seek error when playback resumes. Never advance into the following chapter or track.
 - Set the edition to **Repair needed** while leaving its saved place, duration snapshot and finished flag unchanged. Do not mark the book finished.
-- Never fall back to a server stream or hide the item. Surface the actionable explanation from the interface table.
+- Never fall back to a server stream or hide the item. Surface the “Audio stopped during playback” copy from the [product brief](01-product.md).
 - A transient read error may be retried once from the same position. Unsupported codecs and DRM-protected files keep the existing format rules and preserve the place.
-- After repair or re-download, restore the saved position when the timeline still matches; otherwise use the previous-position choice required for materially changed audio.
+- After repair or re-download, restore the saved position when the edition fingerprint still matches. Otherwise use the previous-position choice required for materially changed audio.
 
 ## Sleep behavior
 
@@ -74,11 +74,11 @@ A decoder, demuxer or read failure during playback is distinct from a damaged ed
 | Start end-of-chapter sleep | Capture the current chapter’s absolute end, clamped to the edition duration. Configure an engine boundary callback or clipped playback boundary. Use the same timeline as seek and progress. A UI polling timer cannot own the stop. |
 | Timer fires | Pause, cancel any auto-resume, flush progress, clear the timer, update the session and UI. For chapter mode commit the exact boundary. Do not play an audible chunk of the next chapter. |
 | Listener pauses or gets a call | Timed mode keeps its original wall-clock deadline. Expiry while paused prevents interruption recovery from starting playback. Chapter mode stays armed while paused on the same book. |
-| Listener seeks | A timed deadline stays fixed. A chapter timer retargets to the end of the destination chapter and updates its label. Natural progression leaves the original end armed. |
+| Listener seeks | A timed deadline stays fixed. A chapter or track timer retargets to the end of the destination chapter or track and updates its label. Natural progression leaves the original end armed. |
 | Listener changes mode, book or explicitly stops | Changing mode atomically replaces the previous timer. Switching book, reaching book end or explicitly stopping clears it. |
-| Expiry lands exactly on a track or chapter boundary | Commit the boundary position and stop before any audio from the following interval. No audible cue from the next track or chapter plays. |
-| End-of-track sleep armed near a track end | Stop exactly at the track boundary, commit it, and leave the book unfinished. The next play continues into the following track. |
-| End-of-chapter sleep armed for the final chapter | Pause at book end, mark the book finished, clear the timer, and do not arm a next chapter. |
+| Expiry lands exactly on an internal track or chapter boundary | Commit the boundary position and stop before any audio from the following interval. No audible cue from the next track or chapter plays. |
+| End-of-track sleep armed near a track end | Stop exactly at the track boundary and commit it. When another track follows, the book stays unfinished and the next play continues into that track. |
+| End-of-chapter sleep armed for the final chapter, or End of book | Pause at book end, mark the book finished, clear the timer, and do not arm a next chapter. |
 | Process dies | Playback stops. Restore the last durable position in a paused state on relaunch and clear the stale sleep request. Moving between activity screens leaves the service timer intact. |
 
 ## References

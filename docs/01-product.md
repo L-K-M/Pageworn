@@ -9,9 +9,9 @@ A listener leaves home halfway through an audiobook. On the train they open Page
 | Requirement | Observable behavior |
 |---|---|
 | Android only, one listening client | The app works with one account on one server. Two server addresses open the same catalog, downloads and resume positions. |
-| Library | Browse authorized audiobook libraries, search by title or author in the selected library, open details, and download. Remember the chosen library per profile and show a selector when several exist; an account with zero book libraries shows an explicit empty state. Cache the most recently refreshed catalog. |
+| Library | Browse authorized audiobook libraries, search by title or author in the selected library, open details, and download. Remember the chosen library per profile and show a selector when several exist; an account with no accessible book libraries shows an explicit empty state. Cache the most recently refreshed catalog. |
 | Downloaded | Open, play, inspect, or remove completed books in airplane mode. Show active, waiting, and failed transfers in a separate downloads-in-progress group. |
-| Download-only playback | The player accepts a locally committed book. A tap on a remote book opens details with **Download**. Partial transfers offer progress, pause, resume and cancel. |
+| Download-only playback | The player accepts a locally committed book. A tap on a remote book’s cover opens details with **Download**. Partial transfers offer progress, pause, resume and cancel. |
 | Progress by book | Keep an independent position for every book on this device. Survive app death, a switch to another book, address changes, and removal and re-download of the same edition. |
 | Format and chapter coverage | Play single- and multi-file audiobooks including unusual formats. Use the book’s chapter map across file boundaries. A book without chapter marks remains playable. |
 | Sleep | Offer 15, 30, 45 and 60 minutes, end of chapter, and off. Expiry pauses and saves the position. |
@@ -28,9 +28,9 @@ Pageworn v1 serves audiobooks. Ebooks, podcasts, streaming, remote playback, cro
 
 ## Launch and state priorities
 
-- First install opens connection setup. With a saved profile, remember the last main section. If the catalog is unreachable and local books exist, a cold launch opens Downloaded; if no local books exist, it opens connection setup showing the unreachable-server state with Retry. Downloaded always renders from local state alone — a network probe never blocks, delays or replaces the local list.
+- First install opens connection setup. With a saved profile, remember the last main section. If the catalog is unreachable and local books exist, a cold launch opens Downloaded. If it is unreachable and neither local books nor a cached catalog exist, the launch opens connection setup showing the unreachable-server state with Retry. Downloaded always renders from local state alone. A network probe never blocks, delays or replaces the local list.
 - A warm start preserves the current screen, scrolling position, and open player. Changing connectivity never takes the listener away from a book.
-- Sort Downloaded by last-listened time descending, then by download completion descending for never-played books, then by title and stable item ID. Keep finished books available until removed. Library defaults to title order and uses stable item IDs during refresh.
+- Sort Downloaded by last-listened time descending, then by download completion time descending for never-played books, then by title and stable item ID. Keep finished books available until removed. Library defaults to title order and uses stable item IDs during refresh.
 - Distinguish **Downloaded** (file availability) from **Finished** (reading progress). Both can be true. A listener can replay a finished book.
 - One profile owns one collection of local data. An expired login affects new network work. Opening a previously downloaded book requires no successful server request.
 
@@ -45,7 +45,7 @@ Pageworn v1 serves audiobooks. Ebooks, podcasts, streaming, remote playback, cro
 | Storage full | “More space is needed to finish this download.” Show required additional space when known. | Manage downloads or retry |
 | Audio removed locally | “Download removed. Your place is saved.” | Download again from details |
 | Damaged local copy | “This copy couldn’t be opened.” | Repair download, preserving progress |
+| Audio stopped during playback | “Playback paused at your last position.” | Repair download, preserving progress, or choose another book |
 | Notifications disabled | “Transfers and playback controls stay available in the app.” | Enable notifications, or use Downloaded |
-| Audio stopped during playback | “Playback paused at your last position.” | Repair the download, or choose another book |
 
 Implementation details and edge cases live in the [interface](02-interface.md), [transfer contract](04-server-and-downloads.md) and [playback contract](05-playback-and-formats.md).

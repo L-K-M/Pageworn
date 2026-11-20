@@ -29,7 +29,7 @@ Use a neutral `Image` or untinted `painterResource` for cloth, book art, key fac
 2. Give each destination a stable, equally wide tab slot with selectable **Tab** semantics and a minimum 48 dp target. Place `pw_tab_flax.png` in Library and `pw_tab_oxblood.png` in Downloaded. Keep the woven colors attached to the destinations.
 3. Size the fabric around 112–128 dp wide with its aspect ratio preserved. Conceal the top under the sheet. Draw the visible fishtail beyond the page edge. Vary the exposed length, about 44 dp for the inactive tab and 52 dp for the active tab. If space is tight, reduce the artwork width before reducing the tap target.
 4. Position live, centered labels in the visible rectangular area above the V. Use dark ink on flax and pale ink on red. Apply selected weight and an optional short pencil underline for extra selection contrast. Translate artwork and label together. Never translate the selection region.
-5. Draw 2–3 fine page edges and the sheet’s cast shadow over the upper ends of the cloth. Place the mini-player on the sheet above the seam. It consumes layout height so list items cannot disappear behind it.
+5. Draw 2–3 fine page edges and the sheet’s cast shadow over the upper ends of the cloth. When a book is loaded, place the mini-player on the sheet above the seam. It consumes layout height so list items cannot disappear behind it.
 
 ### Play, pause and skip
 

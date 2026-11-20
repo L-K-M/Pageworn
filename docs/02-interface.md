@@ -1,71 +1,90 @@
 # Interface and visual design
 
-## The physical references
+Pageworn should feel like opening a clothbound book. The listener sees the title of the section or the book immediately. The app name belongs in the launcher and Android’s system surfaces. In the app, place the section heading directly below the status inset. On the player, the only item above the cover is the collapse control.
 
-The cover is the visual anchor, the catalog reads like a printed book list, and an oxblood ribbon marks the listener’s place. All three carry information. Keep paper quiet under text. Let the book’s artwork supply most of the color.
+Use the [four mockups](07-screen-gallery.md) for appearance, the values below for layout, and the [asset guide](08-assets-and-implementation.md) for production layers. All sizes are Android dp unless marked sp. The target portrait composition is 390 × 844 dp. Adapt its proportions to the actual window.
 
-| Material | Where it appears | How to render it |
+## Material, meaning and placement
+
+| Element | Material | Function |
 |---|---|---|
-| Book cloth | Cover fallback and the narrow binding edge of the player cover | Deterministic cloth color derived from the book ID. A low-opacity, bundled tile and a narrow spine fold. Use the book title and author as the cover lettering. |
-| Paper | Lists, details and chapter sheets | Flat warm surface behind text. A fine rule divides rows. Apply grain only to empty margins or decorative areas, at roughly 2% opacity. |
-| Binding and page edges | Large cover in details and player | Preserve original art aspect ratio and letterbox with its cloth color. Add a 2 dp page edge and a soft shadow at large sizes. Small thumbnails use a single outline. |
-| Place ribbon | In-progress book and selected chapter | A short notched ribbon in the cover margin, paired with a text position. Reserve the ribbon shape for saved position. Use a check with a text label for downloads. |
+| Page | Quiet warm paper, dark charcoal stock at night | Reading surface. Titles, metadata and controls sit directly on it. |
+| Hardcover | Illustrated cover art, a shallow spine crease, lightly raised edge | Identifies the book consistently in a row, mini-player and full player. |
+| Place ribbon | Narrow oxblood tail emerging from the lower edge near the book spine | Indicates a saved position. Pair it with chapter or elapsed-time text. |
+| Destination bookmarks | Two wide woven tabs over a green cloth binding | Switch between Library and Downloaded. The selected tab hangs lower. |
+| Playback keys | Oxblood domed face in a brass rim, smaller ivory skip keys | Direct audio controls. The inlay identifies the action performed on tap. |
+| Marks on paper | Dark graphite by day, warm ivory pencil by night | Settings, search, collapse, speed, chapters, sleep and small status/action icons. |
 
-## Design tokens
+Keep the three depths consistent. Pencil sits flush with the sheet, ribbon disappears *behind* the sheet, and a key stands slightly proud of it. In the artwork a tiny shadow falls below each key or book. Keep the rest of the page quiet.
+
+## Type, color and layout
 
 | Role | Day | Night |
 |---|---|---|
-| Main surface | Parchment `#F3EBD9` | Charcoal `#201C19` |
-| Raised surface | Warm ivory `#FAF5E9` | Binding `#29231F` |
-| Main text | Brown ink `#30251E` | Pale paper `#F2E7D4` |
-| Secondary text | Sepia `#625243` | Faded linen `#C4B49F` |
-| Accent or focus outline | Oxblood `#833828` | Copper `#F0A489` |
-| Primary action text on filled accent | `#F3EBD9` | `#201C19` |
+| Main paper | `#F3EBD9` | `#201C19` |
+| Raised paper / sheet | `#FAF5E9` | `#29231F` |
+| Primary ink / pencil | `#30251E` | `#F2E7D4` |
+| Secondary ink | `#625243` | `#C4B49F` |
+| Interactive accent / focus | `#833828` | `#F0A489` |
+| Ink on filled accent | `#F3EBD9` | `#201C19` |
+| Cloth at foot of paper | Bottle green `#233831` | Deep green `#172722` |
 
-Use the system day/night preference initially. Primary ink on the main surface is about 12.6:1 by day and 13.8:1 by night. Verify the actual composited controls in both themes. Never place essential labels directly on arbitrary cover art.
+Use Spectral or a metrically checked Android serif fallback for section titles, book titles and ribbon labels. Use Roboto or the system sans for times, status and compact metadata. Suggested sizes are 32/38 sp for a screen heading, 24/30 for the player title, 18/24 for row titles, 16/22 for ribbon and utility labels, 14/20 for metadata. Use tabular numbers for moving time readouts if available. When bundling a font, include its redistribution license.
 
-- **Typography.** Use a bundled Spectral face for book titles and section headings, with Android serif as fallback. Use system Roboto for controls, authors and durations. Start with 30/36 sp for screen titles, 22/28 for a book heading, 17/24 for row titles, 16/24 for body, and 14/20 for secondary metadata. Bundle the font license if redistributing it.
-- **Geometry.** Use a 4 dp spacing grid. Compact margins are 16 dp, normal margins 24 dp. Put 12 dp between thumbnail and text. Use 4–8 dp corners on paper and covers. Reserve fully round shapes for the main transport button and slider thumb.
-- **Movement.** A press may darken or depress a control by 1 dp. Use a short crossfade when artwork arrives. Respect system animation scale. Page-turn animation is unnecessary for audio transport.
+Start on a 4 dp grid. Outer margins are 16–24 dp, cover-to-copy gap 12 dp, row height content-driven. A book thumbnail fits a 64–84 dp frame. Use original cover proportions within the frame. Distinct generated sample covers are provided for previews. Production rows use Audiobookshelf covers, or a blank cloth cover with a live title and author.
 
-## Navigation and screens
+## Header and navigation
 
-**Library** and **Downloaded** are the two persistent destinations. On phones, show them in a bottom bar. Stack the mini-player immediately above it while a book is loaded; before the first book is opened there is no mini-player and no reserved space for it. On wider windows use a labeled rail and a list/detail arrangement if both panes fit. The mini-player opens the full player. System Back closes a sheet, then the player or detail, then returns to its originating list. Preserve each list’s scroll and query state.
+**Library / Downloaded.** Put the destination heading first, with Settings in a 48 dp hit region on the same row. There is no separate brand row. Search sits below the Library heading. If the listener can access several libraries, expose the active library in a selector. While a book is loaded, the mini-player sits above the lower edge of the paper. Reserve its measured height so the last list item scrolls into view. Before the first book is opened there is no mini-player and no reserved space for it.
 
-| Screen | Reading order, top to bottom | Main interaction |
+**Binding at the foot of the screen.** Let the paper end just below the mini-player or list. Draw two or three 1 dp page edges, then a shallow cast shadow. Under those edges, reveal a 60–72 dp band of bottle-green bookcloth, above the system gesture inset. The woven bookmarks emerge from under the paper and over the cloth. Clip their tops to the paper seam. Their fishtail ends stay clear of system gestures.
+
+**Two permanent bookmarks.** Flax is always **Library**, on the leading side. Oxblood is always **Downloaded**, on the trailing side. In a left-to-right locale this puts Library on the left. Use two equal-width stationary selection regions. Render the fabric about 112–128 dp wide, with enough room for the localized label. In the resting position show about 44 dp of fabric. Move the selected tail and its label 8 dp farther out. Its hit region remains fixed. Expose the selected state to TalkBack. Give the selected label a slightly heavier weight so the state is clear even with reduced motion. Long text can wrap and increase the binding band height.
+
+A tab tap switches destinations immediately and animates the tail over about 140 ms. No pull gesture is required. Preserve scroll and search per destination. Hide the bottom binding on the full player, details and modal sheets; system Back returns to the originating screen. At wide sizes, keep tabs at the foot of the library pane and use the second pane for details when space permits.
+
+## Playback controls
+
+| Control | Face and mark | Interaction |
 |---|---|---|
-| Connection | Pageworn title, server address, optional label, Continue. Next show the verified address and sign-in fields. | Continue tests connectivity. Sign in pairs the first address. Surface invalid URL, certificate, unreachable host and rejected credentials separately. |
-| Library | Library heading and settings, library selector if needed, search, catalog rows, mini-player, navigation. | Tap a row to open details. Use an explicit trailing download action with a book-specific accessible name. Cached results show last refresh and an offline status. |
-| Downloaded | Downloaded heading, in-progress transfers when present, completed books, mini-player, navigation. | Completed rows show cover, title, author, chapter or time remaining, and Play or Resume. Transfer rows show status and their available actions. |
-| Book detail | Back, cover and title, author and optional narrator, total duration and size when known, primary action, expandable description, chapter list. | Primary action follows the download state. Before download, chapters are read-only. After download, a chapter tap opens the player at that chapter. |
-| Player | Collapse, artwork, book and chapter title, chapter scrubber with times, whole-book position, transport, Chapters and Sleep. | Large Play/Pause centered between rewind 15 seconds and forward 30 seconds. Show speed as a labeled control. Buttons remain reachable at large font sizes. |
-| Chapters | Heading, ordered list with chapter number, title, duration and current marker. | Tap to seek and dismiss. The current row exposes “Current chapter” to accessibility services. |
-| Sleep | Off, timed choices, End of chapter, active timer summary. | Choose a value to apply and dismiss. With a timer active show remaining time or the target chapter, plus Turn off. |
-| Speed | Current speed and the 0.75×, 1×, 1.25×, 1.5×, 1.75× and 2× choices. | Choose a speed to apply, persist it as the last selected speed, and dismiss. |
-| Server addresses | Settings entry, account, ordered address rows, active status, Add address, Automatic or chosen route. | Add, test, pair, rename, reorder or remove an alias. Provide Move up/down actions as an alternative to drag. Removing one alias preserves books. |
+| Full Play/Pause | 72 dp oxblood round key, fine antique-brass rim, ivory triangle or two bars | One tap toggles through the media controller. Draw Pause when audio is playing and Play when paused. |
+| Skip back / forward | Roughly 60 × 44 dp ivory key, dark engraved arrow and 15 / 30 numeral | Skip backward 15 s or forward 30 s. Clamp at the book edges. |
+| Row and mini-player Play/Pause | 30–36 dp oxblood key in at least a 48 dp hit region | Use the same icons and state source as the full player. |
+| Pause transfer | Small ivory key with dark pause bars, within the transfer row | Pauses this download. Accessible name includes the title and the word “download”. |
+| Lower utility row | 24–28 dp pencil mark and a typeset label for Speed, Chapters or Sleep | Open accessible sheets. Speed displays the actual multiplier. Active sleep mode exposes its target or time remaining. |
 
-### Two reference compositions for the first design review
+On press, depress the face visually by about 1–2 dp, tighten its lower shadow, then release. Trigger one subtle haptic for an accepted transport tap when the user’s device settings allow it. Keep the glyph aligned with the key. Media-session callbacks govern the visible playing state. Audio focus loss, sleep expiry and notification actions must update all instances together.
 
-Use a 390 × 844 dp portrait canvas with normal font scale. Inset all interactive content from the system bars. These measurements are starting proportions for a Compose preview.
+For the player, center a cover around 200–224 dp on a regular-height phone. Below it place the live book title, author, chapter name, chapter slider, chapter elapsed/remaining, and whole-book elapsed/total. A visible thumb, adjustable semantics and ± controls make seeking discoverable. Then place the three transport keys, followed by the pencil utilities. Collapse artwork first on short screens. All control rows can scroll into view.
 
-**Downloaded, three books.** Set the word “Downloaded” flush left on paper with a 24 dp top inset. Start the first row 20 dp below it. Give each book a roughly 60 × 80 dp cover frame, a 12 dp text gutter, and enough height for a two-line title. For a partially listened book, use “Chapter 4 · 2 h 12 min left” under its author. Place its ribbon on the cover’s right edge and a single Resume control at the trailing edge. Under the next two books, use “New” and “Finished” respectively. Put the 64 dp mini-player directly above the tab bar, with reserved bottom space in the list. An empty shelf returns to the empty state rather than showing placeholders for books.
+## Pencil drawing system
 
-**Player, chapter timer active.** Use a roughly 216 dp square art frame near the top, with the actual cover contained within it. Put the book title and chapter beneath it. Preview the reference book at 115 s. Its chapter slider reads 0:40 elapsed and 0:25 remaining, the book label reads 1:55 of 3:30, and Sleep reads “End of chapter”. A listener can tell which time changes when they drag the slider. Use the same composition in a night preview with unfamiliar or missing art.
+Use a strong outline with slight variation in pressure, a soft graphite edge and very sparse hatching. The gear has a clear center hole, Chapters looks like a tiny open book, and Sleep is a hatched crescent. Keep the illustrations legible at icon size. The supplied PNGs carry alpha so the implementation can tint the strokes for either theme. Labels remain live type.
 
-### The player at phone size
+Change the speed drawing when playback speed changes. The supplied 1× image is for 1× only. Render other supported values as slightly oblique serif type at the same optical size, followed by the multiplication sign. Expose the exact value to assistive technology. The playback key symbols are ivory or dark inlays. Android’s own status and navigation indicators follow the operating system.
 
-Use 16–24 dp horizontal padding. Center the cover, bounded by both width and available height. Below it, place the chapter title directly above the slider. On one line show chapter elapsed at the left and chapter remaining at the right. On the next, use a plain book-wide label such as **Book · 2 h 14 min of 8 h 05 min**. Scrubbing previews the destination, releasing commits one seek. Previous/next chapter actions live in Chapters and may also appear when space allows.
+## Screens and states
 
-At short heights, shrink or hide decorative artwork first. Allow vertical scrolling while the primary transport remains reachable. At 200% text, let controls wrap and allow titles to grow. In landscape, place art to the side only when the controls retain their hit targets. A mini-player shows title, chapter and Play/Pause. Its body and transport are separate focusable controls.
+| Screen | Main content and states |
+|---|---|
+| Connect | Heading “Connect to server”, address and optional label, Continue, then account fields. Indicate invalid URL, certificate/identity mismatch, failed credentials, and unreachable address separately. The unreachable state offers Retry. |
+| Library | Heading, Settings, optional library selector, search, catalog rows. A remote book shows Download, or the download-disabled message when the account cannot download. A transfer shows progress, and a ready book offers a Play or Resume key and an accessible “Downloaded” state. Use the graphite check when showing completion without a playback action. A remote cover tap opens details. |
+| Downloaded | In-progress transfers first, followed by locally ready books. Show bytes for unknown totals. “New”, chapter/time remaining, “Finished”, and “Repair needed” distinguish local states. Airplane mode retains all local controls. |
+| Book detail | Back, cover, title, author/narrator, total duration and available size, primary stateful action, description and chapter list. Selecting a downloaded chapter starts local playback at its beginning. |
+| Player | Back/collapse, art, live title and chapter, time and controls. The chapter slider is book-wide only when the edition has a single undivided segment. |
+| Speed | 0.75×, 1×, 1.25×, 1.5×, 1.75× and 2×. Show one selected radio for the current speed. A choice applies on tap, persists as the last selected speed, and dismisses the sheet. |
+| Chapters | Ordered titles and durations. Pair a place marker with the current chapter’s accessible state. On activation seek and dismiss. |
+| Sleep | Off, 15/30/45/60 minutes, End of chapter. Show one selected radio. Display “End of track” or “End of book” for editions without chapter marks as applicable. Choices apply on tap. |
+| Server addresses | A setting to edit, pair, prioritize and test Home/Tailscale or other aliases. Include keyboard/TalkBack reorder actions. Changes to address selection preserve the local book identity. |
 
-### Component states and accessibility
+Catalog and transfer rows reflect the [download lifecycle](04-server-and-downloads.md#download-lifecycle): available, queued, transferring, waiting for connection, paused or recoverable failure, verifying, ready or repair needed. Pair an icon with state text, and never label a paused or waiting transfer as active.
 
-- A catalog row reflects the [download lifecycle](04-server-and-downloads.md): available, queued, transferring, waiting for connection, paused, verifying, ready or repair needed. Use an icon **and** state text, and never label a paused or waiting transfer as active. An indeterminate transfer shows “Downloading…” with bytes received. Show a percentage only with a known total.
-- Give every action at least a 48 × 48 dp touch area. The play button is 64 dp on the full player. Important controls require a visible focus state, a stable TalkBack label and a non-gesture alternative.
-- Expose slider range and position through accessibility semantics. Support adjustable steps, skip buttons and chapter selection. Avoid live announcements for every second of playback or percentage point of a transfer.
-- For the sleep sheet, announce the chosen mode once. For download completion, use one status announcement. Treat decorative fibers, shadows and ribbons as invisible to accessibility services when the adjacent label carries the meaning.
-- Test with TalkBack, switch or keyboard input, both themes, 200% font size, and reduced motion. Test 320 dp width and a short landscape viewport. The same tasks must work with all decorative textures disabled.
+## Accessibility and acceptance
 
-## References
+- Every action has at least a 48 × 48 dp target. Keep the mini-player body, its transport and the destinations independently focusable. TalkBack should announce e.g. “Downloaded, tab, selected”, “Pause The Night Orchard” and “Playback speed, 1.25 times”.
+- Use native headings, tab selection, radio groups, progress, range actions, disabled semantics and current values. Decorative art has no independent focus. A disabled key also has a readable reason where appropriate.
+- Default label/ground pairs target at least 4.5:1 for normal text. Verify meaningful control outlines and focus indicators at 3:1. Measure the final composite over textured cloth and paper as well as on flat tokens. Provide a stronger opaque text backing or flatter material in high-contrast mode when needed.
+- Check both themes at 320 dp width, short landscape and 200% text. Buttons remain reachable, labels may wrap, and the navigation area respects 3-button and gesture insets. Respect reduced motion and device haptic settings.
+- Visual review starts with the heading aligned to the Settings gear and the player cover directly below the collapse control. Any second line of app branding in the screen header is a regression.
 
-- [Android Compose accessibility defaults](https://developer.android.com/develop/ui/compose/accessibility/api-defaults)
+[Android Compose accessibility defaults](https://developer.android.com/develop/ui/compose/accessibility/api-defaults)

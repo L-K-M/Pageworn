@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "path_base": "docs/pageworn",
+  "path_base": "docs",
   "assets": [
     {
       "path": "art/controls/pw_forward_30.png",
