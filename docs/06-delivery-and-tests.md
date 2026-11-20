@@ -43,6 +43,8 @@ For M0, read [playback and formats](05-playback-and-formats.md). For M1 use the 
 | A14 | Run all format fixtures near the start and near 90% duration, on minimum and current Android targets | Decode, seek, resume, chapter fallback and reported duration pass. Target audible seek error ≤1 s on valid fixtures. Record any exception by format/device and leave coverage open until fixed. |
 | A15 | At 320 dp and 200% font, use TalkBack to download, play, choose a chapter, set sleep and remove a download | Controls retain unique names, logical focus order, 48 dp targets, visible state and reachable actions. Artwork can shrink while transport remains usable. |
 | A16 | Pull headphones, use notification Play/Pause, reopen from the mini-player, then replay a finished book | One session owns playback. Headphone removal pauses once. All surfaces agree on the state. Replay starts at zero. |
+| A04d | Remove the address serving a transfer during track B, then pair and enable a second address; separately disable every address | The job waits with partials intact, resumes through the new route, reconciles the file, and publishes one edition. With no route enabled it stays waiting instead of failing; re-enabling an address completes the book without duplicating audio. |
+| A05b | Serve a transient 5xx followed by success, then serve 403 on a later request | The transient failure retries with backoff and completes; the 403 ends the job immediately with the permission copy and produces no retry storm. |
 
 ## Verification and handoff
 
