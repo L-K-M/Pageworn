@@ -46,5 +46,6 @@ Pageworn v1 serves audiobooks. Ebooks, podcasts, streaming, remote playback, cro
 | Audio removed locally | “Download removed. Your place is saved.” | Download again from details |
 | Damaged local copy | “This copy couldn’t be opened.” | Repair download, preserving progress |
 | Notifications disabled | “Transfers and playback controls stay available in the app.” | Enable notifications, or use Downloaded |
+| Audio stopped during playback | “Playback paused at your last position.” | Repair the download, or choose another book |
 
 Implementation details and edge cases live in the [interface](02-interface.md), [transfer contract](04-server-and-downloads.md) and [playback contract](05-playback-and-formats.md).
