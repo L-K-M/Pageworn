@@ -1,0 +1,334 @@
+{
+  "schema_version": 1,
+  "path_base": "docs/pageworn",
+  "assets": [
+    {
+      "path": "art/controls/pw_forward_30.png",
+      "resource": "pw_forward_30",
+      "type": "png",
+      "role": "Composed mechanical key",
+      "pixel_width": 248,
+      "pixel_height": 138,
+      "transparent": true
+    },
+    {
+      "path": "art/controls/pw_pause.png",
+      "resource": "pw_pause",
+      "type": "png",
+      "role": "Composed mechanical key",
+      "pixel_width": 211,
+      "pixel_height": 216,
+      "transparent": true
+    },
+    {
+      "path": "art/controls/pw_play.png",
+      "resource": "pw_play",
+      "type": "png",
+      "role": "Composed mechanical key",
+      "pixel_width": 211,
+      "pixel_height": 216,
+      "transparent": true
+    },
+    {
+      "path": "art/controls/pw_rewind_15.png",
+      "resource": "pw_rewind_15",
+      "type": "png",
+      "role": "Composed mechanical key",
+      "pixel_width": 248,
+      "pixel_height": 138,
+      "transparent": true
+    },
+    {
+      "path": "art/controls/pw_transfer_pause.png",
+      "resource": "pw_transfer_pause",
+      "type": "png",
+      "role": "Composed mechanical key",
+      "pixel_width": 209,
+      "pixel_height": 216,
+      "transparent": true
+    },
+    {
+      "path": "art/demo/pw_cover_field_notes_on_rain.png",
+      "resource": "pw_cover_field_notes_on_rain",
+      "type": "png",
+      "role": "Fictional fixture cover",
+      "pixel_width": 627,
+      "pixel_height": 627,
+      "transparent": false
+    },
+    {
+      "path": "art/demo/pw_cover_glass_coast.png",
+      "resource": "pw_cover_glass_coast",
+      "type": "png",
+      "role": "Fictional fixture cover",
+      "pixel_width": 627,
+      "pixel_height": 627,
+      "transparent": false
+    },
+    {
+      "path": "art/demo/pw_cover_night_orchard.png",
+      "resource": "pw_cover_night_orchard",
+      "type": "png",
+      "role": "Fictional fixture cover",
+      "pixel_width": 627,
+      "pixel_height": 627,
+      "transparent": false
+    },
+    {
+      "path": "art/demo/pw_cover_small_hours.png",
+      "resource": "pw_cover_small_hours",
+      "type": "png",
+      "role": "Fictional fixture cover",
+      "pixel_width": 627,
+      "pixel_height": 627,
+      "transparent": false
+    },
+    {
+      "path": "art/graphite/pw_pencil_chapters.png",
+      "resource": "pw_pencil_chapters",
+      "type": "png",
+      "role": "Tintable pencil mask",
+      "pixel_width": 128,
+      "pixel_height": 128,
+      "transparent": true
+    },
+    {
+      "path": "art/graphite/pw_pencil_check.png",
+      "resource": "pw_pencil_check",
+      "type": "png",
+      "role": "Tintable pencil mask",
+      "pixel_width": 128,
+      "pixel_height": 128,
+      "transparent": true
+    },
+    {
+      "path": "art/graphite/pw_pencil_collapse.png",
+      "resource": "pw_pencil_collapse",
+      "type": "png",
+      "role": "Tintable pencil mask",
+      "pixel_width": 128,
+      "pixel_height": 128,
+      "transparent": true
+    },
+    {
+      "path": "art/graphite/pw_pencil_download.png",
+      "resource": "pw_pencil_download",
+      "type": "png",
+      "role": "Tintable pencil mask",
+      "pixel_width": 128,
+      "pixel_height": 128,
+      "transparent": true
+    },
+    {
+      "path": "art/graphite/pw_pencil_more.png",
+      "resource": "pw_pencil_more",
+      "type": "png",
+      "role": "Tintable pencil mask",
+      "pixel_width": 128,
+      "pixel_height": 128,
+      "transparent": true
+    },
+    {
+      "path": "art/graphite/pw_pencil_search.png",
+      "resource": "pw_pencil_search",
+      "type": "png",
+      "role": "Tintable pencil mask",
+      "pixel_width": 128,
+      "pixel_height": 128,
+      "transparent": true
+    },
+    {
+      "path": "art/graphite/pw_pencil_settings.png",
+      "resource": "pw_pencil_settings",
+      "type": "png",
+      "role": "Tintable pencil mask",
+      "pixel_width": 128,
+      "pixel_height": 128,
+      "transparent": true
+    },
+    {
+      "path": "art/graphite/pw_pencil_sleep.png",
+      "resource": "pw_pencil_sleep",
+      "type": "png",
+      "role": "Tintable pencil mask",
+      "pixel_width": 128,
+      "pixel_height": 128,
+      "transparent": true
+    },
+    {
+      "path": "art/graphite/pw_pencil_speed_1x.png",
+      "resource": "pw_pencil_speed_1x",
+      "type": "png",
+      "role": "Tintable pencil mask",
+      "pixel_width": 128,
+      "pixel_height": 128,
+      "transparent": true
+    },
+    {
+      "path": "art/inlays/pw_inlay_back_15.png",
+      "resource": "pw_inlay_back_15",
+      "type": "png",
+      "role": "Mechanical key inlay",
+      "pixel_width": 112,
+      "pixel_height": 112,
+      "transparent": true
+    },
+    {
+      "path": "art/inlays/pw_inlay_back_15.xml",
+      "resource": "pw_inlay_back_15",
+      "type": "xml",
+      "role": "Mechanical key inlay",
+      "viewport": [
+        28,
+        28
+      ]
+    },
+    {
+      "path": "art/inlays/pw_inlay_forward_30.png",
+      "resource": "pw_inlay_forward_30",
+      "type": "png",
+      "role": "Mechanical key inlay",
+      "pixel_width": 112,
+      "pixel_height": 112,
+      "transparent": true
+    },
+    {
+      "path": "art/inlays/pw_inlay_forward_30.xml",
+      "resource": "pw_inlay_forward_30",
+      "type": "xml",
+      "role": "Mechanical key inlay",
+      "viewport": [
+        28,
+        28
+      ]
+    },
+    {
+      "path": "art/inlays/pw_inlay_pause.png",
+      "resource": "pw_inlay_pause",
+      "type": "png",
+      "role": "Mechanical key inlay",
+      "pixel_width": 112,
+      "pixel_height": 112,
+      "transparent": true
+    },
+    {
+      "path": "art/inlays/pw_inlay_pause.xml",
+      "resource": "pw_inlay_pause",
+      "type": "xml",
+      "role": "Mechanical key inlay",
+      "viewport": [
+        28,
+        28
+      ]
+    },
+    {
+      "path": "art/inlays/pw_inlay_play.png",
+      "resource": "pw_inlay_play",
+      "type": "png",
+      "role": "Mechanical key inlay",
+      "pixel_width": 112,
+      "pixel_height": 112,
+      "transparent": true
+    },
+    {
+      "path": "art/inlays/pw_inlay_play.xml",
+      "resource": "pw_inlay_play",
+      "type": "xml",
+      "role": "Mechanical key inlay",
+      "viewport": [
+        28,
+        28
+      ]
+    },
+    {
+      "path": "art/materials/pw_binding_cloth.png",
+      "resource": "pw_binding_cloth",
+      "type": "png",
+      "role": "Repeating material tile",
+      "pixel_width": 128,
+      "pixel_height": 128,
+      "transparent": false
+    },
+    {
+      "path": "art/materials/pw_paper_day.png",
+      "resource": "pw_paper_day",
+      "type": "png",
+      "role": "Repeating material tile",
+      "pixel_width": 128,
+      "pixel_height": 128,
+      "transparent": false
+    },
+    {
+      "path": "art/materials/pw_paper_night.png",
+      "resource": "pw_paper_night",
+      "type": "png",
+      "role": "Repeating material tile",
+      "pixel_width": 128,
+      "pixel_height": 128,
+      "transparent": false
+    },
+    {
+      "path": "art/skins/pw_cover_cloth.png",
+      "resource": "pw_cover_cloth",
+      "type": "png",
+      "role": "Unlabeled component skin",
+      "pixel_width": 447,
+      "pixel_height": 436,
+      "transparent": true
+    },
+    {
+      "path": "art/skins/pw_key_ivory_round.png",
+      "resource": "pw_key_ivory_round",
+      "type": "png",
+      "role": "Unlabeled component skin",
+      "pixel_width": 362,
+      "pixel_height": 374,
+      "transparent": true
+    },
+    {
+      "path": "art/skins/pw_key_ivory_skip.png",
+      "resource": "pw_key_ivory_skip",
+      "type": "png",
+      "role": "Unlabeled component skin",
+      "pixel_width": 418,
+      "pixel_height": 233,
+      "transparent": true
+    },
+    {
+      "path": "art/skins/pw_key_oxblood.png",
+      "resource": "pw_key_oxblood",
+      "type": "png",
+      "role": "Unlabeled component skin",
+      "pixel_width": 365,
+      "pixel_height": 374,
+      "transparent": true
+    },
+    {
+      "path": "art/skins/pw_place_ribbon.png",
+      "resource": "pw_place_ribbon",
+      "type": "png",
+      "role": "Unlabeled component skin",
+      "pixel_width": 48,
+      "pixel_height": 72,
+      "transparent": true
+    },
+    {
+      "path": "art/skins/pw_tab_flax.png",
+      "resource": "pw_tab_flax",
+      "type": "png",
+      "role": "Unlabeled component skin",
+      "pixel_width": 418,
+      "pixel_height": 300,
+      "transparent": true
+    },
+    {
+      "path": "art/skins/pw_tab_oxblood.png",
+      "resource": "pw_tab_oxblood",
+      "type": "png",
+      "role": "Unlabeled component skin",
+      "pixel_width": 418,
+      "pixel_height": 300,
+      "transparent": true
+    }
+  ]
+}
