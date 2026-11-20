@@ -2,13 +2,13 @@
 
 ## A profile can have several addresses
 
-The listener enters addresses explicitly. A Home address might be `https://books.home.example/audiobookshelf`. A Tailscale address might be `https://books.example-tailnet.ts.net/audiobookshelf`. Accept a port and a path prefix. Normalize scheme, host, port and trailing slash once. Preserve the prefix when constructing requests. Reject embedded credentials, fragments and query strings in base URLs.
+The listener enters addresses explicitly. A Home address might be `https://books.home.example/audiobookshelf`. A Tailscale address might be `https://books.example-tailnet.ts.net/audiobookshelf`. Accept a port and a path prefix. When the scheme is omitted, default to `https`; require an explicit choice before using `http`. Normalize lowercase scheme and host, default ports and a single trailing slash once. Preserve the prefix when constructing requests. Reject embedded credentials, fragments and query strings in base URLs.
 
 **Pairing.** On first sign-in, store the account ID and available stable server/library identifiers. Pair each additional address through its own sign-in and compare the authenticated account and server identity. If the target release exposes no stable server instance ID, compare the account ID and a known accessible library ID, display the match and ask the listener once to confirm the alias. A mismatch cannot become an automatic route. Keep each address’s authenticated session scoped to its exact origin and base path. An alternate address must never receive another address’s refresh token.
 
 **Automatic mode.** After a network change, select the first reachable, paired address in the listener’s priority order. Probe only when network work is requested. Use a short bounded timeout per address (initial target 1.5 seconds), reuse the working address on that network, and clear the cached choice when the network changes. A reachable Tailscale address works like any other configured route. This design does not need to read Wi-Fi names or manage the VPN. Manual mode pins a chosen route and names it in a connection error.
 
-**Transport and failures.** Prefer HTTPS with normal certificate validation. Support an explicitly enabled HTTP endpoint for installations that need it. Explain the cleartext tradeoff when pairing. Require a listener action to activate a cleartext route on a newly encountered network. Enforce the exact opt-in origin in the HTTP client even if Android needs an application-level cleartext allowance for runtime hosts. Restrict redirects to the approved origin and path. Never follow a TLS downgrade or send credentials to an unpaired destination.
+**Transport and failures.** Prefer HTTPS with normal certificate validation. Support an explicitly enabled HTTP endpoint for installations that need it. Explain the cleartext tradeoff when pairing and store the opt-in per origin rather than per network. Enforce the exact opt-in origin in the HTTP client even if Android needs an application-level cleartext allowance for runtime hosts. Restrict redirects to the approved origin and path. Never follow a TLS downgrade or send credentials to an unpaired destination.
 
 A timeout or disconnected network can trigger failover for a safe read or transfer. A certificate or identity mismatch disables that address and surfaces a specific error. Refresh a 401 once using the credentials for that origin. A 403 download denial is a permission decision and ends the request. On Android versions and target SDKs that require local-network permission, request it in context and explain which address needs it. Permission denial leaves Downloaded usable.
 
@@ -40,7 +40,7 @@ Use a non-admin test account with and without download permission. A Play tap on
 | Ready | Play or resume, remove | A local session may start. Removal keeps the progress record. |
 | Repair needed | Repair download, remove | Stage a fresh generation. Preserve the saved book position. |
 
-Cancellation clears the unfinished generation and releases space. A repair attempt that fails must preserve any usable previously committed edition. Keep one transfer active at a time by default, queue additional books, and use a per-book uniqueness constraint to handle duplicate requests.
+Cancellation clears the unfinished generation and releases space. A repair attempt that fails must preserve any usable previously committed edition. Keep one book transferring at a time by default and queue additional books. A per-book uniqueness constraint attaches duplicate requests for the same book to its existing job; a user-paused book yields the slot to the next queued book and resumes when the listener resumes it. Raising concurrency is an explicit later decision.
 
 ### Safe continuation across routes
 

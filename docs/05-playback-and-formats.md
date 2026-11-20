@@ -26,7 +26,7 @@ In this fixture, chapter 2 at +40 s is book position **115 s**, or **25 s into t
 
 1. Use valid book-level Audiobookshelf chapters first. This preserves chapter edits made on the server. Store the metadata in the local edition so navigation works without a network.
 2. When the server chapter list is absent or unusable, import valid embedded chapter markers if available. Convert per-file times to absolute times, then normalize and deduplicate. Keep available titles. Fill a missing title with “Chapter 1”, “Chapter 2”, and so on.
-3. Tolerate missing end times by using the next valid start or the book end. Drop empty or out-of-range intervals, and trim overlapping ends to the next start. Preserve uncovered audio as a navigable segment labeled “Opening” or “Interlude”. Prefer a usable server chapter map over combining duplicate server and embedded markers.
+3. Tolerate missing end times by using the next valid start or the book end. Drop empty or out-of-range intervals, and trim overlapping ends to the next start. Preserve uncovered audio as a navigable segment: label audio before the first chapter “Opening” and gaps between chapters “Interlude”. Never merge uncovered audio into a neighboring chapter. Prefer a usable server chapter map over combining duplicate server and embedded markers.
 4. If markers are unavailable, list a multi-file book as **Tracks** using track titles or ordinals. For a single file show a whole-book timeline. Offer **End of track** or **End of book** in the corresponding sleep sheet. Never display invented chapter titles as author-supplied metadata.
 
 ## Media format acceptance

@@ -15,6 +15,21 @@ Place this directory at `docs/pageworn/`. The documents use relative links and c
 | [05-playback-and-formats.md](05-playback-and-formats.md) | Book time, chapter navigation, format coverage, progress, and sleep |
 | [06-delivery-and-tests.md](06-delivery-and-tests.md) | Ordered milestones, fixtures, acceptance tests, and release criteria |
 
+## Working vocabulary
+
+The documents use these terms precisely. Server fields keep their Audiobookshelf names.
+
+| Term | Meaning |
+|---|---|
+| Book or item | One Audiobookshelf library item. Its identity is the server item ID. |
+| Track | One playable audio file in the server’s play order. A track may contain several chapters. |
+| File | One local audio file. A file stores one track. |
+| Chapter | A server or embedded navigation marker with an absolute book interval. |
+| Edition | One verified local generation of a book: files, timeline and chapter map. |
+| Generation | A staged revision of an edition, identified by a local ID. Only one generation is published at a time. |
+| Address or route | One normalized base URL (origin and path prefix) for the profile’s server. |
+| Profile | One local account on one server, rooted at a local UUID. |
+
 ## Starting an implementation session
 
 Read the product brief, then the first unfinished milestone in the delivery plan. Follow its links for implementation detail. Preserve the host repo’s existing conventions and build configuration where compatible. Product behavior takes precedence over example class names. Where Android or server behavior depends on a version, record the version and the observed result alongside the relevant test.
