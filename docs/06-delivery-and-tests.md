@@ -43,6 +43,7 @@ For M0, read [playback and formats](05-playback-and-formats.md). For M1 use the 
 | A14 | Run all format fixtures near the start and near 90% duration, on minimum and current Android targets | Decode, seek, resume, chapter fallback and reported duration pass. Target audible seek error ≤1 s on valid fixtures. Record any exception by format/device and leave coverage open until fixed. |
 | A15 | At 320 dp and 200% font, use TalkBack to download, play, choose a chapter, set sleep and remove a download | Controls retain unique names, logical focus order, 48 dp targets, visible state and reachable actions. Artwork can shrink while transport remains usable. |
 | A16 | Pull headphones, use notification Play/Pause, reopen from the mini-player, then replay a finished book | One session owns playback. Headphone removal pauses once. All surfaces agree on the state. Replay starts at zero. |
+| A17 | Give the boundary book a server chapter list containing an out-of-range interval, an overlap and a duplicate start; then remove the server list | The stored map matches the validated 210 s timeline, and end-of-chapter sleep clamps to the book end. Without a usable server list, embedded markers are imported and titled instead. |
 
 ## Verification and handoff
 

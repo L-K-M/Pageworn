@@ -24,9 +24,9 @@ In this fixture, chapter 2 at +40 s is book position **115 s**, or **25 s into t
 
 ## Chapter map and fallback
 
-1. Use valid book-level Audiobookshelf chapters first. This preserves chapter edits made on the server. Store the metadata in the local edition so navigation works without a network.
-2. When the server chapter list is absent or unusable, import valid embedded chapter markers if available. Convert per-file times to absolute times, then normalize and deduplicate. Keep available titles. Fill a missing title with “Chapter 1”, “Chapter 2”, and so on.
-3. Tolerate missing end times by using the next valid start or the book end. Drop empty or out-of-range intervals, and trim overlapping ends to the next start. Preserve uncovered audio as a navigable segment labeled “Opening” or “Interlude”. Prefer a usable server chapter map over combining duplicate server and embedded markers.
+1. Use book-level Audiobookshelf chapters first, but validate them against the published edition before storing: drop intervals outside `[0, duration]`, drop empty intervals, trim overlapping ends to the next start, deduplicate identical starts, and clamp a missing or overflowing end to the book end. This preserves chapter edits made on the server while keeping a stale or malformed server list from breaking navigation or the sleep timer. Store the validated map in the local edition so navigation works without a network.
+2. When the validated server chapter list is empty or unusable, import valid embedded chapter markers if available. Convert per-file times to absolute times, then apply the same validation: normalize, deduplicate, drop empty or out-of-range intervals, and trim overlapping ends. Keep available titles. Fill a missing title with “Chapter 1”, “Chapter 2”, and so on.
+3. Tolerate missing end times by using the next valid start or the book end. Preserve uncovered audio as a navigable segment labeled “Opening” or “Interlude”. Never combine server and embedded markers when the validated server map is usable.
 4. If markers are unavailable, list a multi-file book as **Tracks** using track titles or ordinals. For a single file show a whole-book timeline. Offer **End of track** or **End of book** in the corresponding sleep sheet. Never display invented chapter titles as author-supplied metadata.
 
 ## Media format acceptance
@@ -61,7 +61,7 @@ For each row, record a redistributable or generated fixture ID, extension, conta
 | Situation | Required result |
 |---|---|
 | Start a timed sleep | Store an elapsed-realtime deadline in the playback service. Display remaining minutes, updating from the clock. Screen lock and playback speed do not change the deadline. |
-| Start end-of-chapter sleep | Capture the current chapter’s absolute end. Configure an engine boundary callback or clipped playback boundary. Use the same timeline as seek and progress. A UI polling timer cannot own the stop. |
+| Start end-of-chapter sleep | Capture the current chapter’s absolute end, clamped to the edition duration. Configure an engine boundary callback or clipped playback boundary. Use the same timeline as seek and progress. A UI polling timer cannot own the stop. |
 | Timer fires | Pause, cancel any auto-resume, flush progress, clear the timer, update the session and UI. For chapter mode commit the exact boundary. Do not play an audible chunk of the next chapter. |
 | Listener pauses or gets a call | Timed mode keeps its original wall-clock deadline. Expiry while paused prevents interruption recovery from starting playback. Chapter mode stays armed while paused on the same book. |
 | Listener seeks | A timed deadline stays fixed. A chapter timer retargets to the end of the destination chapter and updates its label. Natural progression leaves the original end armed. |
