@@ -29,7 +29,7 @@ Treat server IDs as opaque strings. Use 64-bit integers for times in millisecond
 | BookProgress | Book key, absolute position, duration at save, edition fingerprint, finished flag, update time | Retained on transfer cancellation and audio removal. A new item with the same title has a different key. |
 | Playback settings | Last active book, chosen speed, last destination, theme preference if exposed | Lightweight preferences. A timed sleep request belongs to the active playback service. |
 
-Keep source metadata, credential material and display metadata separate. Avoid storing server absolute filesystem paths. Generate local paths from internal IDs and sanitized file extensions. Keep audio under persistent app-private storage, outside cache and OS backup. Exclude credentials and device-bound transfer state from backup. Cache artwork can be evicted. Copy a thumbnail into the committed edition so Downloaded still renders offline.
+Keep source metadata, credential material and display metadata separate. A published edition keeps the display metadata snapshotted at verification time, while Library rows always show the latest refreshed catalog — after a server-side metadata edit the two can differ until the edition is re-downloaded (see A11), and only re-downloaded audio, not a metadata edit, changes playback continuity. Avoid storing server absolute filesystem paths. Generate local paths from internal IDs and sanitized file extensions. Keep audio under persistent app-private storage, outside cache and OS backup. Exclude credentials and device-bound transfer state from backup. Cache artwork can be evicted. Copy a thumbnail into the committed edition so Downloaded still renders offline.
 
 ## Persistence and recovery rules
 
