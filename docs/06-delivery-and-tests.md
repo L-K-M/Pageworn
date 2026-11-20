@@ -28,6 +28,7 @@ For M0, read [playback and formats](05-playback-and-formats.md). For M1 use the 
 | ID | Arrange and act | Pass condition |
 |---|---|---|
 | A01 | Clean install, sign in, select a book library, find an item on page two | Results are complete after refresh. Only accessible audio items appear. Two equal titles remain independent. |
+| A01b | Cache two pages of library A and one page of B. Change A on the server, fail its second page during refresh, then reopen offline. Next, delay that page during a retry and let a newer refresh of A publish an empty result first. | After failure, browsing and title/author search show the original A with its old refresh time. After the empty refresh, A stays empty even when the delayed page arrives. B, a downloaded A book and its saved place survive both attempts. |
 | A02 | Pair two origins for one profile, then attempt pairing a different server/account | Valid aliases share all book data. Mismatch stays unpaired. A request recorder sees each credential only at its paired origin and prefix. |
 | A03 | Deny a download, expire a token, then make the server unreachable | 403 never starts a transfer. Concurrent 401s trigger one refresh per origin. Previously downloaded books open while the server is unavailable. |
 | A04 | Tap Download twice, interrupt it halfway through track B, move from LAN to Tailscale | One job publishes one edition. Verified track A is reused. B resumes only with a matching validator and byte range, otherwise restarts cleanly. |
