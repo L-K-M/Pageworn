@@ -53,6 +53,8 @@ For M0, read [playback and formats](05-playback-and-formats.md). For M1 use the 
 | A23 | Inspect captured network diagnostics, a backup snapshot and a Room upgrade from a previous schema | Diagnostics redact credentials, URL queries and filenames. Backups exclude credentials, media and device-bound transfer state. The upgrade preserves downloads, editions and saved positions. |
 | A24 | Play a chapterless single-file book and a chapterless multi-file book | The single-file book shows one whole-book timeline. The multi-file book lists Tracks with titles or ordinals and offers End of track and End of book. Both seek and sleep work. |
 | A25 | With several libraries, search by title and by author, and open a mixed-media item | Only accessible audio items appear; the mixed-media item appears only when it has playable tracks. Search matches title and author in the selected library. Zero and several libraries both resolve. |
+| A26 | During connection setup, enter an invalid URL, an unreachable host, a certificate failure and wrong credentials | Each condition surfaces its own message, no partial profile is created, and a later valid sign-in still succeeds. |
+| A27 | With one active, one waiting and one failed transfer plus one completed book, open Downloaded and pause the active transfer | Transfers appear in a separate in-progress group with status and the actions that state allows; completed books stay below. A paused transfer never shows as active. |
 
 ## Coverage map
 
@@ -70,6 +72,8 @@ Every release-scope requirement needs at least one acceptance case. A requiremen
 | Launch and state priorities | A17 |
 | Sort and replay | A18 |
 | Diagnostics, keys and backups | A23 |
+| Connection and setup errors | A26 |
+| Transfer grouping and row states | A27 |
 
 ## Open questions to close in M0
 
