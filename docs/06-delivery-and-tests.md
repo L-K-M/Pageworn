@@ -55,6 +55,7 @@ For M0, read [playback and formats](05-playback-and-formats.md). For M1 use the 
 | A16 | Pull headphones, use notification Play/Pause, reopen from the mini-player, then replay a finished book | One session owns playback. Headphone removal pauses once. All surfaces agree on the state. Replay starts at zero. |
 | A16b | Fresh install with notifications denied: enqueue a download, background the app, finish it, then play a completed book | The transfer finishes and its state and actions stay reachable in Downloaded without a notification; local playback controls work. Granting the permission later makes the completion notification appear. |
 | A16c | Trigger playback from the background on a build that restricts foreground-service starts | No crash or silent stall. Either the user's action starts audible playback or the in-app state remains accurate when the listener returns. |
+| A17 | Give the boundary book a server chapter list containing an out-of-range interval, an overlap and a duplicate start; then remove the server list | The stored map matches the validated 210 s timeline, and end-of-chapter sleep clamps to the book end. Without a usable server list, embedded markers are imported and titled instead. |
 
 ## Verification and handoff
 
