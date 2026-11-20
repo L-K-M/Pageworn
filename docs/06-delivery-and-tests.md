@@ -43,6 +43,8 @@ For M0, read [playback and formats](05-playback-and-formats.md). For M1 use the 
 | A14 | Run all format fixtures near the start and near 90% duration, on minimum and current Android targets | Decode, seek, resume, chapter fallback and reported duration pass. Target audible seek error ≤1 s on valid fixtures. Record any exception by format/device and leave coverage open until fixed. |
 | A15 | At 320 dp and 200% font, use TalkBack to download, play, choose a chapter, set sleep and remove a download | Controls retain unique names, logical focus order, 48 dp targets, visible state and reachable actions. Artwork can shrink while transport remains usable. |
 | A16 | Pull headphones, use notification Play/Pause, reopen from the mini-player, then replay a finished book | One session owns playback. Headphone removal pauses once. All surfaces agree on the state. Replay starts at zero. |
+| A16b | Fresh install with notifications denied: enqueue a download, background the app, finish it, then play a completed book | The transfer finishes and its state and actions stay reachable in Downloaded without a notification; local playback controls work. Granting the permission later makes the completion notification appear. |
+| A16c | Trigger playback from the background on a build that restricts foreground-service starts | No crash or silent stall. Either the user's action starts audible playback or the in-app state remains accurate when the listener returns. |
 
 ## Verification and handoff
 
