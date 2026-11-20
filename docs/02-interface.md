@@ -30,7 +30,7 @@ Use the system day/night preference initially. Primary ink on the main surface i
 
 ## Navigation and screens
 
-**Library** and **Downloaded** are the two persistent destinations. On phones, show them in a bottom bar. Stack the mini-player immediately above it. On wider windows use a labeled rail and a list/detail arrangement if both panes fit. The mini-player opens the full player. System Back closes a sheet, then the player or detail, then returns to its originating list. Preserve each list’s scroll and query state.
+**Library** and **Downloaded** are the two persistent destinations. On phones, show them in a bottom bar. Stack the mini-player immediately above it while a book is loaded; before the first book is opened there is no mini-player and no reserved space for it. On wider windows use a labeled rail and a list/detail arrangement if both panes fit. The mini-player opens the full player. System Back closes a sheet, then the player or detail, then returns to its originating list. Preserve each list’s scroll and query state.
 
 | Screen | Reading order, top to bottom | Main interaction |
 |---|---|---|
@@ -41,6 +41,7 @@ Use the system day/night preference initially. Primary ink on the main surface i
 | Player | Collapse, artwork, book and chapter title, chapter scrubber with times, whole-book position, transport, Chapters and Sleep. | Large Play/Pause centered between rewind 15 seconds and forward 30 seconds. Show speed as a labeled control. Buttons remain reachable at large font sizes. |
 | Chapters | Heading, ordered list with chapter number, title, duration and current marker. | Tap to seek and dismiss. The current row exposes “Current chapter” to accessibility services. |
 | Sleep | Off, timed choices, End of chapter, active timer summary. | Choose a value to apply and dismiss. With a timer active show remaining time or the target chapter, plus Turn off. |
+| Speed | Current speed and the 0.75×, 1×, 1.25×, 1.5×, 1.75× and 2× choices. | Choose a speed to apply, persist it as the last selected speed, and dismiss. |
 | Server addresses | Settings entry, account, ordered address rows, active status, Add address, Automatic or chosen route. | Add, test, pair, rename, reorder or remove an alias. Provide Move up/down actions as an alternative to drag. Removing one alias preserves books. |
 
 ### Two reference compositions for the first design review
