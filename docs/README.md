@@ -46,7 +46,7 @@ Read the product brief, then the first unfinished milestone in the delivery plan
 
 ### First prompt for a coding agent
 
-> Read `docs/README.md`, `docs/01-product.md`, and milestone M0 in `docs/06-delivery-and-tests.md`. Inspect this repo. Implement M0 and run its checks. Use the fixture timelines in `docs/05-playback-and-formats.md`. Report the files changed, the checks run, and any real-device or server checks still outstanding. Leave later milestones for subsequent changes.
+> Read `docs/README.md`, `docs/01-product.md`, and milestone M0 in `docs/06-delivery-and-tests.md`, including its build and test baseline. Inspect this repo. Implement M0 and run its checks. Use the fixture timelines in `docs/05-playback-and-formats.md`. Report the files changed, the checks run, and any real-device or server checks still outstanding. Leave later milestones for subsequent changes.
 
 ### Prompt for a visual implementation session
 

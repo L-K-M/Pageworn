@@ -28,7 +28,7 @@ Pageworn v1 serves audiobooks. Ebooks, podcasts, streaming, remote playback, cro
 
 ## Launch and state priorities
 
-- First install opens connection setup. With a saved profile, remember the last main section. If the catalog is unreachable and local books exist, a cold launch opens Downloaded. If it is unreachable and neither local books nor a cached catalog exist, the launch opens connection setup showing the unreachable-server state with Retry. Downloaded always renders from local state alone. A network probe never blocks, delays or replaces the local list.
+- First install opens connection setup. With a saved profile, remember the last main section. If the catalog is unreachable and local books exist, a cold launch opens Downloaded. If it is unreachable and neither local books nor a cached catalog exist, the launch opens connection setup showing the unreachable-server state with Retry, or the local-network copy when a denied permission blocks a paired address. Downloaded always renders from local state alone. A network probe never blocks, delays or replaces the local list.
 - A warm start preserves the current screen, scrolling position, and open player. Changing connectivity never takes the listener away from a book.
 - Sort Downloaded by last-listened time descending, then by download completion time descending for never-played books, then by title and stable item ID. Keep finished books available until removed. Library defaults to title order and uses stable item IDs during refresh.
 - Distinguish **Downloaded** (file availability) from **Finished** (reading progress). Both can be true. A listener can replay a finished book.
@@ -46,6 +46,9 @@ Pageworn v1 serves audiobooks. Ebooks, podcasts, streaming, remote playback, cro
 | No search results | “No books match your search.” | Clear the search |
 | No reachable address | “Can’t reach your server.” Show the last successful refresh if available. | Retry or open Downloaded |
 | Local network access denied | “Allow local network access to reach [address label].” | Allow access, or use another address |
+| Server too old | “This server needs Audiobookshelf 2.26 or later.” | Update the server, then try again |
+| Password sign-in unavailable | “This server doesn’t offer password sign-in.” | Enable password sign-in on the server, then try again |
+| Server sent no audio | “The server sent no audio for this download.” | Check the server’s file delivery, then retry |
 | Session expired | “Sign in to refresh your library.” | Sign in to the affected address |
 | Download permission missing | “This account can browse this book. Downloads are disabled.” | Back to Library, or Retry a transfer that the denial stopped |
 | Storage full | “More space is needed to finish this download.” Show required additional space when known. | Manage downloads or retry |
