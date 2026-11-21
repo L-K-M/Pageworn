@@ -1,0 +1,1022 @@
+{
+  "fixtures": [
+    {
+      "alternate_chapter_lists": {
+        "A28": [
+          [
+            0,
+            75
+          ],
+          [
+            75,
+            150
+          ],
+          [
+            140,
+            300
+          ],
+          [
+            140,
+            300
+          ],
+          [
+            250,
+            300
+          ]
+        ],
+        "A28b": [
+          [
+            30,
+            75
+          ],
+          [
+            100,
+            150
+          ]
+        ]
+      },
+      "command": "ffmpeg -hide_banner -loglevel error -y -i .work/boundary-book-a.wav -c:a aac -b:a 64k -movflags +faststart -fflags +bitexact -flags:a +bitexact assets/fixtures/boundary-book/01-track-a.m4a && ffmpeg -hide_banner -loglevel error -y -i .work/boundary-book-b.wav -c:a aac -b:a 64k -movflags +faststart -fflags +bitexact -flags:a +bitexact assets/fixtures/boundary-book/02-track-b.m4a",
+      "cues": [
+        {
+          "at_ms": 30250,
+          "freq_hz": 700
+        },
+        {
+          "at_ms": 75250,
+          "freq_hz": 900
+        },
+        {
+          "at_ms": 90250,
+          "freq_hz": 1100
+        },
+        {
+          "at_ms": 100250,
+          "freq_hz": 1300
+        },
+        {
+          "at_ms": 140250,
+          "freq_hz": 1500
+        },
+        {
+          "at_ms": 150250,
+          "freq_hz": 1700
+        }
+      ],
+      "files": [
+        {
+          "codec": "aac",
+          "container": "mov,mp4,m4a,3gp,3g2,mj2",
+          "duration_ms": 90000,
+          "extension": "m4a",
+          "name": "01-track-a.m4a",
+          "sample_rate": 44100,
+          "sha256": "e317ffb7c102a8015917d7bc700e54edf281ced42cb9c48062525bb74a8df58e",
+          "size_bytes": 739408
+        },
+        {
+          "codec": "aac",
+          "container": "mov,mp4,m4a,3gp,3g2,mj2",
+          "duration_ms": 120000,
+          "extension": "m4a",
+          "name": "02-track-b.m4a",
+          "sample_rate": 44100,
+          "sha256": "1dc881ac483a61706fee70ae7506c455ca2d74b1ad035335cfef9458d49fd3f3",
+          "size_bytes": 986922
+        }
+      ],
+      "id": "boundary-book",
+      "nominal_duration_ms": 210000,
+      "server_chapters": [
+        {
+          "end": 75,
+          "start": 0,
+          "title": "Chapter One"
+        },
+        {
+          "end": 140,
+          "start": 75,
+          "title": "Chapter Two"
+        },
+        {
+          "end": 210,
+          "start": 140,
+          "title": "Chapter Three"
+        }
+      ],
+      "status": "generated"
+    },
+    {
+      "command": "ffmpeg -hide_banner -loglevel error -y -i ../../docs/art/demo/pw_cover_night_orchard.png -vf scale=300:300 -c:v mjpeg -q:v 3 -fflags +bitexact -flags:a +bitexact .work/night-orchard-cover.jpg && ffmpeg -hide_banner -loglevel error -y -i .work/single-m4b.wav -i .work/single-m4b-metadata.txt -i .work/night-orchard-cover.jpg -map 0:a -map_metadata 1 -map 2:v -c:a aac -b:a 64k -c:v mjpeg -disposition:v attached_pic -movflags +faststart -fflags +bitexact -flags:a +bitexact assets/fixtures/single-m4b/book.m4b",
+      "cues": [
+        {
+          "at_ms": 100250,
+          "freq_hz": 700
+        },
+        {
+          "at_ms": 120250,
+          "freq_hz": 900
+        },
+        {
+          "at_ms": 200250,
+          "freq_hz": 1100
+        }
+      ],
+      "embedded_chapters": [
+        {
+          "end": 100,
+          "start": 0,
+          "title": "The Orchard Gate"
+        },
+        {
+          "end": 200,
+          "start": 100,
+          "title": "Under the Pear Tree"
+        },
+        {
+          "end": 300,
+          "start": 200,
+          "title": "Moonrise"
+        }
+      ],
+      "files": [
+        {
+          "codec": "aac",
+          "container": "mov,mp4,m4a,3gp,3g2,mj2",
+          "duration_ms": 300000,
+          "extension": "m4b",
+          "name": "book.m4b",
+          "sample_rate": 44100,
+          "sha256": "aa9dcdc1d0f536620da7001a69de56b4ac4d60340b385aade0d16cd1a3fbec4e",
+          "size_bytes": 2492735
+        }
+      ],
+      "id": "single-m4b",
+      "nominal_duration_ms": 300000,
+      "server_chapters_edited": [
+        {
+          "end": 120,
+          "start": 0,
+          "title": "Part One"
+        },
+        {
+          "end": 300,
+          "start": 120,
+          "title": "Part Two"
+        }
+      ],
+      "status": "generated"
+    },
+    {
+      "command": "ffmpeg -hide_banner -loglevel error -y -i .work/no-chapters-single.wav -c:a libmp3lame -b:a 96k -write_xing 1 -fflags +bitexact -flags:a +bitexact assets/fixtures/no-chapters-single/book.mp3",
+      "cues": [
+        {
+          "at_ms": 5250,
+          "freq_hz": 700
+        },
+        {
+          "at_ms": 135250,
+          "freq_hz": 900
+        }
+      ],
+      "files": [
+        {
+          "codec": "mp3",
+          "container": "mp3",
+          "duration_ms": 150000,
+          "extension": "mp3",
+          "name": "book.mp3",
+          "sample_rate": 44100,
+          "sha256": "c4f1b500c60a1b05fd2ec2337702bb11a9639411b785c33e9c7edf55a4235925",
+          "size_bytes": 1800901
+        }
+      ],
+      "id": "no-chapters-single",
+      "nominal_duration_ms": 150000,
+      "status": "generated"
+    },
+    {
+      "command": "ffmpeg -hide_banner -loglevel error -y -i .work/boundary-book-a.wav -c:a aac -b:a 64k -movflags +faststart -fflags +bitexact -flags:a +bitexact assets/fixtures/no-chapters-multi/01-part.m4a && ffmpeg -hide_banner -loglevel error -y -i .work/boundary-book-b.wav -c:a aac -b:a 64k -movflags +faststart -fflags +bitexact -flags:a +bitexact assets/fixtures/no-chapters-multi/02-part.m4a",
+      "cues": [
+        {
+          "at_ms": 30250,
+          "freq_hz": 700
+        },
+        {
+          "at_ms": 75250,
+          "freq_hz": 900
+        },
+        {
+          "at_ms": 90250,
+          "freq_hz": 1100
+        },
+        {
+          "at_ms": 100250,
+          "freq_hz": 1300
+        },
+        {
+          "at_ms": 140250,
+          "freq_hz": 1500
+        },
+        {
+          "at_ms": 150250,
+          "freq_hz": 1700
+        }
+      ],
+      "files": [
+        {
+          "codec": "aac",
+          "container": "mov,mp4,m4a,3gp,3g2,mj2",
+          "duration_ms": 90000,
+          "extension": "m4a",
+          "name": "01-part.m4a",
+          "sample_rate": 44100,
+          "sha256": "e317ffb7c102a8015917d7bc700e54edf281ced42cb9c48062525bb74a8df58e",
+          "size_bytes": 739408
+        },
+        {
+          "codec": "aac",
+          "container": "mov,mp4,m4a,3gp,3g2,mj2",
+          "duration_ms": 120000,
+          "extension": "m4a",
+          "name": "02-part.m4a",
+          "sample_rate": 44100,
+          "sha256": "1dc881ac483a61706fee70ae7506c455ca2d74b1ad035335cfef9458d49fd3f3",
+          "size_bytes": 986922
+        }
+      ],
+      "id": "no-chapters-multi",
+      "nominal_duration_ms": 210000,
+      "status": "generated"
+    },
+    {
+      "command": "ffmpeg -hide_banner -loglevel error -y -i .work/fmt-m4b-aac.wav -i .work/fmt-m4b-aac-metadata.txt -map 0:a -map_metadata 1 -f mp4 -c:a aac -b:a 64k -fflags +bitexact -flags:a +bitexact assets/fixtures/fmt-m4b-aac/sample.m4b",
+      "cues": [
+        {
+          "at_ms": 5250,
+          "freq_hz": 700
+        },
+        {
+          "at_ms": 54250,
+          "freq_hz": 900
+        }
+      ],
+      "embedded_chapters": [
+        {
+          "end": 30,
+          "start": 0,
+          "title": "Start"
+        },
+        {
+          "end": 60,
+          "start": 30,
+          "title": "Middle"
+        }
+      ],
+      "files": [
+        {
+          "codec": "aac",
+          "container": "mov,mp4,m4a,3gp,3g2,mj2",
+          "duration_ms": 60000,
+          "extension": "m4b",
+          "name": "sample.m4b",
+          "sample_rate": 44100,
+          "sha256": "25ffbbafb6dab7f725e5329cc238ec00d204a0fb50636dc8870fbf84b5d0a8d2",
+          "size_bytes": 493785
+        }
+      ],
+      "id": "fmt-m4b-aac",
+      "nominal_duration_ms": 60000,
+      "server_release_admitting_extension": "v2.38.0",
+      "status": "generated"
+    },
+    {
+      "command": "ffmpeg -hide_banner -loglevel error -y -i .work/fmt-m4a-aac.wav -f mp4 -c:a aac -b:a 64k -fflags +bitexact -flags:a +bitexact assets/fixtures/fmt-m4a-aac/sample.m4a",
+      "cues": [
+        {
+          "at_ms": 5250,
+          "freq_hz": 700
+        },
+        {
+          "at_ms": 54250,
+          "freq_hz": 900
+        }
+      ],
+      "files": [
+        {
+          "codec": "aac",
+          "container": "mov,mp4,m4a,3gp,3g2,mj2",
+          "duration_ms": 60000,
+          "extension": "m4a",
+          "name": "sample.m4a",
+          "sample_rate": 44100,
+          "sha256": "79edcd06ecac4c2cb7637e056bea30c66f4ef7c73a9aa54c674627d209c34d74",
+          "size_bytes": 493133
+        }
+      ],
+      "id": "fmt-m4a-aac",
+      "nominal_duration_ms": 60000,
+      "server_release_admitting_extension": "v2.38.0",
+      "status": "generated"
+    },
+    {
+      "command": "ffmpeg -hide_banner -loglevel error -y -i .work/fmt-m4a-alac.wav -f mp4 -c:a alac -fflags +bitexact -flags:a +bitexact assets/fixtures/fmt-m4a-alac/sample.m4a",
+      "cues": [
+        {
+          "at_ms": 5250,
+          "freq_hz": 700
+        },
+        {
+          "at_ms": 54250,
+          "freq_hz": 900
+        }
+      ],
+      "files": [
+        {
+          "codec": "alac",
+          "container": "mov,mp4,m4a,3gp,3g2,mj2",
+          "duration_ms": 60000,
+          "extension": "m4a",
+          "name": "sample.m4a",
+          "sample_rate": 44100,
+          "sha256": "aa5b7e57b3e65187b77af28cd50c37de747127db4ae14c93ab8f228ad82401f3",
+          "size_bytes": 900857
+        }
+      ],
+      "id": "fmt-m4a-alac",
+      "nominal_duration_ms": 60000,
+      "server_release_admitting_extension": "v2.38.0",
+      "status": "generated"
+    },
+    {
+      "command": "ffmpeg -hide_banner -loglevel error -y -i .work/fmt-mp4-aac.wav -f mp4 -c:a aac -b:a 64k -fflags +bitexact -flags:a +bitexact assets/fixtures/fmt-mp4-aac/sample.mp4",
+      "cues": [
+        {
+          "at_ms": 5250,
+          "freq_hz": 700
+        },
+        {
+          "at_ms": 54250,
+          "freq_hz": 900
+        }
+      ],
+      "files": [
+        {
+          "codec": "aac",
+          "container": "mov,mp4,m4a,3gp,3g2,mj2",
+          "duration_ms": 60000,
+          "extension": "mp4",
+          "name": "sample.mp4",
+          "sample_rate": 44100,
+          "sha256": "79edcd06ecac4c2cb7637e056bea30c66f4ef7c73a9aa54c674627d209c34d74",
+          "size_bytes": 493133
+        }
+      ],
+      "id": "fmt-mp4-aac",
+      "nominal_duration_ms": 60000,
+      "server_release_admitting_extension": "v2.38.0",
+      "status": "generated"
+    },
+    {
+      "command": "ffmpeg -hide_banner -loglevel error -y -i .work/fmt-mp3-cbr.wav -c:a libmp3lame -b:a 128k -write_xing 1 -fflags +bitexact -flags:a +bitexact assets/fixtures/fmt-mp3-cbr/sample.mp3",
+      "cues": [
+        {
+          "at_ms": 5250,
+          "freq_hz": 700
+        },
+        {
+          "at_ms": 54250,
+          "freq_hz": 900
+        }
+      ],
+      "files": [
+        {
+          "codec": "mp3",
+          "container": "mp3",
+          "duration_ms": 60000,
+          "extension": "mp3",
+          "name": "sample.mp3",
+          "sample_rate": 44100,
+          "sha256": "9c5b36cd27535b9c8571bf53a67bf43b75cfa289e442a502fcb99c1fa2d918ff",
+          "size_bytes": 960907
+        }
+      ],
+      "id": "fmt-mp3-cbr",
+      "nominal_duration_ms": 60000,
+      "server_release_admitting_extension": "v2.38.0",
+      "status": "generated"
+    },
+    {
+      "command": "ffmpeg -hide_banner -loglevel error -y -i .work/fmt-mp3-vbr.wav -c:a libmp3lame -q:a 4 -fflags +bitexact -flags:a +bitexact assets/fixtures/fmt-mp3-vbr/sample.mp3",
+      "cues": [
+        {
+          "at_ms": 5250,
+          "freq_hz": 700
+        },
+        {
+          "at_ms": 54250,
+          "freq_hz": 900
+        }
+      ],
+      "files": [
+        {
+          "codec": "mp3",
+          "container": "mp3",
+          "duration_ms": 60000,
+          "extension": "mp3",
+          "name": "sample.mp3",
+          "sample_rate": 44100,
+          "sha256": "de09c37aaf73ecba563f01f3220b14e32fa0060af4180db6f50fc420b399d695",
+          "size_bytes": 240080
+        }
+      ],
+      "id": "fmt-mp3-vbr",
+      "nominal_duration_ms": 60000,
+      "server_release_admitting_extension": "v2.38.0",
+      "status": "generated"
+    },
+    {
+      "command": "ffmpeg -hide_banner -loglevel error -y -i .work/fmt-aac-adts.wav -f adts -c:a aac -b:a 64k -fflags +bitexact -flags:a +bitexact assets/fixtures/fmt-aac-adts/sample.aac",
+      "cues": [
+        {
+          "at_ms": 5250,
+          "freq_hz": 700
+        },
+        {
+          "at_ms": 54250,
+          "freq_hz": 900
+        }
+      ],
+      "files": [
+        {
+          "codec": "aac",
+          "container": "aac",
+          "duration_ms": 58964,
+          "extension": "aac",
+          "name": "sample.aac",
+          "sample_rate": 44100,
+          "sha256": "a26d6bf1c3ef68bb7ca610c5ceabbe7f9bb6b470d58484a4ea66b6e3b53fa8ee",
+          "size_bytes": 500098
+        }
+      ],
+      "id": "fmt-aac-adts",
+      "nominal_duration_ms": 60000,
+      "server_release_admitting_extension": "v2.38.0",
+      "status": "generated"
+    },
+    {
+      "command": "ffmpeg -hide_banner -loglevel error -y -i .work/fmt-ogg-vorbis.wav -af 'pan=stereo|c0=c0|c1=c0' -c:a vorbis -strict -2 -f ogg -fflags +bitexact -flags:a +bitexact assets/fixtures/fmt-ogg-vorbis/sample.ogg",
+      "cues": [
+        {
+          "at_ms": 5250,
+          "freq_hz": 700
+        },
+        {
+          "at_ms": 54250,
+          "freq_hz": 900
+        }
+      ],
+      "files": [
+        {
+          "codec": "vorbis",
+          "container": "ogg",
+          "duration_ms": 60000,
+          "extension": "ogg",
+          "name": "sample.ogg",
+          "sample_rate": 44100,
+          "sha256": "6fd70b0753b3f65659b450018cc3d68cd1e12aef3d29874732b857048bbcc616",
+          "size_bytes": 231055
+        }
+      ],
+      "id": "fmt-ogg-vorbis",
+      "nominal_duration_ms": 60000,
+      "server_release_admitting_extension": "v2.38.0",
+      "status": "generated"
+    },
+    {
+      "command": "ffmpeg -hide_banner -loglevel error -y -i .work/fmt-oga-vorbis.wav -af 'pan=stereo|c0=c0|c1=c0' -c:a vorbis -strict -2 -f ogg -fflags +bitexact -flags:a +bitexact assets/fixtures/fmt-oga-vorbis/sample.oga",
+      "cues": [
+        {
+          "at_ms": 5250,
+          "freq_hz": 700
+        },
+        {
+          "at_ms": 54250,
+          "freq_hz": 900
+        }
+      ],
+      "files": [
+        {
+          "codec": "vorbis",
+          "container": "ogg",
+          "duration_ms": 60000,
+          "extension": "oga",
+          "name": "sample.oga",
+          "sample_rate": 44100,
+          "sha256": "6fd70b0753b3f65659b450018cc3d68cd1e12aef3d29874732b857048bbcc616",
+          "size_bytes": 231055
+        }
+      ],
+      "id": "fmt-oga-vorbis",
+      "nominal_duration_ms": 60000,
+      "server_release_admitting_extension": "v2.38.0",
+      "status": "generated"
+    },
+    {
+      "command": "ffmpeg -hide_banner -loglevel error -y -i .work/fmt-opus-opus.wav -c:a libopus -f opus -fflags +bitexact -flags:a +bitexact assets/fixtures/fmt-opus-opus/sample.opus",
+      "cues": [
+        {
+          "at_ms": 5250,
+          "freq_hz": 700
+        },
+        {
+          "at_ms": 54250,
+          "freq_hz": 900
+        }
+      ],
+      "files": [
+        {
+          "codec": "opus",
+          "container": "ogg",
+          "duration_ms": 60006,
+          "extension": "opus",
+          "name": "sample.opus",
+          "sample_rate": 48000,
+          "sha256": "5a36543ca361f27adfb02ff1f2b6b8b2d5bd4598ba75121b17e587a7373dce4b",
+          "size_bytes": 662730
+        }
+      ],
+      "id": "fmt-opus-opus",
+      "nominal_duration_ms": 60000,
+      "server_release_admitting_extension": "v2.38.0",
+      "status": "generated"
+    },
+    {
+      "command": "ffmpeg -hide_banner -loglevel error -y -i .work/fmt-ogg-opus.wav -c:a libopus -f ogg -fflags +bitexact -flags:a +bitexact assets/fixtures/fmt-ogg-opus/sample.ogg",
+      "cues": [
+        {
+          "at_ms": 5250,
+          "freq_hz": 700
+        },
+        {
+          "at_ms": 54250,
+          "freq_hz": 900
+        }
+      ],
+      "files": [
+        {
+          "codec": "opus",
+          "container": "ogg",
+          "duration_ms": 60006,
+          "extension": "ogg",
+          "name": "sample.ogg",
+          "sample_rate": 48000,
+          "sha256": "5a36543ca361f27adfb02ff1f2b6b8b2d5bd4598ba75121b17e587a7373dce4b",
+          "size_bytes": 662730
+        }
+      ],
+      "id": "fmt-ogg-opus",
+      "nominal_duration_ms": 60000,
+      "server_release_admitting_extension": "v2.38.0",
+      "status": "generated"
+    },
+    {
+      "command": "ffmpeg -hide_banner -loglevel error -y -i .work/fmt-flac-flac.wav -metadata CHAPTER001=00:00:00.000 -metadata CHAPTER001NAME=Start -metadata CHAPTER002=00:00:30.000 -metadata CHAPTER002NAME=Middle -c:a flac -fflags +bitexact -flags:a +bitexact assets/fixtures/fmt-flac-flac/sample.flac",
+      "cues": [
+        {
+          "at_ms": 5250,
+          "freq_hz": 700
+        },
+        {
+          "at_ms": 54250,
+          "freq_hz": 900
+        }
+      ],
+      "embedded_chapters": [
+        {
+          "end": 30,
+          "start": 0,
+          "title": "Start"
+        },
+        {
+          "end": 60,
+          "start": 30,
+          "title": "Middle"
+        }
+      ],
+      "files": [
+        {
+          "codec": "flac",
+          "container": "flac",
+          "duration_ms": 60000,
+          "extension": "flac",
+          "name": "sample.flac",
+          "sample_rate": 44100,
+          "sha256": "c82565257539f0ac5ac6c762edffe24609305fcb44681772c69d8f9095169fd1",
+          "size_bytes": 686576
+        }
+      ],
+      "id": "fmt-flac-flac",
+      "nominal_duration_ms": 60000,
+      "server_release_admitting_extension": "v2.38.0",
+      "status": "generated"
+    },
+    {
+      "command": "ffmpeg -hide_banner -loglevel error -y -i .work/fmt-wav-pcm.wav -c:a pcm_s16le -f wav -fflags +bitexact -flags:a +bitexact assets/fixtures/fmt-wav-pcm/sample.wav",
+      "cues": [
+        {
+          "at_ms": 5250,
+          "freq_hz": 700
+        },
+        {
+          "at_ms": 54250,
+          "freq_hz": 900
+        }
+      ],
+      "files": [
+        {
+          "codec": "pcm_s16le",
+          "container": "wav",
+          "duration_ms": 60000,
+          "extension": "wav",
+          "name": "sample.wav",
+          "sample_rate": 44100,
+          "sha256": "ab2f558bd1f5216d0232794c7d2721c2cf4fbdcf1e9e6308793bb7a6e4da6532",
+          "size_bytes": 5292044
+        }
+      ],
+      "id": "fmt-wav-pcm",
+      "nominal_duration_ms": 60000,
+      "server_release_admitting_extension": "v2.38.0",
+      "status": "generated"
+    },
+    {
+      "command": "ffmpeg -hide_banner -loglevel error -y -i .work/fmt-aiff-pcm.wav -c:a pcm_s16be -f aiff -fflags +bitexact -flags:a +bitexact assets/fixtures/fmt-aiff-pcm/sample.aiff",
+      "cues": [
+        {
+          "at_ms": 5250,
+          "freq_hz": 700
+        },
+        {
+          "at_ms": 54250,
+          "freq_hz": 900
+        }
+      ],
+      "files": [
+        {
+          "codec": "pcm_s16be",
+          "container": "aiff",
+          "duration_ms": 60000,
+          "extension": "aiff",
+          "name": "sample.aiff",
+          "sample_rate": 44100,
+          "sha256": "01ae500c8bf81a83cedb8136ad6a5cad572d3c1e8d65f9366600874780e80cdd",
+          "size_bytes": 5292054
+        }
+      ],
+      "id": "fmt-aiff-pcm",
+      "nominal_duration_ms": 60000,
+      "server_release_admitting_extension": "v2.38.0",
+      "status": "generated"
+    },
+    {
+      "command": "ffmpeg -hide_banner -loglevel error -y -i .work/fmt-aif-pcm.wav -c:a pcm_s16be -f aiff -fflags +bitexact -flags:a +bitexact assets/fixtures/fmt-aif-pcm/sample.aif",
+      "cues": [
+        {
+          "at_ms": 5250,
+          "freq_hz": 700
+        },
+        {
+          "at_ms": 54250,
+          "freq_hz": 900
+        }
+      ],
+      "files": [
+        {
+          "codec": "pcm_s16be",
+          "container": "aiff",
+          "duration_ms": 60000,
+          "extension": "aif",
+          "name": "sample.aif",
+          "sample_rate": 44100,
+          "sha256": "01ae500c8bf81a83cedb8136ad6a5cad572d3c1e8d65f9366600874780e80cdd",
+          "size_bytes": 5292054
+        }
+      ],
+      "id": "fmt-aif-pcm",
+      "nominal_duration_ms": 60000,
+      "server_release_admitting_extension": "v2.38.0",
+      "status": "generated"
+    },
+    {
+      "command": "ffmpeg -hide_banner -loglevel error -y -i .work/fmt-webm-opus.wav -c:a libopus -f webm -fflags +bitexact -flags:a +bitexact assets/fixtures/fmt-webm-opus/sample.webm",
+      "cues": [
+        {
+          "at_ms": 5250,
+          "freq_hz": 700
+        },
+        {
+          "at_ms": 54250,
+          "freq_hz": 900
+        }
+      ],
+      "files": [
+        {
+          "codec": "opus",
+          "container": "matroska,webm",
+          "duration_ms": 60008,
+          "extension": "webm",
+          "name": "sample.webm",
+          "sample_rate": 48000,
+          "sha256": "a64562699c2a278ddc3efbde97cd31e97a96883aae6574e68ec47e5a8dddd76e",
+          "size_bytes": 679780
+        }
+      ],
+      "id": "fmt-webm-opus",
+      "nominal_duration_ms": 60000,
+      "server_release_admitting_extension": "v2.38.0",
+      "status": "generated"
+    },
+    {
+      "command": "ffmpeg -hide_banner -loglevel error -y -i .work/fmt-webma-opus.wav -c:a libopus -f webm -fflags +bitexact -flags:a +bitexact assets/fixtures/fmt-webma-opus/sample.webma",
+      "cues": [
+        {
+          "at_ms": 5250,
+          "freq_hz": 700
+        },
+        {
+          "at_ms": 54250,
+          "freq_hz": 900
+        }
+      ],
+      "files": [
+        {
+          "codec": "opus",
+          "container": "matroska,webm",
+          "duration_ms": 60008,
+          "extension": "webma",
+          "name": "sample.webma",
+          "sample_rate": 48000,
+          "sha256": "a64562699c2a278ddc3efbde97cd31e97a96883aae6574e68ec47e5a8dddd76e",
+          "size_bytes": 679780
+        }
+      ],
+      "id": "fmt-webma-opus",
+      "nominal_duration_ms": 60000,
+      "server_release_admitting_extension": "v2.38.0",
+      "status": "generated"
+    },
+    {
+      "command": "ffmpeg -hide_banner -loglevel error -y -i .work/fmt-mka-vorbis.wav -af 'pan=stereo|c0=c0|c1=c0' -c:a vorbis -strict -2 -f matroska -fflags +bitexact -flags:a +bitexact assets/fixtures/fmt-mka-vorbis/sample.mka",
+      "cues": [
+        {
+          "at_ms": 5250,
+          "freq_hz": 700
+        },
+        {
+          "at_ms": 54250,
+          "freq_hz": 900
+        }
+      ],
+      "files": [
+        {
+          "codec": "vorbis",
+          "container": "matroska,webm",
+          "duration_ms": 60023,
+          "extension": "mka",
+          "name": "sample.mka",
+          "sample_rate": 44100,
+          "sha256": "d73bfd373e7eb923eaba3787ef6a9851cd4613eb4c3571214a839bba52ebfc50",
+          "size_bytes": 256154
+        }
+      ],
+      "id": "fmt-mka-vorbis",
+      "nominal_duration_ms": 60000,
+      "server_release_admitting_extension": "v2.38.0",
+      "status": "generated"
+    },
+    {
+      "command": "ffmpeg -hide_banner -loglevel error -y -i .work/fmt-mka-aac.wav -c:a aac -b:a 64k -f matroska -fflags +bitexact -flags:a +bitexact assets/fixtures/fmt-mka-aac/sample.mka",
+      "cues": [
+        {
+          "at_ms": 5250,
+          "freq_hz": 700
+        },
+        {
+          "at_ms": 54250,
+          "freq_hz": 900
+        }
+      ],
+      "files": [
+        {
+          "codec": "aac",
+          "container": "matroska,webm",
+          "duration_ms": 60023,
+          "extension": "mka",
+          "name": "sample.mka",
+          "sample_rate": 44100,
+          "sha256": "afc9b936d8fb34ca902fb74b840b501ae64032577fbd4bb27707f378c4bede40",
+          "size_bytes": 501020
+        }
+      ],
+      "id": "fmt-mka-aac",
+      "nominal_duration_ms": 60000,
+      "server_release_admitting_extension": "v2.38.0",
+      "status": "generated"
+    },
+    {
+      "command": "ffmpeg -hide_banner -loglevel error -y -i .work/fmt-wma-wmav2.wav -c:a wmav2 -b:a 96k -f asf -fflags +bitexact -flags:a +bitexact assets/fixtures/fmt-wma-wmav2/sample.wma",
+      "cues": [
+        {
+          "at_ms": 5250,
+          "freq_hz": 700
+        },
+        {
+          "at_ms": 54250,
+          "freq_hz": 900
+        }
+      ],
+      "files": [
+        {
+          "codec": "wmav2",
+          "container": "asf",
+          "duration_ms": 59999,
+          "extension": "wma",
+          "name": "sample.wma",
+          "sample_rate": 44100,
+          "sha256": "346a13d7b0fb4a4128898a853e60c47c34feb6b19bf7b2b25d6f56a2b37321b6",
+          "size_bytes": 829244
+        }
+      ],
+      "id": "fmt-wma-wmav2",
+      "nominal_duration_ms": 60000,
+      "server_release_admitting_extension": "v2.38.0",
+      "status": "generated"
+    },
+    {
+      "command": "docker run --rm -i --entrypoint ffmpeg thebasicprocess/ffmpeg-amrwb:latest -hide_banner -loglevel error -y -f wav -i - -ar 16000 -c:a libvo_amrwbenc -b:a 23.85k -f amr - < .work/fmt-awb-amrwb.wav > assets/fixtures/fmt-awb-amrwb/sample.awb",
+      "cues": [
+        {
+          "at_ms": 5250,
+          "freq_hz": 700
+        },
+        {
+          "at_ms": 54250,
+          "freq_hz": 900
+        }
+      ],
+      "files": [
+        {
+          "codec": "amr_wb",
+          "container": "amr",
+          "duration_ms": 62034,
+          "extension": "awb",
+          "name": "sample.awb",
+          "sample_rate": 16000,
+          "sha256": "b68522a272c26bd66e20aeba8788b3c4a41c4cd21776cfb142e1f7090c9d2a98",
+          "size_bytes": 183009
+        }
+      ],
+      "id": "fmt-awb-amrwb",
+      "nominal_duration_ms": 60000,
+      "server_release_admitting_extension": "v2.38.0",
+      "status": "generated"
+    },
+    {
+      "command": "ffmpeg -hide_banner -loglevel error -y -i .work/fmt-caf-alac.wav -c:a alac -f caf -fflags +bitexact -flags:a +bitexact assets/fixtures/fmt-caf-alac/sample.caf",
+      "cues": [
+        {
+          "at_ms": 5250,
+          "freq_hz": 700
+        },
+        {
+          "at_ms": 54250,
+          "freq_hz": 900
+        }
+      ],
+      "files": [
+        {
+          "codec": "alac",
+          "container": "caf",
+          "duration_ms": 60000,
+          "extension": "caf",
+          "name": "sample.caf",
+          "sample_rate": 44100,
+          "sha256": "5ed112781ccb094731a1d644614a9ac74616d2e469a5bc8138422c174ead73d6",
+          "size_bytes": 899035
+        }
+      ],
+      "id": "fmt-caf-alac",
+      "nominal_duration_ms": 60000,
+      "server_release_admitting_extension": "v2.38.0",
+      "status": "generated"
+    },
+    {
+      "id": "fmt-caf-aac",
+      "reason": "muxing codec currently unsupported",
+      "server_release_admitting_extension": "v2.38.0",
+      "status": "not-generated"
+    },
+    {
+      "command": "ffmpeg -hide_banner -loglevel error -y -i .work/fmt-mpg-mp2.wav -c:a mp2 -b:a 128k -f mpeg -fflags +bitexact -flags:a +bitexact assets/fixtures/fmt-mpg-mp2/sample.mpg",
+      "cues": [
+        {
+          "at_ms": 5250,
+          "freq_hz": 700
+        },
+        {
+          "at_ms": 54250,
+          "freq_hz": 900
+        }
+      ],
+      "files": [
+        {
+          "codec": "mp2",
+          "container": "mpeg",
+          "duration_ms": 59951,
+          "extension": "mpg",
+          "name": "sample.mpg",
+          "sample_rate": 44100,
+          "sha256": "1a33a80242ca9406e8a3c6c77e1828d6ca11e4a19e1cb3c8f20d9e880d11d18b",
+          "size_bytes": 970752
+        }
+      ],
+      "id": "fmt-mpg-mp2",
+      "nominal_duration_ms": 60000,
+      "server_release_admitting_extension": "v2.38.0",
+      "status": "generated"
+    },
+    {
+      "command": "ffmpeg -hide_banner -loglevel error -y -i .work/fmt-mpeg-mp2.wav -c:a mp2 -b:a 128k -f mpeg -fflags +bitexact -flags:a +bitexact assets/fixtures/fmt-mpeg-mp2/sample.mpeg",
+      "cues": [
+        {
+          "at_ms": 5250,
+          "freq_hz": 700
+        },
+        {
+          "at_ms": 54250,
+          "freq_hz": 900
+        }
+      ],
+      "files": [
+        {
+          "codec": "mp2",
+          "container": "mpeg",
+          "duration_ms": 59951,
+          "extension": "mpeg",
+          "name": "sample.mpeg",
+          "sample_rate": 44100,
+          "sha256": "1a33a80242ca9406e8a3c6c77e1828d6ca11e4a19e1cb3c8f20d9e880d11d18b",
+          "size_bytes": 970752
+        }
+      ],
+      "id": "fmt-mpeg-mp2",
+      "nominal_duration_ms": 60000,
+      "server_release_admitting_extension": "v2.38.0",
+      "status": "generated"
+    },
+    {
+      "command": "ffmpeg -hide_banner -loglevel error -y -i .work/fmt-mp3-vbr-long.wav -c:a libmp3lame -q:a 4 -fflags +bitexact -flags:a +bitexact assets/fixtures/fmt-mp3-vbr-long/sample.mp3",
+      "cues": [
+        {
+          "at_ms": 5250,
+          "freq_hz": 700
+        },
+        {
+          "at_ms": 600250,
+          "freq_hz": 900
+        },
+        {
+          "at_ms": 1080250,
+          "freq_hz": 1100
+        },
+        {
+          "at_ms": 1200250,
+          "freq_hz": 1300
+        }
+      ],
+      "files": [
+        {
+          "codec": "mp3",
+          "container": "mp3",
+          "duration_ms": 1260000,
+          "extension": "mp3",
+          "name": "sample.mp3",
+          "sample_rate": 44100,
+          "sha256": "064818a1cacfbd34959c24cf9998694c67fe20640a8f07d2a6e7731811753a55",
+          "size_bytes": 5018022
+        }
+      ],
+      "id": "fmt-mp3-vbr-long",
+      "nominal_duration_ms": 1260000,
+      "server_release_admitting_extension": "v2.38.0",
+      "status": "generated"
+    }
+  ],
+  "generator": "fixtures/generate.py",
+  "redistribution": "Synthetic signals generated by fixtures/generate.py. Public domain under the repository's Unlicense.",
+  "schema_version": 1,
+  "tools": {
+    "ffmpeg": "ffmpeg version 9.0.2 Copyright (c) 2000-2026 the FFmpeg developers",
+    "python": "3.15.2"
+  }
+}
