@@ -2,6 +2,8 @@
 
 Pageworn is an Android audiobook player for one listener with an [Audiobookshelf](https://www.audiobookshelf.org/) server. The plan, the interface specification and the art live in [`docs/`](docs/README.md); start there.
 
+Pageworn runs on Android 12 (API 31) and newer.
+
 ## Build, test and release
 
 [CI/CD](CICD.md) lists the toolchain (JDK 21, Android SDK platform `android-37.0`, build tools 37.0.0) and the build, review and signed-release commands. `scripts/build.sh` builds the debug APK and runs the JVM tests, as CI does on every push. Gradle runs through the checked-in 9.8.2 wrapper; [`gradle/libs.versions.toml`](gradle/libs.versions.toml) pins the Android Gradle Plugin, Kotlin and every library. The Compose BOM stays at 2026.09.00 (Compose 1.12) because Compose 1.13 requires compile SDK 37.1, and the plan fixes compile SDK 37.

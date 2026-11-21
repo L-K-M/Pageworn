@@ -152,7 +152,8 @@ class VisualChecksTest {
         openFullPlayer()
         waitForPlaybackDescription("Pause Boundary Book")
 
-        shell("cmd media_session dispatch pause")
+        composeRule.waitUntil(10_000) { TestApp.container.playbackHub.state.value.isPlaying }
+        shell("input keyevent KEYCODE_MEDIA_PAUSE")
         waitForPlaybackDescription("Resume Boundary Book")
 
         composeRule.onNodeWithContentDescription("Collapse player").performClick()

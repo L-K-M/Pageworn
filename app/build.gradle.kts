@@ -36,7 +36,7 @@ android {
 
     defaultConfig {
         applicationId = "ch.lkmc.pageworn"
-        minSdk = 34
+        minSdk = 31
         targetSdk = 37
         versionCode = pagewornVersionCode
         versionName = pagewornVersionName

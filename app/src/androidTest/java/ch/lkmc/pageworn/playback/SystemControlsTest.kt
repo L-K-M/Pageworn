@@ -8,9 +8,11 @@ import android.media.MediaMetadata
 import android.media.session.MediaController as PlatformController
 import android.media.session.MediaSession as PlatformSession
 import android.media.session.PlaybackState
+import android.os.Build
 import android.os.Bundle
 import android.os.ParcelFileDescriptor
 import android.util.Log
+import androidx.core.os.BundleCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaLibraryInfo
 import androidx.media3.common.Player
@@ -176,7 +178,7 @@ class SystemControlsTest {
             }
             n
         } ?: throw AssertionError("no media notification")
-        val token = checkNotNull(notification.extras.getParcelable(Notification.EXTRA_MEDIA_SESSION, PlatformSession.Token::class.java))
+        val token = checkNotNull(BundleCompat.getParcelable(notification.extras, Notification.EXTRA_MEDIA_SESSION, PlatformSession.Token::class.java))
         return PlatformController(context, token)
     }
 
@@ -198,20 +200,25 @@ class SystemControlsTest {
             val system = systemControls()
             assertThat(c.duration).isIn(Range.closed(209_000L, 211_000L))
             assertThat(system.metadata!!.getLong(MediaMetadata.METADATA_KEY_DURATION)).isIn(Range.closed(209_000L, 211_000L))
-            system.press("Forward 30 seconds")
+            val sessionControls = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+            if (sessionControls) system.press("Forward 30 seconds")
+            else awaitAction("Forward 30 seconds").actionIntent.send()
             c.awaitAt(130_000, "notification forward")
-            system.press("Back 15 seconds")
+            if (sessionControls) system.press("Back 15 seconds")
+            else awaitAction("Back 15 seconds").actionIntent.send()
             c.awaitAt(115_000, "notification back")
             assertThat(c.mediaItemCount).isEqualTo(1)
             assertThat(c.currentMediaItem?.mediaId).isEqualTo(book.mediaId)
 
             // Play and Pause from the notification: the app, the session and the platform agree.
             assertThat(c.isPlaying).isFalse()
-            system.transportControls.play()
+            if (sessionControls) system.transportControls.play()
+            else awaitAction("Play").actionIntent.send()
             c.awaitUntil(10_000, "playing from the notification") { isPlaying }
             assertThat(container.playbackHub.state.value.isPlaying).isTrue()
             awaitPlatformState(PlaybackState.STATE_PLAYING)
-            system.transportControls.pause()
+            if (sessionControls) system.transportControls.pause()
+            else awaitAction("Pause").actionIntent.send()
             c.awaitUntil(10_000, "paused from the notification") { !isPlaying }
             delay(500)
             assertThat(container.playbackHub.state.value.isPlaying).isFalse()

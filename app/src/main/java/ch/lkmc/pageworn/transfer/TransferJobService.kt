@@ -13,12 +13,15 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
+import androidx.annotation.RequiresApi
+import ch.lkmc.pageworn.AppContainer
 import ch.lkmc.pageworn.MainActivity
 import ch.lkmc.pageworn.PagewornApp
 import ch.lkmc.pageworn.R
 import ch.lkmc.pageworn.data.db.TransferEntity
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
@@ -28,6 +31,7 @@ import kotlinx.coroutines.launch
  * within ten seconds, and keeps it current while books transfer. When the platform stops the
  * job, the coordinator's state in Room is all that survives, and the job asks to run again.
  */
+@RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
 class TransferJobService : JobService() {
     private var work: Job? = null
 
@@ -36,18 +40,13 @@ class TransferJobService : JobService() {
         TransferNotifications.ensureChannel(this)
         setNotification(params, TransferNotifications.ID, TransferNotifications.build(this, null), JOB_END_NOTIFICATION_POLICY_REMOVE)
         work = container.appScope.launch {
-            val updates = launch {
-                combine(container.transfers.active, container.database.transfers().observeActive()) { id, jobs -> jobs.firstOrNull { it.jobId == id } }
-                    .collect { job -> setNotification(params, TransferNotifications.ID, TransferNotifications.build(this@TransferJobService, job), JOB_END_NOTIFICATION_POLICY_REMOVE) }
+            container.runTransferQueueWithProgress { job ->
+                setNotification(
+                    params, TransferNotifications.ID, TransferNotifications.build(this@TransferJobService, job),
+                    JOB_END_NOTIFICATION_POLICY_REMOVE,
+                )
             }
-            try {
-                container.transfers.runQueue()
-                updates.cancel()
-                jobFinished(params, false)
-            } catch (stopped: CancellationException) {
-                updates.cancel()
-                throw stopped
-            }
+            jobFinished(params, false)
         }
         return true
     }
@@ -70,6 +69,7 @@ class TransferJobService : JobService() {
  * only while no queue runs in this process, so nothing of ours is stopped, and the job listed
  * may be one that just called jobFinished: keeping it instead would strand the new work.
  */
+@RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
 class JobSchedulerTransfers(private val context: Context) : TransferScheduler {
     override fun schedule(): Boolean {
         val scheduler = context.getSystemService(JobScheduler::class.java) ?: return false
@@ -83,6 +83,19 @@ class JobSchedulerTransfers(private val context: Context) : TransferScheduler {
             // Not visible, or another platform refusal: the queue resumes on the next foreground.
             false
         }
+    }
+}
+
+/** Both platform services observe the same queue and stop reporting progress when it stops. */
+internal suspend fun AppContainer.runTransferQueueWithProgress(report: (TransferEntity?) -> Unit) = coroutineScope {
+    val updates = launch {
+        combine(transfers.active, database.transfers().observeActive()) { id, jobs -> jobs.firstOrNull { it.jobId == id } }
+            .collect { report(it) }
+    }
+    try {
+        transfers.runQueue()
+    } finally {
+        updates.cancel()
     }
 }
 
@@ -102,9 +115,12 @@ object TransferNotifications {
         )
     }
 
-    fun enabled(context: Context): Boolean =
-        context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED &&
-            context.getSystemService(NotificationManager::class.java)?.areNotificationsEnabled() == true
+    fun enabled(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) return false
+        return context.getSystemService(NotificationManager::class.java)?.areNotificationsEnabled() == true
+    }
 
     fun postCompletion(context: Context, title: String) {
         val manager = context.getSystemService(NotificationManager::class.java) ?: return

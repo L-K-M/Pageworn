@@ -2,6 +2,7 @@ package ch.lkmc.pageworn.transfer
 
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import ch.lkmc.pageworn.account.Routed
 import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.core.FakeClock
 import ch.lkmc.pageworn.core.progress.StopKind
@@ -71,7 +72,7 @@ class TransferCoordinatorTest {
 
     @After fun tearDown() { db.close() }
 
-    private fun freshCoordinator() = TransferCoordinator(db, files, editions, routes,
+    private fun freshCoordinator(transferRoutes: TransferRoutes = routes) = TransferCoordinator(db, files, editions, transferRoutes,
         TrackVerifier { file, _ ->
             if (file.name in unsupported) TrackCheck.Unsupported("fixture unsupported")
             else TrackCheck.Playable(90_000, "aac", probedChapters[file.name].orEmpty())
@@ -215,6 +216,34 @@ class TransferCoordinatorTest {
         assertThat(published(key, 0)).isEqualTo(a)
         assertThat(published(key, 1)).isEqualTo(b)
         assertThat(routes.requests.count { it.fileId == "A" }).isEqualTo(1)
+    }
+
+    @Test fun a04b_addressRestoredDuringAFailedRouteLookupRetriesWithoutBackoff() = runBlocking<Unit> {
+        val staleDecision = CompletableDeferred<Unit>()
+        val returnDecision = CompletableDeferred<Unit>()
+        coordinator = freshCoordinator(object : TransferRoutes by routes {
+            override suspend fun manifest(itemId: String): Routed<ItemManifest> {
+                val result = routes.manifest(itemId)
+                if (result is Routed.Unavailable) {
+                    staleDecision.complete(Unit)
+                    returnDecision.await()
+                }
+                return result
+            }
+        })
+        val key = book("address-restored", "A" to source(9))
+        val id = enqueue(key)
+        disable("home", "remote")
+        val firstAttempt = launch { coordinator.runDue() }
+        withTimeout(5_000) { staleDecision.await() }
+        db.addresses().upsert(address("home", 0))
+        coordinator.addressesChanged(db.addresses().forProfile(PROFILE))
+        returnDecision.complete(Unit)
+        firstAttempt.join()
+
+        assertThat(job(id).state).isEqualTo(TransferState.WAITING_FOR_CONNECTION)
+        assertThat(coordinator.runDue()).isTrue()
+        ready(key)
     }
 
     @Test fun a05_validShort206AdvancesPartialAnd200ReplacesIt() = runBlocking {

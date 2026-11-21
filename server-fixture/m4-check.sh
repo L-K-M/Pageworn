@@ -190,7 +190,8 @@ if selected repair; then
   done
 fi
 
-if selected notifications; then
+# The runtime notification permission was introduced in Android 13.
+if [ "$API" -ge 33 ] && selected notifications; then
   adb_shell pm clear "$PACKAGE" >/dev/null
   if [ "$API" -ge 37 ]; then
     adb_shell pm grant "$PACKAGE" android.permission.ACCESS_LOCAL_NETWORK
