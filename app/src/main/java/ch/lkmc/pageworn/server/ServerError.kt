@@ -34,6 +34,12 @@ sealed interface ServerError {
     /** The session cannot be renewed: the address needs a new sign-in. */
     data object SessionExpired : ServerError
 
+    /**
+     * 429 from a sign-in or renewal route: the server's limit on authentication requests from this
+     * client is spent for now. Neither wrong credentials nor an expired session.
+     */
+    data class RateLimited(val retryAfterSeconds: Long?) : ServerError
+
     /** A 403 on a download route: a permission decision, final for this request. */
     data object Forbidden : ServerError
 

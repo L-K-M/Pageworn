@@ -61,6 +61,9 @@ sealed interface AddressProblem {
 sealed interface SignInResult {
     data class Connected(val profileId: String) : SignInResult
     data object InvalidCredentials : SignInResult
+
+    /** The server refuses more sign-ins from this client for now; the listener waits and tries again. */
+    data object TooManyAttempts : SignInResult
     data class AddressFailed(val problem: AddressProblem) : SignInResult
 
     /** The server answered for another account than the one whose books this phone holds. */
@@ -139,10 +142,7 @@ class AccountService(
         val policy = AddressPolicy(address.baseUrl, address.cleartextOptIn, address.trustedSha256, address.passedNormalValidation)
         val connection = access.transient(policy, newId())
         val account = when (val result = connection.client.login(username, password)) {
-            is ServerResult.Failed -> return when (val error = result.error) {
-                ServerError.InvalidCredentials -> SignInResult.InvalidCredentials
-                else -> SignInResult.AddressFailed(addressProblem(error))
-            }
+            is ServerResult.Failed -> return signInFailure(result.error)
             is ServerResult.Ok -> result.value
         }
         val libraries = (connection.client.libraries(account.tokens.accessToken) as? ServerResult.Ok)?.value
@@ -419,10 +419,18 @@ class AccountService(
         else -> ServerNotice.Unreachable
     }
 
-    private fun addressProblem(error: ServerError): AddressProblem = when (error) {
-        is ServerError.Certificate -> AddressProblem.Certificate(error.presentedSha256, error.kind)
-        is ServerError.ServerTooOld -> AddressProblem.ServerTooOld
-        ServerError.NoPasswordSignIn -> AddressProblem.NoPasswordSignIn
-        else -> AddressProblem.Unreachable
-    }
+}
+
+/** What a failed login tells the listener: the credentials, the limit, or the address. */
+internal fun signInFailure(error: ServerError): SignInResult = when (error) {
+    ServerError.InvalidCredentials -> SignInResult.InvalidCredentials
+    is ServerError.RateLimited -> SignInResult.TooManyAttempts
+    else -> SignInResult.AddressFailed(addressProblem(error))
+}
+
+private fun addressProblem(error: ServerError): AddressProblem = when (error) {
+    is ServerError.Certificate -> AddressProblem.Certificate(error.presentedSha256, error.kind)
+    is ServerError.ServerTooOld -> AddressProblem.ServerTooOld
+    ServerError.NoPasswordSignIn -> AddressProblem.NoPasswordSignIn
+    else -> AddressProblem.Unreachable
 }

@@ -22,6 +22,7 @@ object Copy {
     const val PAIRING_MISMATCH = "This address leads to a different server."
     const val INVALID_ADDRESS = "Enter a web address, such as https://books.example.com/audiobookshelf."
     const val WRONG_CREDENTIALS = "The user name or password is incorrect."
+    const val TOO_MANY_SIGN_INS = "Too many sign-in attempts. Try again in a few minutes."
     const val CLEARTEXT_TRADEOFF = "Pageworn will send your password and books to this address without encryption. Anyone on the same network can read them."
     const val ALLOW_CLEARTEXT = "Allow unencrypted access"
     fun localNetworkNeeded(address: String) = "Pageworn needs local network access to reach $address."

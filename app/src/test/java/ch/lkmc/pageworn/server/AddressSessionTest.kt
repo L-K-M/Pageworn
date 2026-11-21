@@ -101,6 +101,20 @@ class AddressSessionTest {
         }
     }
 
+    @Test fun rateLimitedRenewalKeepsTheSession() = runBlocking {
+        MockWebServer().use { server ->
+            server.start()
+            server.enqueue(MockResponse().setResponseCode(429).setHeader("Retry-After", "200"))
+            val vault = MemoryTokenVault()
+            val original = TokenPair(token(1_000), "old-refresh")
+            vault.write("a", original)
+            val client = client(server)
+            val session = AddressSession("a", client, vault) { 1_000_000 }
+            assertThat(session.authorized { client.me(it) }).isEqualTo(ServerResult.Failed(ServerError.RateLimited(200)))
+            assertThat(vault.read("a")).isEqualTo(original)
+        }
+    }
+
     @Test fun twoSessionsKeepTokensOnTheirOwnServers() = runBlocking {
         MockWebServer().use { first -> MockWebServer().use { second ->
             first.start()

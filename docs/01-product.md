@@ -58,6 +58,7 @@ Pageworn v1 serves audiobooks. Ebooks, podcasts, streaming, remote playback, cro
 | Different account | “This phone holds books for [account name]. Sign in with that account.” | Sign in again |
 | Invalid address | “Enter a web address, such as https://books.example.com/audiobookshelf.” Shown under the address field; addresses with a user name, a query or a fragment count as invalid. | Correct the address |
 | Wrong user name or password | “The user name or password is incorrect.” Shown under the password field. | Correct them and continue |
+| Too many sign-ins | “Too many sign-in attempts. Try again in a few minutes.” Shown under the password field when the server refuses more sign-ins from this phone for now. | Wait, then continue |
 | Unencrypted address | “Pageworn will send your password and books to this address without encryption. Anyone on the same network can read them.” Shown before an http address is first used, with a switch the listener turns on to allow it for that address. | Allow unencrypted access, or use an https address |
 | Local network access needed | “Pageworn needs local network access to reach [address].” Shown just before the system asks, on Android 17. | Continue, which opens the system's request |
 | Confirm another address | “Signed in as [user name]. This address reaches the server with your library [library name].” | Add address, or Cancel |

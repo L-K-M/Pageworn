@@ -125,6 +125,7 @@ class ConnectViewModel(private val container: AppContainer, val mode: ConnectMod
             when (val result = container.accounts.signIn(address, _state.value.username, _state.value.password)) {
                 is SignInResult.Connected -> connected()
                 SignInResult.InvalidCredentials -> _state.value = _state.value.copy(credentialsError = Copy.WRONG_CREDENTIALS, busy = false)
+                SignInResult.TooManyAttempts -> _state.value = _state.value.copy(credentialsError = Copy.TOO_MANY_SIGN_INS, busy = false)
                 is SignInResult.AddressFailed -> { _state.value = _state.value.copy(step = ConnectStep.ADDRESS); showProblem(result.problem) }
                 is SignInResult.DifferentAccount -> _state.value = _state.value.copy(usernameError = Copy.differentAccount(result.accountName), busy = false)
                 SignInResult.PairingMismatch -> _state.value = _state.value.copy(step = ConnectStep.ADDRESS, addressError = Copy.PAIRING_MISMATCH, busy = false)

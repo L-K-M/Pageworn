@@ -151,6 +151,8 @@ class AbsClient(private val http: AddressHttp, private val json: Json = Json { i
             403 -> if (refresh || authorized) return ServerResult.Failed(
                 if (refresh) ServerError.SessionExpired else ServerError.Forbidden)
             404 -> return ServerResult.Failed(ServerError.NotFound)
+            // Retry-After may also be an HTTP date; only the seconds form is read.
+            429 -> return ServerResult.Failed(ServerError.RateLimited(response.header("Retry-After")?.trim()?.toLongOrNull()))
         }
         if (!response.isSuccessful) return ServerResult.Failed(ServerError.Unexpected(response.code, "HTTP ${response.code}"))
         return try {

@@ -137,6 +137,15 @@ class ServerClientTest {
         assertThat(readers).doesNotContain(callerThread.get())
     }
 
+    @Test fun spentAuthenticationLimitIsNeitherWrongCredentialsNorAnExpiredSession() = runBlocking {
+        // v2.38.0 allows 40 sign-ins and renewals per 10 minutes from one client, then answers 429.
+        repeat(2) {
+            server.enqueue(MockResponse().setResponseCode(429).setHeader("Retry-After", "200").setBody(fixture("login-rate-limited")))
+        }
+        assertThat(client().login("listener", "secret")).isEqualTo(ServerResult.Failed(ServerError.RateLimited(200)))
+        assertThat(client().refresh("refresh")).isEqualTo(ServerResult.Failed(ServerError.RateLimited(200)))
+    }
+
     @Test fun librariesAndMeUseFixtureFields() = runBlocking {
         enqueueFixture("libraries")
         val libraries = (client().libraries("token") as ServerResult.Ok).value

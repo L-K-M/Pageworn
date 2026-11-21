@@ -68,6 +68,19 @@ run_phase() { # method [class]
 API="$("$ADB" -s "$SERIAL" shell getprop ro.build.version.sdk | tr -d '\r')"
 echo "$SERIAL (API $API)"
 
+# The reference instance keeps its default limit of 40 sign-ins and renewals per 10 minutes from
+# one client, and the host and every emulator share that budget. One run needs about 15, so wait
+# for the window to reset when fewer than AUTH_NEEDED remain. The probe itself spends one.
+AUTH_NEEDED=20
+header() { tr -d '\r' | awk -F': ' -v name="$1" 'tolower($1) == name { print $2 }'; }
+headers="$(curl -s -D - -o /dev/null -X POST http://127.0.0.1:13378/auth/refresh)"
+remaining="$(echo "$headers" | header ratelimit-remaining)"
+reset="$(echo "$headers" | header ratelimit-reset)"
+if [ -n "$remaining" ] && [ "$remaining" -lt "$AUTH_NEEDED" ]; then
+  echo "  waiting ${reset}s for the server's sign-in limit ($remaining left)"
+  sleep "$(( ${reset:-600} + 2 ))"
+fi
+
 # Phase 1 with the first self-signed certificate.
 python3 "$ROOT/server-fixture/tls_proxy.py" --cert first --generate-only >/dev/null
 python3 "$ROOT/server-fixture/tls_proxy.py" --cert second --generate-only >/dev/null
