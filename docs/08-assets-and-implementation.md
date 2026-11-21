@@ -1,6 +1,6 @@
 # UI assets and Android assembly
 
-The [asset manifest](art/manifest.json) lists every individual resource, its exact pixel dimensions or vector viewport, its role and whether it has transparency. Files prefixed `pw_` have Android-compatible resource names. The [screen gallery](07-screen-gallery.md) shows the components in context. The overview below is a contact sheet made from the delivered files.
+The [asset manifest](art/manifest.json) lists every individual resource, its exact pixel dimensions or vector viewport, its role and whether it has transparency. Files prefixed `pw_` have Android-compatible resource names. The [screen gallery](07-screen-gallery.md) shows the components in context. The overview below is a contact sheet made from the delivered files. The launcher icon was added later and is not on it.
 
 ![Examples of the delivered playback controls, woven tabs, drawn utilities, materials and book covers](asset-overview.png)
 
@@ -14,6 +14,7 @@ The [asset manifest](art/manifest.json) lists every individual resource, its exa
 | [inlays](art/inlays/) | Play, Pause, Back 15, Forward 30, each in PNG and Android VectorDrawable XML | Use a single vector over a blank face for custom sizes or contrast. Both formats describe the same inlay. |
 | [materials](art/materials/) | Three 128 × 128 repeating samples for day paper, night paper and bottle-green cloth | Repeat the sample on its base color. These tiles are mirrored at the edges. Lower opacity until the texture recedes at phone scale. |
 | [demo](art/demo/) | Four illustrated fictional book covers used by the mockups | Use in previews, screenshot tests and development fixtures. Download and cache the listener’s real book art for production. |
+| [icon](art/icon/) | The background, foreground and monochrome layers of the launcher icon, each 432 × 432 px, and a 512 × 512 preview | Build the adaptive icon from the three layers as described under [Launcher icon](#launcher-icon). The preview is for the release page and stays out of the app. |
 
 ## Copying into Android
 
@@ -53,8 +54,14 @@ On a narrow screen, shrink the drawn face inside a 48 dp tap region. On a large-
 - Use `pw_cover_cloth.png` behind live title/author text for missing cover art. Center real cover art with aspect-preserving fit. A narrow `pw_place_ribbon.png` can peek 6–10 dp out of the bottom edge near the spine. Use a single ribbon even when the mockup artwork already shows one.
 - Draw normal text, times, search fields, sliders, progress bars/rings, radio selections and dividers natively. Keep accessibility range actions and dynamic percentages. Use low-opacity material on unobstructed page areas. Keep texture away from fine glyph edges where it reduces contrast.
 
+### Launcher icon
+
+The icon is an open ivory book on bottle-green cloth, with an oxblood play mark on the right-hand page and the place ribbon hanging below the spine. Codex drew it from the app’s name and this artwork at the owner’s request.
+
+Declare one adaptive icon, `ic_launcher.xml` in `app/src/main/res/mipmap-anydpi-v26/`, and use it for both `android:icon` and `android:roundIcon`. Its background is `pw_icon_background.png`, its foreground `pw_icon_foreground.png` and its monochrome layer `pw_icon_monochrome.png`, which Android tints for themed icons. Put the three layers in `mipmap-xxxhdpi/`: each is the full 108 dp canvas at 4 px per dp. The motif stays inside the central 66 dp safe zone, so no launcher mask crops it. With Android 14 as the minimum, the app needs no legacy bitmap icon. Draw the notification’s small icon from the monochrome layer’s shape as a single-color drawable.
+
 ## Reviewing implementation
 
-Open each PNG against the same background as its final destination. The blank keys and tabs should show transparent surroundings, including the V-shaped cutout between the tab’s tails. The mask tint should change the pencil strokes without filling their internal holes. Check interrupted transfers, paused and playing, night mode, a long translated label, 200% font scaling and a real device’s gesture inset. Run V01–V05 in the [delivery checks](06-delivery-and-tests.md).
+Open each PNG against the same background as its final destination. The blank keys and tabs should show transparent surroundings, including the V-shaped cutout between the tab’s tails. The mask tint should change the pencil strokes without filling their internal holes. Check interrupted transfers, paused and playing, night mode, a long translated label, 200% font scaling and a real device’s gesture inset. Check the launcher icon under a round mask, a rounded-square mask and a themed-icon tint. Run V01–V06 in the [delivery checks](06-delivery-and-tests.md).
 
 The artwork is visual reference and reusable component art. The specified Android controls, focus targets, labels and media behavior still require implementation and device validation.

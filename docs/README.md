@@ -6,7 +6,7 @@ The plan lives in `docs/`. This is a build specification. Test cases describe ex
 
 ## Visual handoff
 
-Start with the [four final screen mockups](07-screen-gallery.md), [interface specification](02-interface.md) and [individual asset guide](08-assets-and-implementation.md). The `art/` directory contains individual PNG components, tintable pencil masks, example covers and a manifest. The screens open directly on their destination or book titles. Pageworn remains the product name in the launcher, notification identity and repository.
+Start with the [four final screen mockups](07-screen-gallery.md), [interface specification](02-interface.md) and [individual asset guide](08-assets-and-implementation.md). The `art/` directory contains individual PNG components, tintable pencil masks, example covers, the launcher icon’s layers and a manifest. The screens open directly on their destination or book titles. Pageworn remains the product name in the launcher, notification identity and repository.
 
 The documentation and media live together under `docs/`. Copy the art used by the Android app into its resources as described in the asset guide. Use the PNG mockups for visual review.
 
@@ -44,6 +44,8 @@ The documents use these terms precisely. Server fields keep their Audiobookshelf
 
 Read the product brief, then the first unfinished milestone in the delivery plan. Follow its links for implementation detail. Preserve the host repo’s existing conventions and build configuration where compatible. Where the repository has none yet, M0 sets them up as its [build and test baseline](06-delivery-and-tests.md#m0-build-and-test-baseline) describes. Product behavior takes precedence over example class names. Where Android or server behavior depends on a version, record the version and the observed result alongside the relevant test.
 
+The owner asked for implementation work to be committed directly on `main`, without a working branch or a pull request. Commit in small steps that build, and name in each milestone report the commit that completes it.
+
 ### First prompt for a coding agent
 
 > Read `docs/README.md`, `docs/01-product.md`, and milestone M0 in `docs/06-delivery-and-tests.md`, including its build and test baseline. Inspect this repo. Implement M0 and run its checks. Use the fixture timelines in `docs/05-playback-and-formats.md`. Report the files changed, the checks run, and any real-device or server checks still outstanding. Leave later milestones for subsequent changes.
@@ -56,10 +58,12 @@ Read the product brief, then the first unfinished milestone in the delivery plan
 
 | Decision | Working interpretation |
 |---|---|
-| One client | One Android installation, one account, one logical server with multiple addresses. Local per-book progress is authoritative. |
-| All book formats | DRM-free **audiobook** files the target Audiobookshelf release recognizes. Inventory the formats and exercise local decoding and seeking. Track actual coverage in M0 and M4. |
-| Sleep mode | Pause after a wall-clock duration or at the end of the current chapter. Support the locked screen and headphone controls. |
-| Design baseline | Kotlin, Jetpack Compose, Room and a Media3 session. Proposed minimum Android version is 8.0 (API 26). Default sign-in uses an Audiobookshelf username and password. |
-| Network | Browse and transfer through a configured address. Playback, chapters, the timer and progress read from the phone. |
+| One client | One Android installation, one account, one logical server with multiple addresses. Local per-book progress is authoritative. Signing out keeps the downloaded books and saved places for the same account. |
+| Book formats | DRM-free **audiobook** files that the target Audiobookshelf release recognizes and Media3 can extract, decode and seek on the phone. A recognized format that Media3 cannot play is refused as unsupported in v1, and the app bundles no decoder of its own. Inventory the formats and exercise local decoding and seeking. Track actual coverage in M0 and M4. |
+| Sleep mode | Pause after a wall-clock duration or at the end of the current chapter. Support the locked screen and headphone controls. After a timed stop, a book that has rested five minutes or more starts five minutes earlier. |
+| Design baseline | Kotlin, Jetpack Compose, Room and a Media3 library session. The minimum Android version is 14 (API 34) and the target SDK is 37. The application ID is `ch.lkmc.pageworn`. Sign-in uses an Audiobookshelf username and password. The interface ships in English. |
+| Network | Browse and transfer through a configured address, over HTTPS or explicitly allowed HTTP, on any network including mobile data. Playback, chapters, the timer and progress read from the phone. |
+| In the car | Android Auto lists the downloaded books and resumes one on a tap. Browsing the library and downloading stay on the phone. |
+| Distribution | A signed APK on the repository’s GitHub Releases, built and signed by GitHub Actions. The app has no store listing, crash reporting or analytics. |
 
-The Android floor and sign-in method are editable engineering defaults. Check them against the intended phone and server during M0. Keep implementation evidence with the milestone so the next contributor can reproduce it.
+The owner settled these on 21 November 2026, together with the facts about their own setup under [the listener’s deployment](06-delivery-and-tests.md#the-listeners-deployment). Keep implementation evidence with the milestone so the next contributor can reproduce it.
