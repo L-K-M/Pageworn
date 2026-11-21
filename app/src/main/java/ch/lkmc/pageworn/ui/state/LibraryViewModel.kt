@@ -3,8 +3,10 @@ package ch.lkmc.pageworn.ui.state
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ch.lkmc.pageworn.AppContainer
+import ch.lkmc.pageworn.account.ServerNotice
+import ch.lkmc.pageworn.catalog.CatalogListing
+import ch.lkmc.pageworn.catalog.ListingStatus
 import ch.lkmc.pageworn.data.db.BookProgressEntity
-import ch.lkmc.pageworn.data.db.CatalogBookEntity
 import ch.lkmc.pageworn.data.db.LibraryEntity
 import ch.lkmc.pageworn.data.db.LocalEditionEntity
 import ch.lkmc.pageworn.data.db.ProfileEntity
@@ -14,7 +16,10 @@ import ch.lkmc.pageworn.ui.model.Copy
 import ch.lkmc.pageworn.ui.model.EmptyState
 import ch.lkmc.pageworn.ui.model.LibraryChoice
 import ch.lkmc.pageworn.ui.model.LibraryUiState
+import ch.lkmc.pageworn.ui.model.StatusLine
 import ch.lkmc.pageworn.ui.model.UiAction
+import java.text.DateFormat
+import java.util.Date
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,12 +33,27 @@ import kotlinx.coroutines.launch
 
 /**
  * Library: the chosen library's last published catalog, with each row showing the book's local
- * state (docs/02-interface.md, Library). Network refresh and its status lines arrive with M2.
+ * state and a status line for the refresh (docs/02-interface.md, Library). The first time the
+ * section is shown for a profile it refreshes the libraries and the catalog.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class LibraryViewModel(private val container: AppContainer) : ViewModel() {
     private val db = container.database
     private val query = MutableStateFlow("")
+    private var visibleOnce = false
+    private var refreshedProfileId: String? = null
+    private val librariesChecked = MutableStateFlow(false)
+
+    init {
+        viewModelScope.launch {
+            db.profiles().observe().collect { profile ->
+                if (visibleOnce && profile != null && refreshedProfileId != profile.profileId) {
+                    refreshedProfileId = profile.profileId
+                    refresh()
+                }
+            }
+        }
+    }
 
     private data class Scope(val profile: ProfileEntity, val libraries: List<LibraryEntity>, val selected: LibraryEntity?)
 
@@ -48,9 +68,9 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
-    private val books: Flow<List<CatalogBookEntity>> = combine(scope, query) { s, q -> s to q }.flatMapLatest { (s, q) ->
-        val library = s?.selected ?: return@flatMapLatest flowOf(emptyList())
-        db.catalog().observe(s.profile.profileId, library.libraryId, q.trim())
+    private val listing = combine(scope, query) { s, q -> s to q }.flatMapLatest { (s, q) ->
+        val library = s?.selected ?: return@flatMapLatest flowOf(CatalogListing(emptyList(), ListingStatus.READY, null))
+        container.catalog.observeListing(s.profile.profileId, library.libraryId, q.trim())
     }
 
     private val local = scope.flatMapLatest { s ->
@@ -66,53 +86,108 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
-    val state: StateFlow<LibraryUiState> = combine(scope, query, books, local) { s, q, rows, l ->
-        build(s, q, rows, l)
+    private val conditions = combine(container.accounts.notice, librariesChecked) { notice, checked -> notice to checked }
+
+    val state: StateFlow<LibraryUiState> = combine(scope, query, listing, local, conditions) { s, q, rows, l, condition ->
+        build(s, q, rows, l, condition.first, condition.second)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryUiState())
+
+    fun firstVisible() {
+        if (visibleOnce) return
+        visibleOnce = true
+        viewModelScope.launch {
+            db.profiles().current()?.let { profile ->
+                if (refreshedProfileId != profile.profileId) {
+                    refreshedProfileId = profile.profileId
+                    refresh()
+                }
+            }
+        }
+    }
+
+    /** Runs in the application scope, so leaving the screen does not cancel a refresh. */
+    fun refresh() {
+        container.appScope.launch { if (container.accounts.refreshLibraryAndCatalog()) librariesChecked.value = true }
+    }
 
     fun setQuery(value: String) {
         query.value = value
     }
 
     fun selectLibrary(libraryId: String) {
-        viewModelScope.launch {
-            val profile = db.profiles().current() ?: return@launch
-            db.profiles().setChosenLibrary(profile.profileId, libraryId)
+        container.appScope.launch {
+            container.accounts.chooseLibrary(libraryId)
+            container.accounts.refreshLibraryAndCatalog(libraryId)
         }
     }
 
-    private fun build(s: Scope?, q: String, rows: List<CatalogBookEntity>, l: LocalState): LibraryUiState {
-        if (s == null || s.libraries.isEmpty()) {
-            return LibraryUiState(empty = EmptyState(Copy.NO_AUDIOBOOK_LIBRARIES), showSelectorAndSearch = false)
+    private fun build(s: Scope?, q: String, listing: CatalogListing, local: LocalState, notice: ServerNotice?, checked: Boolean): LibraryUiState {
+        if (s == null) return LibraryUiState()
+        val status = statusOf(notice, listing)
+        if (s.libraries.isEmpty()) {
+            if (!checked && notice == null) return LibraryUiState(status = StatusLine(Copy.LIBRARY_LOADING, showsProgress = true), showSelectorAndSearch = false)
+            return LibraryUiState(
+                empty = if (notice != null) status?.let { EmptyState(it.text, it.action, it.actionLabel) }
+                    else EmptyState(Copy.NO_AUDIOBOOK_LIBRARIES, UiAction.CHECK_AGAIN, Copy.CHECK_AGAIN),
+                showSelectorAndSearch = false,
+            )
         }
-        val editions = l.editions.associateBy { it.itemId }
-        val transfers = l.transfers.filter { it.profileId == s.profile.profileId }.associateBy { it.itemId }
-        val progress = l.progress.associateBy { it.itemId }
-        val catalogRows = rows.map { book ->
+        val library = checkNotNull(s.selected) { "A profile with libraries has a selected one" }
+        val editions = local.editions.associateBy { it.itemId }
+        val transfers = local.transfers.filter { it.profileId == s.profile.profileId }.associateBy { it.itemId }
+        val progress = local.progress.associateBy { it.itemId }
+        val catalogRows = listing.rows.map { book ->
             val edition = editions[book.itemId]
             RowBuilders.catalogRow(
                 book = book,
+                profileId = s.profile.profileId,
+                libraryId = library.libraryId,
                 edition = edition,
                 editionDir = edition?.let { container.editionFiles.published(it.generationId) },
                 transfer = transfers[book.itemId],
                 progress = progress[book.itemId],
-                live = l.live,
+                live = local.live,
                 canDownload = s.profile.canDownload,
                 unsupported = false,
             )
         }
+        val statusAsEmpty = status?.let { EmptyState(it.text, it.action, it.actionLabel) }
+        val published = listing.lastRefreshAt != null
         val empty = when {
             catalogRows.isNotEmpty() -> null
+            // A cached catalog stays searchable while the server is away; the status line stays above.
+            q.isNotBlank() && published -> EmptyState(Copy.NO_SEARCH_RESULTS, UiAction.CLEAR_SEARCH, Copy.CLEAR_SEARCH)
+            notice != null -> statusAsEmpty
+            listing.status == ListingStatus.FILLING -> null
+            listing.status == ListingStatus.INCOMPLETE -> EmptyState(Copy.LIBRARY_INCOMPLETE, UiAction.RETRY, Copy.RETRY)
             q.isNotBlank() -> EmptyState(Copy.NO_SEARCH_RESULTS, UiAction.CLEAR_SEARCH, Copy.CLEAR_SEARCH)
-            else -> EmptyState(Copy.EMPTY_LIBRARY, UiAction.CHECK_AGAIN, Copy.CHECK_AGAIN)
+            published -> EmptyState(Copy.EMPTY_LIBRARY, UiAction.CHECK_AGAIN, Copy.CHECK_AGAIN)
+            else -> null
         }
         return LibraryUiState(
             libraries = s.libraries.map { LibraryChoice(it.libraryId, it.name) },
-            selectedLibraryId = s.selected?.libraryId,
+            selectedLibraryId = library.libraryId,
             query = q,
             rows = catalogRows,
+            // An empty state that carries the status replaces the status line.
+            status = if (empty != null && empty == statusAsEmpty) null else status,
             empty = empty,
         )
+    }
+
+    private fun statusOf(notice: ServerNotice?, listing: CatalogListing): StatusLine? {
+        if (notice != null) return when (notice) {
+            ServerNotice.Unreachable -> StatusLine(Copy.UNREACHABLE + (listing.lastRefreshAt?.let { " " + Copy.lastRefresh(DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(it))) } ?: ""), UiAction.RETRY, Copy.RETRY)
+            ServerNotice.SignedOut -> StatusLine(Copy.SESSION_EXPIRED, UiAction.SIGN_IN, Copy.SIGN_IN)
+            is ServerNotice.CertificateChanged -> StatusLine(Copy.certificateChanged(notice.label), UiAction.OPEN_ADDRESSES, Copy.SERVER_ADDRESSES)
+            is ServerNotice.CertificateUnrecognized -> StatusLine(Copy.UNRECOGNIZED_CERTIFICATE, UiAction.OPEN_ADDRESSES, Copy.SERVER_ADDRESSES)
+            is ServerNotice.LocalNetworkDenied -> StatusLine(Copy.localNetworkDenied(notice.label), UiAction.ALLOW_LOCAL_NETWORK, Copy.ALLOW_ACCESS)
+        }
+        return when (listing.status) {
+            ListingStatus.FILLING -> StatusLine(Copy.LIBRARY_LOADING, showsProgress = true)
+            ListingStatus.INCOMPLETE -> StatusLine(Copy.LIBRARY_INCOMPLETE, UiAction.RETRY, Copy.RETRY)
+            ListingStatus.READY -> null
+        }
     }
 
     private data class LocalState(

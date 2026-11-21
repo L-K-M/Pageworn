@@ -146,6 +146,16 @@ object RowBuilders {
 
     fun noDownloads() = EmptyState(Copy.NO_DOWNLOADS, UiAction.BROWSE_LIBRARY, Copy.BROWSE_LIBRARY)
 
+    /** A Library row for a listing row, which may come from staged pages before the first publish. */
+    fun catalogRow(
+        book: ch.lkmc.pageworn.catalog.CatalogRow, profileId: String, libraryId: String,
+        edition: LocalEditionEntity?, editionDir: File?, transfer: TransferEntity?,
+        progress: BookProgressEntity?, live: LivePlayback, canDownload: Boolean, unsupported: Boolean,
+    ): CatalogRow = catalogRow(
+        CatalogBookEntity(profileId, libraryId, book.itemId, book.title, book.authors, book.narrators, 0, book.updatedAt, book.durationMs, book.sizeBytes, ""),
+        edition, editionDir, transfer, progress, live, canDownload, unsupported,
+    )
+
     /** One Library row: the local state of the book wins over its remote availability. */
     fun catalogRow(
         book: CatalogBookEntity,

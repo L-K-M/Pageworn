@@ -3,6 +3,7 @@ package ch.lkmc.pageworn.ui.state
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ch.lkmc.pageworn.AppContainer
+import ch.lkmc.pageworn.account.ServerNotice
 import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.core.progress.StopKind
 import ch.lkmc.pageworn.core.timeline.BookTimeline
@@ -171,8 +172,10 @@ class DownloadedViewModel(private val container: AppContainer) : ViewModel() {
 
 /**
  * Which main section shows. A cold launch decides from local state alone (A17): Downloaded when a
- * downloaded book exists, otherwise the section shown last. A warm start keeps this view model and
- * so keeps the section.
+ * downloaded book exists, otherwise the section shown last, and Library when nothing is local or
+ * cached. A warm start keeps this view model and so keeps the section. Without a profile the
+ * launch opens connection setup; with nothing local or cached, a failed first refresh opens it in
+ * the state that blocked it.
  */
 class MainViewModel(private val container: AppContainer) : ViewModel() {
     private val remembered = container.settings.lastDestination?.let { runCatching { Destination.valueOf(it) }.getOrNull() } ?: Destination.LIBRARY
@@ -183,12 +186,46 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
     private val _decided = MutableStateFlow(false)
     val decided: StateFlow<Boolean> = _decided
 
+    /** Connection setup to open over the main sections, or null. */
+    private val _connectMode = MutableStateFlow<ConnectMode?>(null)
+    val connectMode: StateFlow<ConnectMode?> = _connectMode
+    private val _blockedAddressId = MutableStateFlow<String?>(null)
+    val blockedAddressId: StateFlow<String?> = _blockedAddressId
+
     init {
         viewModelScope.launch {
-            if (container.editionStore.observeEverything().first().isNotEmpty()) _destination.value = Destination.DOWNLOADED
+            val profile = container.database.profiles().current()
+            val local = container.editionStore.observeEverything().first().isNotEmpty()
+            val cached = profile != null && container.database.libraries().forProfile(profile.profileId).any { it.publishedRefreshId != null }
+            when {
+                local -> _destination.value = Destination.DOWNLOADED
+                profile != null && !cached -> _destination.value = Destination.LIBRARY
+            }
+            if (profile == null) _connectMode.value = ConnectMode.FIRST
             _decided.value = true
+            if (profile != null && !local && !cached) awaitLaunchBlock(profile.profileId)
         }
     }
+
+    /** Waits for the launch refresh to publish a catalog or to fail in a state that blocks it. */
+    private suspend fun awaitLaunchBlock(profileId: String) {
+        val (libraries, notice) = combine(container.database.libraries().observe(profileId), container.accounts.notice) { libraries, notice -> libraries to notice }
+            .first { (libraries, notice) -> libraries.any { it.publishedRefreshId != null } || blocksLaunch(notice) }
+        if (libraries.any { it.publishedRefreshId != null }) return
+
+        val addresses = container.database.addresses().forProfile(profileId)
+        _blockedAddressId.value = when (notice) {
+            is ServerNotice.LocalNetworkDenied -> addresses.firstOrNull { it.label == notice.label }?.addressId
+            is ServerNotice.CertificateChanged -> addresses.firstOrNull { it.label == notice.label }?.addressId
+            else -> addresses.firstOrNull()?.addressId
+        }
+        _connectMode.value = ConnectMode.LAUNCH_BLOCKED
+    }
+
+    private fun blocksLaunch(notice: ServerNotice?): Boolean =
+        notice is ServerNotice.Unreachable || notice is ServerNotice.LocalNetworkDenied || notice is ServerNotice.CertificateChanged
+
+    fun connectFinished() { _connectMode.value = null }
 
     fun select(destination: Destination) {
         if (destination != _destination.value) container.notices.leftDownloaded(_destination.value, destination)

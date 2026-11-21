@@ -97,8 +97,11 @@ class AppContainer(private val app: PagewornApp) {
         )
     }
 
+    /** Publishes catalog refreshes and reads the published listing with its status. */
+    val catalog: CatalogRefresher by lazy { CatalogRefresher(database, { liveClock.wallMillis() }) }
+
     val accounts: AccountService by lazy {
-        AccountService(database, tokenVault, serverAccess, localNetwork, CatalogRefresher(database, { liveClock.wallMillis() }), { liveClock.wallMillis() })
+        AccountService(database, tokenVault, serverAccess, localNetwork, catalog, { liveClock.wallMillis() })
     }
 
     suspend fun coverFileFor(key: BookKey): File? = editionStore.anyPlan(key)?.coverFile

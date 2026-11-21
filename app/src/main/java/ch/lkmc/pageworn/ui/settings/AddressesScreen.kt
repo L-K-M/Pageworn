@@ -49,10 +49,6 @@ fun AddressesScreen(state: AddressesUiState, onBack: () -> Unit, onAdd: () -> Un
                 RadioButton(state.automatic, onClick = null)
                 Text("Automatic", Modifier.padding(start = 8.dp), style = PagewornTheme.type.rowTitle)
             }
-            Row(Modifier.fillMaxWidth().selectable(!state.automatic, role = Role.RadioButton) { onSetAutomatic(false) }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                RadioButton(!state.automatic, onClick = null)
-                Text("Manual", Modifier.padding(start = 8.dp), style = PagewornTheme.type.rowTitle)
-            }
         }
         state.rows.forEachIndexed { index, row ->
             HorizontalDivider(color = PagewornTheme.colors.secondaryInk.copy(alpha = .25f))
@@ -84,6 +80,8 @@ private fun AddressEntry(row: AddressRow, pinned: Boolean, canMoveUp: Boolean, c
             }
             Switch(checked = row.enabled, onCheckedChange = { onToggleEnabled() }, modifier = Modifier.semantics { contentDescription = "Enable ${row.label}" })
         }
+        if (row.cleartext) Text(Copy.ALLOW_CLEARTEXT, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.metadata)
+        if (pinned) Text("Pinned", color = PagewornTheme.colors.accent, style = PagewornTheme.type.metadata)
         if (row.isActive) Text("In use", color = PagewornTheme.colors.accent, style = PagewornTheme.type.metadata)
         row.lastSuccessText?.let { Text(it, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.metadata) }
         row.message?.let { Text(it, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status) }

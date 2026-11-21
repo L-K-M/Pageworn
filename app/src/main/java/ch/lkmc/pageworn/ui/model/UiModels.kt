@@ -299,11 +299,13 @@ data class ConnectUiState(
     val allowCleartext: Boolean = false,
     val cleartextExplanation: String? = null,
     val addressError: String? = null,
+    val usernameError: String? = null,
     val credentialsError: String? = null,
     /** Unrecognized or changed certificate: fingerprint with its Trust action. */
     val fingerprint: String? = null,
     val canRetry: Boolean = false,
-    val canAllowLocalNetwork: Boolean = false,
+    /** The local-network action's label, or null: Continue before the system asks, Allow access once denied. */
+    val localNetworkAction: String? = null,
     /** Pairing a second address: what matched, for the one-time confirmation. */
     val pairingSummary: String? = null,
     val busy: Boolean = false,

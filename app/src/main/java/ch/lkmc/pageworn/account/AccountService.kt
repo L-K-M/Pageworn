@@ -31,6 +31,8 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /** A value, or the problem that stopped it. */
 sealed interface Outcome<out T, out E> {
@@ -336,6 +338,20 @@ class AccountService(
             db.profiles().setChosenLibrary(profile.profileId, chosen)
         }
         return true
+    }
+
+    private val refreshing = Mutex()
+
+    /**
+     * Refreshes the libraries, then the catalog of [libraryId] or of the chosen library. Callers
+     * run it in the application scope so a screen going away does not cancel it; overlapping
+     * calls wait for each other rather than walking the same pages twice.
+     */
+    suspend fun refreshLibraryAndCatalog(libraryId: String? = null): Boolean = refreshing.withLock {
+        if (!refreshLibraries()) return@withLock false
+        val selected = libraryId ?: db.profiles().current()?.chosenLibraryId ?: return@withLock true
+        refreshCatalog(selected)
+        true
     }
 
     suspend fun chooseLibrary(libraryId: String) {

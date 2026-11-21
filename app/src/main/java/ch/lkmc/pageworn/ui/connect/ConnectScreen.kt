@@ -14,7 +14,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Switch
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -48,26 +48,27 @@ fun ConnectScreen(state: ConnectUiState, onUrlChange: (String) -> Unit, onLabelC
                 state.fingerprint?.let { Text(it, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.metadata.copy(fontFamily = FontFamily.Monospace)) }
                 if (state.fingerprint != null) TextAction(Copy.TRUST_CERTIFICATE, onClick = onTrust)
                 if (state.canRetry) TextAction(Copy.RETRY, onClick = onRetry)
-                if (state.canAllowLocalNetwork) TextAction(Copy.ALLOW_ACCESS, onClick = onAllowLocalNetwork)
+                state.localNetworkAction?.let { TextAction(it, onClick = onAllowLocalNetwork) }
                 OutlinedTextField(state.label, onLabelChange, Modifier.fillMaxWidth(), label = { Text("Label (optional)") }, singleLine = true)
                 if (state.url.trim().startsWith("http://", ignoreCase = true) || state.allowCleartext || state.cleartextExplanation != null) {
-                    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(value = state.allowCleartext, role = Role.Checkbox, onValueChange = onAllowCleartextChange), verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(state.allowCleartext, onCheckedChange = null)
-                        Text("Allow unencrypted HTTP for this address", Modifier.padding(start = 8.dp), color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.metadata)
+                    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(value = state.allowCleartext, role = Role.Switch, onValueChange = onAllowCleartextChange), verticalAlignment = Alignment.CenterVertically) {
+                        Switch(state.allowCleartext, onCheckedChange = null)
+                        Text(Copy.ALLOW_CLEARTEXT, Modifier.padding(start = 8.dp), color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.metadata)
                     }
                 }
-                state.cleartextExplanation?.let { Text(it, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status) }
-                Button(onClick = onContinue, enabled = !state.busy, modifier = Modifier.heightIn(min = 48.dp)) { Text("Continue") }
+                (state.cleartextExplanation ?: if (state.url.trim().startsWith("http://", ignoreCase = true)) Copy.CLEARTEXT_TRADEOFF else null)?.let { Text(it, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status) }
+                Button(onClick = onContinue, enabled = !state.busy, modifier = Modifier.heightIn(min = 48.dp)) { Text(Copy.CONTINUE) }
             }
             ConnectStep.CREDENTIALS -> {
                 OutlinedTextField(state.username, onUsernameChange, Modifier.fillMaxWidth().semantics { contentType = ContentType.Username }, label = { Text("Username") }, singleLine = true)
+                state.usernameError?.let { Text(it, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status) }
                 OutlinedTextField(state.password, onPasswordChange, Modifier.fillMaxWidth().semantics { contentType = ContentType.Password }, label = { Text("Password") }, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), singleLine = true, isError = state.credentialsError != null)
                 state.credentialsError?.let { Text(it, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status) }
-                Button(onClick = onSignIn, enabled = !state.busy, modifier = Modifier.heightIn(min = 48.dp)) { Text(Copy.SIGN_IN) }
+                Button(onClick = onSignIn, enabled = !state.busy, modifier = Modifier.heightIn(min = 48.dp)) { Text(Copy.CONTINUE) }
             }
             ConnectStep.CONFIRM_PAIRING -> {
                 state.pairingSummary?.let { Text(it, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.empty) }
-                Button(onClick = onConfirmPairing, enabled = !state.busy, modifier = Modifier.heightIn(min = 48.dp)) { Text("Add this address") }
+                Button(onClick = onConfirmPairing, enabled = !state.busy, modifier = Modifier.heightIn(min = 48.dp)) { Text(Copy.ADD_ADDRESS) }
                 TextAction(Copy.CANCEL, onClick = onCancelPairing)
             }
         }
