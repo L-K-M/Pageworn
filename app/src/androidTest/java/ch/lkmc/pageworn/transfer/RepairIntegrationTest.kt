@@ -285,6 +285,7 @@ class RepairIntegrationTest {
 
     @Test
     fun repair3AZeroedTrackFailsWhenPlaybackReachesIt() {
+        arg("absListener")
         val key = runBlocking { boundary() }
         assumeTrue("needs the repaired book of phase 2", runBlocking { edition(key).state } == EditionState.READY)
         RestartMarker.clear()

@@ -6,13 +6,14 @@ This is the format coverage record that [media format acceptance](05-playback-an
 |---|---|
 | Server release admitting the extensions | Audiobookshelf v2.38.0 scanner (`SupportedAudioTypes` in `server/utils/globals.js`): m4b, mp3, m4a, flac, opus, ogg, oga, mp4, aac, wma, aiff, aif, wav, webm, webma, mka, awb, caf, mpg, mpeg |
 | Engine | Media3 ExoPlayer 1.11.1, `BookMediaSourceFactory.extractorsFactory()` |
-| Minimum target | Android 14 (API 34) emulator, `google/sdk_gphone64_arm64/emu64a:14/UE1A.230829.050/12077443:userdebug/dev-keys` |
+| Minimum target | Android 12 (API 31) emulator, `google/sdk_gphone64_arm64/emulator64_arm64:12/SE1A.220630.001.A1/9056438:userdebug/dev-keys` |
+| Transfer API boundary | Android 14 (API 34) emulator, `google/sdk_gphone64_arm64/emu64a:14/UE1A.230829.050/12077443:userdebug/dev-keys` |
 | Current target | Android 17 (API 37) emulator, `google/sdk_gphone64_arm64/emu64a:17/CE2A.260420.051.A3/16571990:userdebug/dev-keys` |
-| Date | 21 November 2026 |
+| Dates | API 31 on 22 November 2026. API 34 and API 37 on 21 November 2026. |
 
 **Method.** Each fixture is 60 s (the long MP3 21 min) of a quiet 180 Hz bed with 400 ms tone cues at known times, near the start and near 90 %. The test seeks one second before a cue, plays, and finds the cue's onset in the decoded PCM that the player is about to output. The audible error is where the cue was heard minus where it was written: it measures what a listener hears, not the decoder's timestamp. "Resume / late seek" lists the error at the start cue and at the last cue. The pass threshold is 1 s (A14). These are emulator results with software decoders; audible seek accuracy on the listener's phone is an [owner check](06-delivery-and-tests.md#owner-checks).
 
-| Fixture | Ext | Container (ffprobe) | Codec | Chapter source | API 34: resume / late seek | API 37: resume / late seek | Reason when unsupported |
+| Fixture | Ext | Container (ffprobe) | Codec | Chapter source | API 31 and 34: resume / late seek | API 37: resume / late seek | Reason when unsupported |
 |---|---|---|---|---|---|---|---|
 | `fmt-m4b-aac` | m4b | mov,mp4,m4a,3gp,3g2,mj2 | aac | embedded (2 markers) | playable, +2 / +7 ms | playable, +2 / +7 ms |  |
 | `fmt-m4a-aac` | m4a | mov,mp4,m4a,3gp,3g2,mj2 | aac | none | playable, +2 / +7 ms | playable, +2 / +7 ms |  |
@@ -47,9 +48,9 @@ This is the format coverage record that [media format acceptance](05-playback-an
 
 ## What the matrix decides
 
-- **Playable on both targets:** M4B, M4A and MP4 with AAC; MP3 constant and variable bit rate, including a 21-minute VBR file seeked at 10, 18 and 20 minutes; ADTS AAC without an index; Ogg Vorbis (`.ogg`, `.oga`); Opus (`.opus`, Opus in `.ogg`); FLAC; PCM WAV; WebM and Matroska audio (`.webm`, `.webma`, `.mka`) with Opus, Vorbis and AAC; AMR-WB (`.awb`). The listener's families (M4B, M4A, MP3, FLAC, Opus, Ogg) all pass, as A14 requires.
-- **Unsupported on both targets, refused before download** (`FormatMatrix` in the app): the extensions `aiff`, `aif` and `wma` whatever their codec, `caf` with any codec but MP3, and the codecs `alac`, `wmav1`, `wmav2`, `wmapro`, `wmalossless`, `wmavoice`, `mp1` and `mp2` in any container. A phone that reports no decoder for a book's codec refuses it the same way. Every other combination is downloaded and judged by the probe.
-- **Chapter markers** in every family of the listener's library that can carry them (MP4 `chpl`, ID3v2 CHAP, Ogg and FLAC `CHAPTERnnn` comments) are read by the probe after download on both targets (`EmbeddedChaptersProbeTest`), for the [chapter fallback](05-playback-and-formats.md#chapter-map-and-fallback).
+- **Playable on all three targets:** M4B, M4A and MP4 with AAC; MP3 constant and variable bit rate, including a 21-minute VBR file seeked at 10, 18 and 20 minutes; ADTS AAC without an index; Ogg Vorbis (`.ogg`, `.oga`); Opus (`.opus`, Opus in `.ogg`); FLAC; PCM WAV; WebM and Matroska audio (`.webm`, `.webma`, `.mka`) with Opus, Vorbis and AAC; AMR-WB (`.awb`). The listener's families (M4B, M4A, MP3, FLAC, Opus, Ogg) all pass, as A14 requires.
+- **Unsupported on all three targets, refused before download** (`FormatMatrix` in the app): the extensions `aiff`, `aif` and `wma` whatever their codec, `caf` with any codec but MP3, and the codecs `alac`, `wmav1`, `wmav2`, `wmapro`, `wmalossless`, `wmavoice`, `mp1` and `mp2` in any container. A phone that reports no decoder for a book's codec refuses it the same way. Every other combination is downloaded and judged by the probe.
+- **Chapter markers** in every family of the listener's library that can carry them (MP4 `chpl`, ID3v2 CHAP, Ogg and FLAC `CHAPTERnnn` comments) are read by the probe after download on all three targets (`EmbeddedChaptersProbeTest`), for the [chapter fallback](05-playback-and-formats.md#chapter-map-and-fallback).
 - **Open items:** AAC in CAF has no fixture (ffmpeg cannot write one) and is refused through the CAF rule. MPEG-PS with MP3 or AC-3 audio, and ALAC on a phone that ships an ALAC decoder, have no evidence yet and are judged by the probe after download.
 
 ## Observed and corrected: MP3 seeking

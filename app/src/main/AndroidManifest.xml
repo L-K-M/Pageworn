@@ -6,11 +6,12 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RUN_USER_INITIATED_JOBS" />
     <!-- Android 17 blocks local-network access for apps targeting SDK 37 until this runtime
-         permission (nearby-devices group) is granted. It does not exist on Android 14 to 16. -->
+         permission (nearby-devices group) is granted. It does not exist on Android 12 to 16. -->
     <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
 
     <application
@@ -47,11 +48,16 @@
             </intent-filter>
         </service>
 
-        <!-- Downloads run as user-initiated data transfer jobs (RUN_USER_INITIATED_JOBS). -->
+        <!-- Android 14+ uses user-initiated data transfer jobs. Android 12–13 uses the service below. -->
         <service
             android:name=".transfer.TransferJobService"
             android:exported="false"
             android:permission="android.permission.BIND_JOB_SERVICE" />
+
+        <service
+            android:name=".transfer.TransferForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
 
         <receiver
             android:name="androidx.media3.session.MediaButtonReceiver"

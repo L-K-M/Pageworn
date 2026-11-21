@@ -35,6 +35,7 @@ import ch.lkmc.pageworn.server.LocalNetworkAccess
 import ch.lkmc.pageworn.server.NetworkDiagnostics
 import ch.lkmc.pageworn.server.RouteMode
 import ch.lkmc.pageworn.server.TokenVault
+import ch.lkmc.pageworn.transfer.ForegroundServiceTransfers
 import ch.lkmc.pageworn.transfer.JobSchedulerTransfers
 import ch.lkmc.pageworn.transfer.ProbeTrackVerifier
 import ch.lkmc.pageworn.transfer.TransferCoordinator
@@ -144,13 +145,16 @@ class AppContainer(private val app: PagewornApp) {
         }, nowMs = { liveClock.wallMillis() })
     }
 
-    /** Downloads: the durable queue, run by the user-initiated transfer job. */
+    /** Downloads: the durable queue, hosted by the platform service for this Android version. */
     val transfers: TransferCoordinator by lazy {
         TransferCoordinator(
             database, editionFiles, editionStore, AccountTransferRoutes(database, serverAccess),
             ProbeTrackVerifier(MediaProbe(app)), FormatSupport(), liveClock,
             onPublished = { title -> TransferNotifications.postCompletion(app, title) },
-        ).also { it.scheduler = JobSchedulerTransfers(app) }
+        ).also {
+            it.scheduler = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) JobSchedulerTransfers(app)
+            else ForegroundServiceTransfers(app)
+        }
     }
 
     fun onDownloadEnqueued() {

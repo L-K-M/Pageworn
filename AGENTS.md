@@ -9,7 +9,7 @@ and [asset guide](docs/08-assets-and-implementation.md) for UI work.
 ## Project conventions
 
 - Use the checked-in Gradle wrapper with JDK 21. The Android app compiles to Java
-  17 bytecode, uses package `ch.lkmc.pageworn` and supports Android API 34 and up.
+  17 bytecode, uses package `ch.lkmc.pageworn` and supports Android API 31 and up.
   Compile and target API 37 are part of the current delivery plan.
 - Use Kotlin, Jetpack Compose, Room and a Media3 library session. Keep library,
   transfer and playback behavior within the boundaries in

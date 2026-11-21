@@ -26,6 +26,7 @@ import ch.lkmc.pageworn.server.ServerError
 import java.io.File
 import java.io.IOException
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -39,9 +40,11 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -83,7 +86,7 @@ sealed interface Refusal {
  *
  * Every state lives in Room, so a process death loses nothing: [recover] turns interrupted work
  * back into queued work, and the bytes on disk, not the journal, decide where a file continues.
- * [runQueue] runs inside the platform's user-initiated transfer job; one run at a time holds
+ * [runQueue] runs inside the platform service hosting downloads. One run at a time holds
  * [runLock]. Pause and Cancel write their state first and then stop the running copy, which
  * keeps its written prefix.
  */
@@ -100,7 +103,7 @@ class TransferCoordinator(
     private val newId: () -> String = { UUID.randomUUID().toString() },
     private val onPublished: (title: String) -> Unit = {},
 ) {
-    /** Set by the app after construction: the platform job that runs [runQueue]. */
+    /** Set by the app after construction to start the platform service that runs [runQueue]. */
     @Volatile var scheduler: TransferScheduler = TransferScheduler { false }
 
     private val transfers get() = db.transfers()
@@ -108,6 +111,7 @@ class TransferCoordinator(
     private val recovery = Mutex()
     private var recovered = false
     private val wake = Channel<Unit>(Channel.CONFLATED)
+    private val retryForAddressChange = AtomicBoolean()
 
     /** The job being copied now and its coroutine, so Pause and Cancel can stop it. */
     private class Running(val jobId: String, val job: Job)
@@ -267,6 +271,7 @@ class TransferCoordinator(
 
     /** Runs the first job that is due now, if any, to its next resting state. Tests drive the queue with it. */
     internal suspend fun runDue(): Boolean {
+        if (retryForAddressChange.getAndSet(false)) retryWaiting()
         val next = nextRunnable() ?: return false
         runOne(next.jobId)
         return true
@@ -339,6 +344,9 @@ class TransferCoordinator(
     private suspend fun watchAddresses() {
         db.profiles().observe()
             .flatMapLatest { profile -> if (profile == null) flowOf(emptyList()) else db.addresses().observe(profile.profileId) }
+            // A route probe records a successful contact even if the address cannot serve audio.
+            .map { addresses -> addresses.map { it.copy(lastSuccessAt = null) } }
+            .distinctUntilChanged()
             .drop(1)
             .collect { addresses -> addressesChanged(addresses) }
     }
@@ -355,10 +363,15 @@ class TransferCoordinator(
                 }
             }
         }
+        // Apply the retry after the current attempt can no longer write its own backoff.
+        retryForAddressChange.set(true)
+        wake.trySend(Unit)
+    }
+
+    private suspend fun retryWaiting() {
         val now = clock.wallMillis()
         transfers.allActive().filter { it.state == TransferState.WAITING_FOR_CONNECTION && !it.userPaused }
             .forEach { waiting -> update(waiting.jobId) { if (it.state == TransferState.WAITING_FOR_CONNECTION && !it.userPaused) it.copy(nextRetryAt = now) else null } }
-        wake.trySend(Unit)
     }
 
     private fun usable(address: AddressEntity) =

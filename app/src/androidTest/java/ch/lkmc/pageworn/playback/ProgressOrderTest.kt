@@ -203,8 +203,9 @@ class ProgressOrderTest {
             c.setMediaItem(item(boundary), 207_000)
             c.prepare()
             c.play()
-            c.awaitUntil(15_000, "boundary book ended") { playbackState == Player.STATE_ENDED || !playWhenReady }
-            delay(300)
+            withTimeout(15_000) {
+                container.database.progress().observe(boundary.profileId, boundary.itemId).first { it?.finished == true }
+            }
             clock.advance(60_000)
             // Listen to part of the M4B later.
             val place = c.stopAt(orchard, 50_000)

@@ -3,6 +3,7 @@
 Pageworn requires JDK 21, Android SDK platform `android-37.0` and build tools
 `37.0.0`. Use the pinned Gradle wrapper from the Android project. Set
 `ANDROID_HOME` to the SDK directory or configure `sdk.dir` in `local.properties`.
+Install the APK on Android 12 (API 31) or newer.
 
 ```sh
 scripts/build.sh

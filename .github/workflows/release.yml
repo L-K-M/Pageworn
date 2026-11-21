@@ -88,7 +88,7 @@ jobs:
 
           apk=app/build/outputs/apk/release/app-release.apk
           build_tools="$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION"
-          "$build_tools/apksigner" verify --min-sdk-version 34 "$apk"
+          "$build_tools/apksigner" verify "$apk"
           package_info="$("$build_tools/aapt2" dump badging "$apk" | awk '/^package:/')"
           if [[ "$package_info" != "package: name='ch.lkmc.pageworn' versionCode='$version_code' versionName='$version'"* ]]; then
             echo '::error::The APK package ID or version does not match the release tag.'

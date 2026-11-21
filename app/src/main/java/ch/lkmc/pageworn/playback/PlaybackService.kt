@@ -1,6 +1,8 @@
 package ch.lkmc.pageworn.playback
 
+import android.app.NotificationManager
 import android.content.Intent
+import android.os.Build
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.exoplayer.ExoPlayer
@@ -71,10 +73,13 @@ class PlaybackService : MediaLibraryService() {
             .setSessionActivity(container.sessionActivity(this))
             .setMediaButtonPreferences(cb.mediaButtonPreferences(forCar = false))
             .build()
+        val notifications = DefaultMediaNotificationProvider.Builder(this).build().apply {
+            setSmallIcon(R.drawable.ic_stat_pageworn)
+        }
         setMediaNotificationProvider(
-            DefaultMediaNotificationProvider.Builder(this).build().apply {
-                setSmallIcon(R.drawable.ic_stat_pageworn)
-            },
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                LegacyMediaNotificationProvider(getSystemService(NotificationManager::class.java), scope, notifications)
+            } else notifications,
         )
     }
 

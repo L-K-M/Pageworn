@@ -80,7 +80,8 @@ airplane mode on and off and kills the app's process mid-transfer. Phase 6
 fills the emulator's data volume with a preallocated file in the app's
 files directory, grows it again whenever the platform purges cached data to
 make room, and deletes it at the end. `ONLY="phase6 phase8"` runs only the
-named phases.
+named phases. Before phase 5 on a disposable API 31 emulator, run
+`adb -s <emulator-serial> root` so the host can signal the app process.
 
 ## Why named volumes instead of bind mounts
 

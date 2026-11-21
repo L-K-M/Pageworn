@@ -7,6 +7,8 @@
 #
 # Needs: server-fixture/abs.sh up + seed (accounts in .state/accounts.json), the debug and
 # androidTest APKs built (./gradlew :app:assembleDebug :app:assembleDebugAndroidTest).
+# On the API 31 emulator, run adb -s <serial> root before phase 5. Its SELinux policy
+# prevents run-as from signalling the app process.
 # Refuses any serial that is not an emulator. The credentials are the disposable fixture
 # account's and only travel as instrumentation arguments.
 
@@ -60,6 +62,13 @@ run_phase() { # method [extra instrumentation arguments...]
 
 app_pid() { adb_shell pidof "$PACKAGE" | tr -d '\r'; }
 start_app() { adb_shell am start -W -n "$PACKAGE/.MainActivity" >/dev/null; }
+kill_app_process() {
+  if [ "$(adb_shell id -u | tr -d '\r')" = 0 ]; then
+    adb_shell kill -9 "$1"
+  else
+    adb_shell run-as "$PACKAGE" kill -9 "$1"
+  fi
+}
 
 "$ADB" -s "$SERIAL" install -r -t -g "$ROOT/app/build/outputs/apk/debug/app-debug.apk" >/dev/null
 "$ADB" -s "$SERIAL" install -r -t "$ROOT/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk" >/dev/null
@@ -106,13 +115,18 @@ run_phase phase5aLeaveATransferMidFile || STATUS=1
 start_app
 sleep 8
 before="$(app_pid)"
-if [ -n "$before" ]; then
-  adb_shell run-as "$PACKAGE" kill -9 "$before" || STATUS=1
+if [ -n "$before" ] && kill_app_process "$before"; then
   sleep 2
   after="$(app_pid)"
-  echo "  killed process $before; running now: ${after:-none}"
+  if [ "$after" = "$before" ]; then
+    echo "FAIL process $before was still running after the kill"
+    STATUS=1
+  else
+    echo "  killed process $before; running now: ${after:-none}"
+  fi
 else
-  echo "FAIL the app was not running before the kill"; STATUS=1
+  echo "FAIL could not kill the app process for phase 5"
+  STATUS=1
 fi
 start_app
 sleep 5

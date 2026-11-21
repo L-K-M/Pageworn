@@ -1,10 +1,14 @@
 package ch.lkmc.pageworn.transfer
 
+import android.app.Notification
+import android.app.NotificationManager
 import android.app.job.JobScheduler
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.os.Build
 import android.os.Bundle
 import android.system.Os
+import androidx.lifecycle.Lifecycle
 import androidx.media3.common.MediaItem
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -60,7 +64,7 @@ import org.junit.runner.RunWith
 
 /**
  * The M3 exit check: real downloads from the local Audiobookshelf v2.38.0 reference instance,
- * through the transfer coordinator and its user-initiated job, as the app runs them. Two
+ * through the transfer coordinator and the platform service that runs it. Two
  * `server-fixture/fault_proxy.py` instances front the one server as two origins, "Home"
  * (`http://10.0.2.2:13380/`) and "Remote" (`http://10.0.2.2:13381/`). Each records the requests
  * it forwards and injects the faults a phase asks for through its control port.
@@ -117,7 +121,7 @@ class DownloadIntegrationTest {
         return (read as? Routed.Done)?.value?.tracks ?: throw AssertionError("manifest of ${key.itemId}: $read")
     }
 
-    /** Runs [block] with the app on screen: the platform accepts a transfer job only then. */
+    /** Runs [block] with the app on screen so the platform allows work to start. */
     private fun <T> visible(block: suspend () -> T): T =
         ActivityScenario.launch(MainActivity::class.java).use { runBlocking { block() } }
 
@@ -273,17 +277,36 @@ class DownloadIntegrationTest {
             FaultProxy.ignoreRange(fileDownload(a.fileId)),
             FaultProxy.drop(fileDownload(b.fileId), bytes = b.sizeBytes!! / 2),
         )
-        val jobId = visible {
+        val notifications = context.getSystemService(NotificationManager::class.java)
+        notifications.cancel(TransferNotifications.COMPLETION_ID)
+        val jobId = ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             val id = enqueued(key)
             // A second tap attaches to the same job (A04).
             assertThat(container.transfers.download(key)).isEqualTo(DownloadStart.Attached(id))
-            // A04c: a user-initiated job that takes any network, metered or not.
-            val info = context.getSystemService(JobScheduler::class.java).getPendingJob(TransferJobService.JOB_ID)
-            assertWithMessage("scheduled transfer job").that(info).isNotNull()
-            assertThat(info!!.isUserInitiated).isTrue()
-            assertThat(info.requiredNetwork!!.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)).isTrue()
-            assertThat(info.requiredNetwork!!.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)).isFalse()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                // A04c: a user-initiated job that takes any network, metered or not.
+                val info = context.getSystemService(JobScheduler::class.java).getPendingJob(TransferJobService.JOB_ID)
+                assertWithMessage("scheduled transfer job").that(info).isNotNull()
+                assertThat(info!!.isUserInitiated).isTrue()
+                assertThat(info.requiredNetwork!!.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)).isTrue()
+                assertThat(info.requiredNetwork!!.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)).isFalse()
+            } else {
+                awaitInFile(id, 0)
+                scenario.moveToState(Lifecycle.State.CREATED)
+                assertThat(db.editions().edition(key.profileId, key.itemId)).isNull()
+            }
             awaitReady(key)
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                // Before Android 13 the system setting controls notifications without a runtime grant.
+                assertThat(TransferNotifications.enabled(context)).isTrue()
+                await(10_000, "the completion notification and the end of the foreground service") {
+                    val posted = notifications.activeNotifications
+                    posted.none { it.id == TransferNotifications.ID } && posted.any {
+                        it.id == TransferNotifications.COMPLETION_ID &&
+                            it.notification.extras.getCharSequence(Notification.EXTRA_TITLE) == BOUNDARY
+                    }
+                }
+            }
             id
         }
         assertThat(job(jobId).state).isEqualTo(TransferState.COMPLETE)

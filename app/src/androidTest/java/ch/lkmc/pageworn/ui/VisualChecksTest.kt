@@ -152,7 +152,8 @@ class VisualChecksTest {
         openFullPlayer()
         waitForPlaybackDescription("Pause Boundary Book")
 
-        shell("cmd media_session dispatch pause")
+        composeRule.waitUntil(10_000) { TestApp.container.playbackHub.state.value.isPlaying }
+        shell("input keyevent KEYCODE_MEDIA_PAUSE")
         waitForPlaybackDescription("Resume Boundary Book")
 
         composeRule.onNodeWithContentDescription("Collapse player").performClick()
@@ -177,6 +178,9 @@ class VisualChecksTest {
         launchMain()
         openFullPlayer()
 
+        composeRule.waitUntil(10_000) {
+            composeRule.onAllNodes(hasContentDescription("Playback speed, 1 times")).fetchSemanticsNodes().isNotEmpty()
+        }
         composeRule.onNodeWithContentDescription("Playback speed, 1 times").performScrollTo().performClick()
         waitForSheetText("1.5×")
         composeRule.onNodeWithText("1.5×").performScrollTo().performClick()

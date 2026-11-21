@@ -51,7 +51,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        // The platform runs a transfer job only if it was scheduled while the app was visible.
+        // Android allows the app to start its download service while the screen is visible.
         val container = (application as PagewornApp).container
         container.appScope.launch { container.transfers.onForeground() }
     }
