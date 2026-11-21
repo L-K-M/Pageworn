@@ -178,6 +178,9 @@ class VisualChecksTest {
         launchMain()
         openFullPlayer()
 
+        composeRule.waitUntil(10_000) {
+            composeRule.onAllNodes(hasContentDescription("Playback speed, 1 times")).fetchSemanticsNodes().isNotEmpty()
+        }
         composeRule.onNodeWithContentDescription("Playback speed, 1 times").performScrollTo().performClick()
         waitForSheetText("1.5×")
         composeRule.onNodeWithText("1.5×").performScrollTo().performClick()
