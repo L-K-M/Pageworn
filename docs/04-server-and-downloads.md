@@ -34,6 +34,20 @@ The listener’s server runs 2.38.x, so pin the reference release v2.38.0 (2026-
 
 Use a non-admin test account with and without download permission. Login, refresh and `GET /api/me` return the user’s `permissions.download` flag with `librariesAccessible` and `itemTagsSelected`. Show the disabled-download state on details from that flag before any transfer and refresh it with the catalog. Still treat a 403 as final, because an administrator can change permissions at any time. A Play tap on a completed download makes zero playback-session or audio HTTP requests. The app stores per-book progress locally. It does not send listening sessions or progress updates to the server in v1. If a server requires OIDC-only login, show the password-sign-in copy from the [product brief](01-product.md#copy-and-recovery). Native OIDC is outside v1.
 
+### Observed on the reference instance
+
+These observations come from a local Audiobookshelf v2.38.0 instance (`ghcr.io/advplyr/audiobookshelf:2.38.0`) with disposable non-admin accounts and the synthetic fixture books, not from the listener's deployment; what nginx or the listener's settings change there stays an [owner check](06-delivery-and-tests.md#owner-checks). `server-fixture/abs.sh` reproduces the instance, and the sanitized exchanges are in `app/src/test/resources/abs/v2.38.0/`.
+
+- `GET /status` answers without a token with `serverVersion`, `isInit` and `authMethods: ["local"]`.
+- `POST /login` with `x-return-tokens: true` returns `user.accessToken` and `user.refreshToken` on the user object, with `user.id`, `user.username` and `user.permissions.download`. Without the header the refresh token goes only into a cookie. The access token lives 3600 s and the refresh token 2 592 000 s (30 days).
+- `POST /auth/refresh` rotates both tokens. The replaced refresh token still refreshes immediately afterwards, as the grace period says.
+- `GET /api/libraries` returns `{"libraries": [...]}`; an account with no accessible library gets an empty list with status 200. `GET /api/libraries/{id}/items` with `limit=0` returns every item in one page.
+- In `?expanded=1`, `ino` is a string. An excluded file disappears from `media.tracks`, which are renumbered, and stays in `media.audioFiles` with `exclude: true` and `index: -1`. The chapter list is not rebuilt after an exclusion, so it can run past the remaining audio; the validation of [chapter map and fallback](05-playback-and-formats.md#chapter-map-and-fallback) handles that.
+- A multi-file book without chapter marks gets one generated chapter per audio file; a single file without marks gets an empty list. The chapter rules treat the generated list as no markers.
+- The download route answers 200 with `content-length`, `accept-ranges: bytes`, a weak `ETag`, `Last-Modified` and `content-disposition: attachment`, and the body matches the source file. `Range: bytes=1000-` gives 206 with `content-range: bytes 1000-N/M`. The server also answers 206 to `If-Range` with the weak tag, which the client never sends.
+- An account without download permission gets 403 from the download route and 200 from the stream route `/api/items/{id}/file/{ino}`.
+- The cover route answers without a token. `POST /logout` with `x-refresh-token` answers 200.
+
 ### Signing out and in again
 
 Sign out, in Settings, asks once for confirmation. It then sends the logout request to every paired address that answers and deletes every local credential, whether or not a server answered. A session that could not be revoked expires on the server by itself. Sign out keeps the profile, its addresses, the cached catalog, every edition and all progress. Transfers in progress or queued move to Waiting for connection and keep their staged files. While signed out, Library shows the session-expired copy with Sign in, and Downloaded and playback work as before.

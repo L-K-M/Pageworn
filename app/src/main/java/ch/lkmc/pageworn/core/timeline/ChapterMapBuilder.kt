@@ -12,6 +12,8 @@ data class RawChapter(val startMs: Long, val endMs: Long?, val title: String?)
  * 3. Missing ends use the next valid start or the book end; uncovered audio becomes a generated
  *    Opening or Interlude segment, never merged into a neighbour.
  * 4. No markers at all: an empty map, so the edition is divided by track or is one whole-book segment.
+ * 5. A server list with one chapter per track that matches the track bounds is the list Audiobookshelf
+ *    builds from the files of a book without markers: no chapters, and its titles become track titles.
  */
 object ChapterMapBuilder {
     /**
@@ -20,7 +22,11 @@ object ChapterMapBuilder {
      */
     const val ROUNDING_TOLERANCE_MS = 5L
 
-    data class Result(val chapters: List<ChapterSpan>, val source: ChapterOrigin?)
+    /**
+     * [trackTitles] is set when the server list only restates the files ([isFileList]); the edition
+     * then lists Tracks with these titles.
+     */
+    data class Result(val chapters: List<ChapterSpan>, val source: ChapterOrigin?, val trackTitles: List<String>? = null)
 
     fun build(
         durationMs: Long,
@@ -29,6 +35,10 @@ object ChapterMapBuilder {
         trackStartsMs: List<Long> = emptyList(),
     ): Result {
         require(durationMs > 0)
+        if (isFileList(durationMs, serverChapters, trackStartsMs)) {
+            val titles = serverChapters.sortedBy { it.startMs }.mapIndexed { i, c -> c.title?.trim()?.takeIf { it.isNotEmpty() } ?: "Track ${i + 1}" }
+            return Result(emptyList(), null, titles)
+        }
         val server = validate(durationMs, serverChapters)
         if (server.isNotEmpty()) return Result(withGeneratedSegments(durationMs, server, ChapterOrigin.SERVER), ChapterOrigin.SERVER)
 
@@ -40,6 +50,22 @@ object ChapterMapBuilder {
         if (embedded.isNotEmpty()) return Result(withGeneratedSegments(durationMs, embedded, ChapterOrigin.EMBEDDED), ChapterOrigin.EMBEDDED)
 
         return Result(emptyList(), null)
+    }
+
+    /**
+     * Audiobookshelf 2.38 fills the chapter list of a multi-file book without markers with one chapter
+     * per audio file (AudioFileScanner.getBookChaptersFromAudioFiles). Such a list has exactly one
+     * chapter per track, each within [ROUNDING_TOLERANCE_MS] of its track's start and end.
+     */
+    fun isFileList(durationMs: Long, serverChapters: List<RawChapter>, trackStartsMs: List<Long>): Boolean {
+        if (trackStartsMs.size < 2 || serverChapters.size != trackStartsMs.size) return false
+        val sorted = serverChapters.sortedBy { it.startMs }
+        return sorted.indices.all { i ->
+            val trackEnd = trackStartsMs.getOrElse(i + 1) { durationMs }
+            val c = sorted[i]
+            kotlin.math.abs(c.startMs - trackStartsMs[i]) <= ROUNDING_TOLERANCE_MS &&
+                (c.endMs == null || kotlin.math.abs(c.endMs - trackEnd) <= ROUNDING_TOLERANCE_MS)
+        }
     }
 
     private data class Interval(val start: Long, var end: Long, val title: String?)

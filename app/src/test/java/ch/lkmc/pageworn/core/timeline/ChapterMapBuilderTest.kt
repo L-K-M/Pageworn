@@ -109,4 +109,29 @@ class ChapterMapBuilderTest {
         val result = ChapterMapBuilder.build(100_000, listOf(s(0, 50, "First"), s(0, 80, "Second"), s(50, 100, "Third")))
         assertThat(result.chapters.map { it.title }).containsExactly("First", "Third").inOrder()
     }
+
+    @Test
+    fun `a server list that restates the files lists Tracks with its titles`() {
+        // Audiobookshelf 2.38 synthesizes one chapter per file for no-chapters-multi (captured item-field-notes-on-rain).
+        val result = ChapterMapBuilder.build(210_000, listOf(s(0, 90, "01-part"), s(90, 210, "02-part")), trackStartsMs = listOf(0L, 90_000L))
+        assertThat(result.chapters).isEmpty()
+        assertThat(result.trackTitles).containsExactly("01-part", "02-part").inOrder()
+        val timeline = BookTimeline(BookTimeline.contiguousTracks(listOf(90_000L, 120_000L), result.trackTitles!!), result.chapters)
+        assertThat(timeline.division).isEqualTo(Division.TRACKS)
+        assertThat(timeline.sleepBoundaryFor(89_000)).isEqualTo(90_000)
+    }
+
+    @Test
+    fun `a server list with chapter bounds of its own stays a chapter list`() {
+        val result = ChapterMapBuilder.build(210_000, listOf(s(0, 75, "One"), s(75, 210, "Two")), trackStartsMs = listOf(0L, 90_000L))
+        assertThat(result.trackTitles).isNull()
+        assertThat(result.chapters.map { it.title }).containsExactly("One", "Two").inOrder()
+    }
+
+    @Test
+    fun `a single-file book keeps one server chapter as a chapter`() {
+        val result = ChapterMapBuilder.build(150_000, listOf(s(0, 150, "Whole")), trackStartsMs = listOf(0L))
+        assertThat(result.trackTitles).isNull()
+        assertThat(result.chapters.map { it.title }).containsExactly("Whole")
+    }
 }

@@ -40,14 +40,15 @@ object LocalEditions {
         val staging = files.staging(generationId)
         staging.mkdirs()
         val spans = BookTimeline.contiguousTracks(tracks.map { it.durationMs }, tracks.map { it.title })
+        val duration = spans.last().endMs
+        val chapters = ChapterMapBuilder.build(duration, serverChapters, embeddedChapters, spans.map { it.startMs })
+        val trackTitles = chapters.trackTitles
         val manifestTracks = tracks.mapIndexed { i, t ->
             val name = EditionFiles.trackFileName(i, t.file.extension)
             t.file.copyTo(File(staging, name), overwrite = true)
-            ManifestTrack(i, t.sourceFileId, t.mtimeMs, t.file.length(), name, spans[i].startMs, t.durationMs, t.title, EditionFiles.sanitizeExtension(t.file.extension), null)
+            ManifestTrack(i, t.sourceFileId, t.mtimeMs, t.file.length(), name, spans[i].startMs, t.durationMs, trackTitles?.get(i) ?: t.title, EditionFiles.sanitizeExtension(t.file.extension), null)
         }
         val coverName = cover?.let { c -> EditionFiles.COVER + "." + EditionFiles.sanitizeExtension(c.extension).also { c.copyTo(File(staging, EditionFiles.COVER + "." + it), overwrite = true) } }
-        val duration = spans.last().endMs
-        val chapters = ChapterMapBuilder.build(duration, serverChapters, embeddedChapters, spans.map { it.startMs })
         val manifest = EditionManifest(
             generationId = generationId,
             jobId = null,
