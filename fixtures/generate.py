@@ -426,6 +426,27 @@ def build_no_chapters_single(cmds: list[str]) -> dict:
     return make_entry(fid, cmds, [file_entry(out)], 150000, [5.25, 135.25])
 
 
+def build_mislabelled_mp3(cmds: list[str]) -> dict:
+    """PCM audio in an AIFF container, named .mp3 (A24b).
+
+    Audiobookshelf takes the extension and the MIME type from the name, so the
+    book is labelled MP3, and its PCM codec passes every check before download;
+    Media3 has no AIFF extractor, so the probe after download cannot open it.
+    MP3 frames in a CAF container would not do: Media3's MP3 extractor finds
+    them and plays the file.
+    """
+    fid = "mislabelled-mp3"
+    fdir = ASSETS_DIR / fid
+    fdir.mkdir(parents=True, exist_ok=True)
+    wav = ensure_wav(fid, 60.0, 44100, FORMAT_CUES)
+    out = fdir / "book.mp3"
+    ffmpeg_cmd(
+        ["-i", rel(wav), "-c:a", "pcm_s16be", "-f", "aiff", rel(out)],
+        cmds,
+    )
+    return make_entry(fid, cmds, [file_entry(out)], 60000, FORMAT_CUES)
+
+
 def build_no_chapters_multi(cmds: list[str]) -> dict:
     fid = "no-chapters-multi"
     fdir = ASSETS_DIR / fid
@@ -512,6 +533,10 @@ FORMAT_SPECS = [
      "args": ["-c:a", "libvo_amrwbenc", "-b:a", "23.85k"], "awb": True},
     {"id": "fmt-caf-alac", "name": "sample.caf", "sr": 44100,
      "args": ["-c:a", "alac", "-f", "caf"]},
+    # MP3 frames in CAF: Media3 has no CAF extractor, but its MP3 extractor
+    # finds the frames after the CAF header.
+    {"id": "fmt-caf-mp3", "name": "sample.caf", "sr": 44100,
+     "args": ["-c:a", "libmp3lame", "-b:a", "128k", "-f", "caf"]},
     {"id": "fmt-caf-aac", "name": "sample.caf", "sr": 44100,
      "args": ["-c:a", "aac", "-b:a", "64k", "-f", "caf"]},
     {"id": "fmt-mpg-mp2", "name": "sample.mpg", "sr": 44100,
@@ -657,6 +682,7 @@ BUILDERS = {
     "no-chapters-single": build_no_chapters_single,
     "no-chapters-multi": build_no_chapters_multi,
     "fmt-mp3-vbr-long": build_mp3_vbr_long,
+    "mislabelled-mp3": build_mislabelled_mp3,
 }
 for _spec in FORMAT_SPECS:
     BUILDERS[_spec["id"]] = lambda cmds, _spec=_spec: build_format_sample(_spec, cmds)
@@ -668,6 +694,7 @@ ALL_IDS = [
     "no-chapters-multi",
     *[spec["id"] for spec in FORMAT_SPECS],
     "fmt-mp3-vbr-long",
+    "mislabelled-mp3",
 ]
 
 

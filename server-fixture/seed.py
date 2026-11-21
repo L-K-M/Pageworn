@@ -283,6 +283,9 @@ def main():
             ("Ada Bell/Field Notes on Rain", "no-chapters-multi", None),
             ("Kit Mercer/Small Hours", "no-chapters-single", None),
             ("Format Author/WMA Book", "fmt-wma-wmav2", None),
+            # AIFF audio named .mp3: passes every check before download, and
+            # the probe after it cannot open the file (A24b).
+            ("Format Author/Mislabelled Book", "mislabelled-mp3", None),
         ]
         for rel, fixture_id, renames in layout:
             files = fixture_files(root, fixture_id)
@@ -368,7 +371,7 @@ def main():
     # --- scan and wait ---
     api.expect("POST", f"/api/libraries/{libraries['Audiobooks']}/scan")
     api.expect("POST", f"/api/libraries/{libraries['Second shelf']}/scan")
-    expected = {"Audiobooks": 9, "Second shelf": 2}
+    expected = {"Audiobooks": 10, "Second shelf": 2}
     items = {}
     for name in ("Audiobooks", "Second shelf"):
         items[name] = wait_for_items(api, libraries[name], expected[name], name)

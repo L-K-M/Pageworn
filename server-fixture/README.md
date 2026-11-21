@@ -37,8 +37,10 @@ server-fixture/abs.sh reset     # down + remove volumes + delete .state
   `Boundary Book` (2 tracks + server chapters 0-75/75-140/140-210),
   `Field Notes on Rain` (multi-file, no chapters), `Small Hours`
   (single file, no chapters), two `Same Title` books, `WMA Book`
-  (wmav2), `Mixed Media Book` (m4a + epub), `Exclude Track Book`
-  (3 files, middle file `exclude: true` via PATCH tracks)
+  (wmav2), `Mislabelled Book` (AIFF audio named `.mp3`), `Mixed Media
+  Book` (m4a + epub), `Exclude Track Book` (3 files, middle file
+  `exclude: true` via PATCH tracks). A library scan after the seed clears
+  that exclusion; set it again as `seed.py` does.
 
 ## A second, HTTPS origin
 

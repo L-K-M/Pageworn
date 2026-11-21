@@ -15,7 +15,14 @@ import androidx.media3.exoplayer.mediacodec.MediaCodecUtil
  */
 object FormatMatrix {
     /** Containers no bundled Media3 extractor reads: unsupported whatever the codec. */
-    private val unsupportedExtensions = setOf("aiff", "aif", "wma", "caf")
+    private val unsupportedExtensions = setOf("aiff", "aif", "wma")
+
+    /**
+     * No extractor reads CAF either, but the MP3 extractor finds MP3 frames after the CAF header
+     * and plays and seeks them like any MP3 (fmt-caf-mp3); every other codec in CAF is refused.
+     */
+    private const val CAF = "caf"
+    private val playableInCaf = setOf("mp3")
 
     /** Codecs with no decoder on any test target and none bundled. */
     private val unsupportedCodecs = setOf("alac", "wmav1", "wmav2", "wmapro", "wmalossless", "wmavoice", "mp2", "mp1")
@@ -23,7 +30,7 @@ object FormatMatrix {
     fun recordedUnsupported(extension: String?, codec: String?): Boolean {
         val ext = extension?.lowercase()?.trimStart('.')
         val c = codec?.lowercase()
-        return ext in unsupportedExtensions || c in unsupportedCodecs
+        return ext in unsupportedExtensions || c in unsupportedCodecs || (ext == CAF && c !in playableInCaf)
     }
 
     /** Sample MIME type for an ffprobe codec name as Audiobookshelf reports it, or null if unknown. */

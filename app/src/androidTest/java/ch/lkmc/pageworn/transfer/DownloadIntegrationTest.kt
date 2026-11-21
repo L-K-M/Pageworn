@@ -25,6 +25,7 @@ import ch.lkmc.pageworn.data.db.SessionState
 import ch.lkmc.pageworn.data.db.TransferEntity
 import ch.lkmc.pageworn.data.db.TransferFileEntity
 import ch.lkmc.pageworn.data.db.TransferState
+import ch.lkmc.pageworn.formats.FormatSupport
 import ch.lkmc.pageworn.server.ManifestSourceTrack
 import ch.lkmc.pageworn.server.NoRoute
 import ch.lkmc.pageworn.testing.FaultProxy
@@ -35,6 +36,7 @@ import ch.lkmc.pageworn.testing.awaitUntil
 import ch.lkmc.pageworn.testing.connectController
 import ch.lkmc.pageworn.testing.onMain
 import ch.lkmc.pageworn.ui.model.Copy
+import ch.lkmc.pageworn.ui.state.RowBuilders
 import ch.lkmc.pageworn.ui.state.refusalOf
 import com.google.common.collect.Range
 import com.google.common.truth.Truth.assertThat
@@ -561,8 +563,35 @@ class DownloadIntegrationTest {
         assertThat(db.transfers().active(wma.profileId, wma.itemId)).isNull()
         assertThat(downloads().filter { it.path.contains(itemPath(wma)) }).isEmpty()
 
+        // A24b: AIFF audio named .mp3. The server labels it MP3 (extension and MIME type) and its
+        // PCM codec passes every check before download; the probe cannot open it. The job stops
+        // with the unsupported-format copy and no retry, and Cancel frees its bytes.
+        // (The book joined the reference instance after the earlier phases' catalog refresh.)
+        val library = db.libraries().forProfile(profileId()).single { it.name == LIBRARY }
+        assertThat(container.accounts.refreshCatalog(library.libraryId)).isInstanceOf(RefreshOutcome.Published::class.java)
+        val mislabelled = key(MISLABELLED)
+        container.editionStore.remove(mislabelled)
+        val source = tracks(mislabelled).single()
+        assertThat(source.extension to source.mimeType).isEqualTo("mp3" to "audio/mpeg")
+        assertThat(FormatSupport().bookUnsupported(listOf(FormatSupport.Track(source.extension, source.codec)))).isFalse()
+        visible {
+            val id = enqueued(mislabelled)
+            val rested = awaitJob(id, READY_TIMEOUT_MS, "unsupported-format rest") { it.state == TransferState.FAILED }
+            assertThat(rested.failureCategory).isEqualTo(FailureCategory.UNSUPPORTED_FORMAT)
+            assertThat(rested.nextRetryAt).isNull()
+            assertThat(RowBuilders.transferUi(rested).message).isEqualTo(Copy.UNSUPPORTED_FORMAT)
+            assertThat(stagedLength(rested, 0)).isEqualTo(source.sizeBytes)
+            delay(NO_RETRY_HOLD_MS)
+            assertThat(job(id).state).isEqualTo(TransferState.FAILED)
+            assertThat(downloads().count { it.path.contains(itemPath(mislabelled)) }).isEqualTo(1)
+            container.transfers.cancel(id)
+            assertThat(container.editionFiles.staging(rested.stagingGenerationId).exists()).isFalse()
+        }
+        assertThat(db.editions().edition(mislabelled.profileId, mislabelled.itemId)).isNull()
+
         // A25: the excluded file never downloads; the edition holds the remaining tracks.
         val excluded = key(EXCLUDE_TRACK)
+        container.editionStore.remove(excluded)
         val listed = tracks(excluded).map { it.fileId }
         assertThat(listed).hasSize(2)
         visible {
@@ -675,6 +704,8 @@ class DownloadIntegrationTest {
         const val SMALL_HOURS = "Small Hours"
         const val ORCHARD = "The Night Orchard"
         const val WMA = "WMA Book"
+        const val MISLABELLED = "Mislabelled Book"
+        const val NO_RETRY_HOLD_MS = 6_000L
         const val EXCLUDE_TRACK = "Exclude Track Book"
         const val POLL_MS = 100L
         const val READY_TIMEOUT_MS = 240_000L

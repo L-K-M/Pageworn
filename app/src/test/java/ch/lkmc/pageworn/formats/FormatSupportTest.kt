@@ -16,6 +16,15 @@ class FormatSupportTest {
     }
 
     @Test
+    fun mp3FramesInCafAreAcceptedBecauseThePlayerFindsThem() {
+        // No extractor reads CAF, but the MP3 extractor finds the frames after the CAF header
+        // (fmt-caf-mp3 in docs/format-matrix.md). Every other codec in CAF stays refused.
+        assertThat(everythingDecodes.trackUnsupported(FormatSupport.Track("caf", "mp3"))).isFalse()
+        assertThat(everythingDecodes.trackUnsupported(FormatSupport.Track("caf", "alac"))).isTrue()
+        assertThat(everythingDecodes.trackUnsupported(FormatSupport.Track("caf", "pcm_s16le"))).isTrue()
+    }
+
+    @Test
     fun listenerFamiliesAreAccepted() {
         listOf("m4b" to "aac", "m4a" to "aac", "mp3" to "mp3", "flac" to "flac", "opus" to "opus", "ogg" to "vorbis", "ogg" to "opus")
             .forEach { (ext, codec) -> assertThat(everythingDecodes.trackUnsupported(FormatSupport.Track(ext, codec))).isFalse() }

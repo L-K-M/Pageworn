@@ -1034,6 +1034,35 @@
       "status": "generated"
     },
     {
+      "command": "ffmpeg -hide_banner -loglevel error -y -i .work/fmt-caf-mp3.wav -c:a libmp3lame -b:a 128k -f caf -fflags +bitexact -flags:a +bitexact assets/fixtures/fmt-caf-mp3/sample.caf",
+      "cues": [
+        {
+          "at_ms": 5250,
+          "freq_hz": 700
+        },
+        {
+          "at_ms": 54250,
+          "freq_hz": 900
+        }
+      ],
+      "files": [
+        {
+          "codec": "mp3",
+          "container": "caf",
+          "duration_ms": 60000,
+          "extension": "caf",
+          "name": "sample.caf",
+          "sample_rate": 44100,
+          "sha256": "71a6f95958fa4c2c45b71255e02136bfdb8cec2df09416e719fcc10d9d8915f6",
+          "size_bytes": 965194
+        }
+      ],
+      "id": "fmt-caf-mp3",
+      "nominal_duration_ms": 60000,
+      "server_release_admitting_extension": "v2.38.0",
+      "status": "generated"
+    },
+    {
       "id": "fmt-caf-aac",
       "reason": "muxing codec currently unsupported",
       "server_release_admitting_extension": "v2.38.0",
@@ -1132,6 +1161,34 @@
       "id": "fmt-mp3-vbr-long",
       "nominal_duration_ms": 1260000,
       "server_release_admitting_extension": "v2.38.0",
+      "status": "generated"
+    },
+    {
+      "command": "ffmpeg -hide_banner -loglevel error -y -i .work/mislabelled-mp3.wav -c:a pcm_s16be -f aiff -fflags +bitexact -flags:a +bitexact assets/fixtures/mislabelled-mp3/book.mp3",
+      "cues": [
+        {
+          "at_ms": 5250,
+          "freq_hz": 700
+        },
+        {
+          "at_ms": 54250,
+          "freq_hz": 900
+        }
+      ],
+      "files": [
+        {
+          "codec": "pcm_s16be",
+          "container": "aiff",
+          "duration_ms": 60000,
+          "extension": "mp3",
+          "name": "book.mp3",
+          "sample_rate": 44100,
+          "sha256": "01ae500c8bf81a83cedb8136ad6a5cad572d3c1e8d65f9366600874780e80cdd",
+          "size_bytes": 5292054
+        }
+      ],
+      "id": "mislabelled-mp3",
+      "nominal_duration_ms": 60000,
       "status": "generated"
     }
   ],
