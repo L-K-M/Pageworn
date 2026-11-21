@@ -40,6 +40,20 @@ server-fixture/abs.sh reset     # down + remove volumes + delete .state
   (wmav2), `Mixed Media Book` (m4a + epub), `Exclude Track Book`
   (3 files, middle file `exclude: true` via PATCH tracks)
 
+## A second, HTTPS origin
+
+`tls_proxy.py` terminates TLS on `127.0.0.1:13443` and forwards to the
+plain instance, so one server answers on two origins (the emulator sees
+them as `http://10.0.2.2:13378/` and `https://10.0.2.2:13443/`). It
+generates a self-signed certificate per name under `.state/tls/` and
+prints its SHA-256 fingerprint. Restart it with another `--cert` name to
+present a changed certificate:
+
+```sh
+server-fixture/tls_proxy.py --cert first     # unrecognized certificate
+server-fixture/tls_proxy.py --cert second    # the certificate changed
+```
+
 ## Why named volumes instead of bind mounts
 
 Docker on macOS often runs inside a Colima VM whose bind mounts of host
