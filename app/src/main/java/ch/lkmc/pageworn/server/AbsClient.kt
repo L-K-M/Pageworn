@@ -3,6 +3,8 @@ package ch.lkmc.pageworn.server
 import ch.lkmc.pageworn.catalog.CatalogEntry
 import ch.lkmc.pageworn.catalog.CatalogPage
 import ch.lkmc.pageworn.catalog.RemoteLibrary
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -15,6 +17,7 @@ import kotlinx.serialization.json.long
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
 
 data class ServerStatus(val serverVersion: String, val isInit: Boolean, val authMethods: List<String>)
 
@@ -135,21 +138,26 @@ class AbsClient(private val http: AddressHttp, private val json: Json = Json { i
         val result = http.executeFollowingRedirects(request)
         if (result is ServerResult.Failed) return result
         val response = (result as ServerResult.Ok).value
-        response.use {
-            when (response.code) {
-                401 -> if (login) return ServerResult.Failed(ServerError.InvalidCredentials)
-                    else if (authorized || refresh) return ServerResult.Failed(ServerError.SessionExpired)
-                403 -> if (refresh || authorized) return ServerResult.Failed(
-                    if (refresh) ServerError.SessionExpired else ServerError.Forbidden)
-                404 -> return ServerResult.Failed(ServerError.NotFound)
-            }
-            if (!response.isSuccessful) return ServerResult.Failed(ServerError.Unexpected(response.code, "HTTP ${response.code}"))
-            return try {
-                val text = response.body.string()
-                ServerResult.Ok(decode(json.parseToJsonElement(text)))
-            } catch (error: Exception) {
-                ServerResult.Failed(ServerError.Unexpected(response.code, "Invalid server response: ${error.message}"))
-            }
+        // The body streams from the socket, which Android refuses on the main thread.
+        return withContext(Dispatchers.IO) { response.use { decodeResponse(it, authorized, login, refresh, decode) } }
+    }
+
+    private fun <T> decodeResponse(
+        response: Response, authorized: Boolean, login: Boolean, refresh: Boolean, decode: (JsonElement) -> T,
+    ): ServerResult<T> {
+        when (response.code) {
+            401 -> if (login) return ServerResult.Failed(ServerError.InvalidCredentials)
+                else if (authorized || refresh) return ServerResult.Failed(ServerError.SessionExpired)
+            403 -> if (refresh || authorized) return ServerResult.Failed(
+                if (refresh) ServerError.SessionExpired else ServerError.Forbidden)
+            404 -> return ServerResult.Failed(ServerError.NotFound)
+        }
+        if (!response.isSuccessful) return ServerResult.Failed(ServerError.Unexpected(response.code, "HTTP ${response.code}"))
+        return try {
+            val text = response.body.string()
+            ServerResult.Ok(decode(json.parseToJsonElement(text)))
+        } catch (error: Exception) {
+            ServerResult.Failed(ServerError.Unexpected(response.code, "Invalid server response: ${error.message ?: error.javaClass.simpleName}"))
         }
     }
 

@@ -2,15 +2,23 @@ package ch.lkmc.pageworn.server
 
 import com.google.common.truth.Truth.assertThat
 import java.security.MessageDigest
+import java.util.Collections
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicReference
 import javax.net.ssl.X509TrustManager
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import okhttp3.OkHttpClient
+import okhttp3.ResponseBody.Companion.asResponseBody
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okhttp3.tls.HandshakeCertificates
 import okhttp3.tls.HeldCertificate
+import okio.Buffer
+import okio.ForwardingSource
+import okio.buffer
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -95,6 +103,38 @@ class ServerClientTest {
         assertThat(request.body.readUtf8()).contains("\"username\":\"listener\"")
         server.enqueue(MockResponse().setResponseCode(401))
         assertThat(client().login("bad", "bad")).isEqualTo(ServerResult.Failed(ServerError.InvalidCredentials))
+    }
+
+    @Test fun responseBodiesAreReadOffTheCallersThread() {
+        // Android refuses socket reads on the main thread. A body the caller reads itself works only
+        // when OkHttp happened to buffer it already, so record the thread of every body read.
+        val readers = Collections.synchronizedSet(mutableSetOf<Thread>())
+        val shared = OkHttpClient.Builder().addInterceptor { chain ->
+            val response = chain.proceed(chain.request())
+            val body = response.body
+            val source = object : ForwardingSource(body.source()) {
+                override fun read(sink: Buffer, byteCount: Long): Long {
+                    readers += Thread.currentThread()
+                    return super.read(sink, byteCount)
+                }
+            }
+            response.newBuilder().body(source.buffer().asResponseBody(body.contentType(), body.contentLength())).build()
+        }.build()
+        val base = (parseBaseUrl(server.url("/abs/").toString(), true) as BaseUrlParse.Valid).baseUrl
+        val client = AbsClient(AddressHttp(shared, AddressPolicy(base, true, null, false), trust))
+        enqueueFixture("login")
+
+        // Coroutine debug mode renames threads, so compare the thread itself rather than its name.
+        val callerThread = AtomicReference<Thread>()
+        val caller = Executors.newSingleThreadExecutor { Thread(it, "caller-main").also(callerThread::set) }
+        try {
+            val result = runBlocking(caller.asCoroutineDispatcher()) { client.login("listener", "secret") }
+            assertThat(result).isInstanceOf(ServerResult.Ok::class.java)
+        } finally {
+            caller.shutdown()
+        }
+        assertThat(readers).isNotEmpty()
+        assertThat(readers).doesNotContain(callerThread.get())
     }
 
     @Test fun librariesAndMeUseFixtureFields() = runBlocking {
