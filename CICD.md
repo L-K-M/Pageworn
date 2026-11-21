@@ -6,11 +6,19 @@ Pageworn requires JDK 21, Android SDK platform `android-37.0` and build tools
 
 ```sh
 scripts/build.sh
-./gradlew :app:installDebug
+scripts/build.sh --install
+scripts/build.sh --check
 ```
 
-The build script assembles the debug APK and runs JVM tests. The Android CI
-workflow introduced with M0 runs those checks on every push and pull request.
+The build script assembles the debug APK and runs JVM tests by default.
+`--debug` selects the same build explicitly. Add `--clean` to clear Gradle
+build output first. `--install` installs and launches the resulting APK on
+a connected phone or emulator. Enable USB or wireless debugging and set
+`ANDROID_SERIAL` if several devices are connected. Android requires the same
+signing key and an equal or greater version code to replace an installed copy.
+`--check` prints the planned build and install options without running them.
+
+Android CI builds the debug APK and runs JVM tests on every push and pull request.
 The **Repository checks** workflow separately validates the scripts and release
 version encoding, including before the Android project lands. Emulator and
 physical-device checks follow the [milestone plan](docs/06-delivery-and-tests.md).
@@ -32,6 +40,7 @@ clean `main` checkout that matches `origin/main`. Install `lkm-release` from
 the [shared release tool](https://github.com/L-K-M/release-tool).
 
 ```sh
+scripts/release.sh --check      # inspect the release configuration
 scripts/release.sh 1.2.3        # create local tag v1.2.3
 scripts/release.sh 1.2.3 --push # create and push that tag instead
 ```
@@ -56,8 +65,9 @@ Keep the same key for upgrades. CI decodes it into a temporary file for the
 build and removes that file when the signing step exits. For a local smoke
 build, point `PAGEWORN_KEYSTORE_FILE` to a throwaway keystore outside the repo,
 export the other three signing inputs, then run
-`scripts/build.sh --release 1.2.3`. The resulting release APK is a test
-fixture. The install and playback smoke check is
+`scripts/build.sh --release 1.2.3`. Add `--install` to install and launch
+that signed build. The resulting release APK is a test fixture. The install
+and playback smoke check is
 [A31](docs/06-delivery-and-tests.md#acceptance-matrix).
 
 The Android build generates the dependency notices from each variant’s runtime

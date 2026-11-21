@@ -4,15 +4,35 @@ set -euo pipefail
 
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
 
+usage() {
+  cat <<'USAGE'
+Usage: scripts/release.sh X.Y.Z [--push]
+       scripts/release.sh --check | --help | --version | --capabilities
+
+Create a local version tag. Pass --push to publish it through CI.
+USAGE
+}
+
+usage_error() {
+  usage >&2
+  exit 2
+}
+
+inspect=false
+case "$#:${1:-}" in
+  1:--help|1:-h) usage; exit 0 ;;
+  1:--check|1:--version|1:--capabilities) inspect=true ;;
+  1:-*) usage_error ;;
+  1:*) version="$1" ;;
+  2:--push) version="$2" ;;
+  2:*) [[ "$1" != -* && "$2" == --push ]] || usage_error; version="$1" ;;
+  *) usage_error ;;
+esac
+
 export RELEASE_APP_NAME=Pageworn
 export RELEASE_KIND=tag-only
 export RELEASE_INVOKED_AS=scripts/release.sh
 export RELEASE_CI_NOTE='CI (release.yml) will build, sign and publish the Pageworn APK for <tag>.'
-
-if [[ "${1:-}" == --help || "${1:-}" == -h ]]; then
-  printf '%s\n' 'Usage: scripts/release.sh X.Y.Z [--push] | --check'
-  exit 0
-fi
 
 BIN="${LKM_RELEASE_BIN:-lkm-release}"
 if ! command -v "$BIN" >/dev/null 2>&1; then
@@ -20,15 +40,10 @@ if ! command -v "$BIN" >/dev/null 2>&1; then
   exit 1
 fi
 
-if [[ "${1:-}" == --check ]]; then
+if $inspect; then
   exec "$BIN" "$@"
 fi
-if [[ $# -lt 1 || $# -gt 2 || ( $# -eq 2 && "$2" != --push ) ]]; then
-  echo 'Usage: scripts/release.sh X.Y.Z [--push] | --check' >&2
-  exit 2
-fi
 
-version="$1"
 code="$(scripts/release-version.sh "$version")"
 if [[ ! -x ./gradlew || ! -f app/build.gradle.kts ]]; then
   echo 'error: the Android Gradle project is required to cut a release.' >&2
