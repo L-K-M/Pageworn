@@ -26,6 +26,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import ch.lkmc.pageworn.R
+import ch.lkmc.pageworn.ui.model.Copy
+import ch.lkmc.pageworn.ui.model.StartAction
 import ch.lkmc.pageworn.ui.theme.LocalReducedMotion
 import ch.lkmc.pageworn.ui.theme.PagewornTheme
 
@@ -57,8 +59,14 @@ private fun Key(face: Int, inlay: Int?, title: String, faceWidth: Dp, faceHeight
 }
 
 @Composable
-fun PlayPauseKey(isPlaying: Boolean, title: String, size: Dp, enabled: Boolean = true, disabledReason: String? = null, resume: Boolean = false, onClick: () -> Unit) {
-    Key(R.drawable.pw_key_oxblood, if (isPlaying) R.drawable.pw_inlay_pause else R.drawable.pw_inlay_play, "${if (isPlaying) "Pause" else if (resume) "Resume" else "Play"} $title", size, size, enabled, disabledReason, onClick)
+fun PlayPauseKey(isPlaying: Boolean, title: String, size: Dp, enabled: Boolean = true, disabledReason: String? = null, start: StartAction = StartAction.PLAY, onClick: () -> Unit) {
+    val action = when {
+        isPlaying -> "Pause"
+        start == StartAction.REPLAY -> Copy.REPLAY
+        start == StartAction.RESUME -> "Resume"
+        else -> "Play"
+    }
+    Key(R.drawable.pw_key_oxblood, if (isPlaying) R.drawable.pw_inlay_pause else R.drawable.pw_inlay_play, "$action $title", size, size, enabled, disabledReason, onClick)
 }
 
 @Composable

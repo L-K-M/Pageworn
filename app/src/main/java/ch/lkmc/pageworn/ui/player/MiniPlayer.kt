@@ -38,7 +38,7 @@ fun MiniPlayer(state: MiniPlayerUi, onOpen: () -> Unit, onPlayPause: () -> Unit)
                     state.subtitle?.let { Text(it, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.metadata, maxLines = 2) }
                 }
             }
-            PlayPauseKey(state.isPlaying, state.face.title, 36.dp, enabled = state.enabled, disabledReason = state.disabledReason, resume = state.hasPlace && !state.isPlaying, onClick = onPlayPause)
+            PlayPauseKey(state.isPlaying, state.face.title, 36.dp, enabled = state.enabled, disabledReason = state.disabledReason, start = state.start, onClick = onPlayPause)
         }
     }
 }

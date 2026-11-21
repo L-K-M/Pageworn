@@ -95,8 +95,8 @@ sealed interface CatalogAction {
 
     data class Transferring(val transfer: TransferUi) : CatalogAction
 
-    /** A locally ready book: Play or Resume key and an accessible "Downloaded" state. */
-    data class Ready(val isPlaying: Boolean, val hasPlace: Boolean) : CatalogAction
+    /** A locally ready book: Play, Resume or Replay key and an accessible "Downloaded" state. */
+    data class Ready(val isPlaying: Boolean, val start: StartAction) : CatalogAction
 
     data object RepairNeeded : CatalogAction
 }
@@ -144,7 +144,22 @@ data class ReadyBookRow(
     val hasPlace: Boolean,
     val isPlaying: Boolean,
     val playable: Boolean,
-)
+) {
+    val start: StartAction get() = StartAction.of(hasPlace, badge == ReadyBadge.Finished)
+}
+
+/** What a play key starts: a book from its beginning, its saved place, or a finished book again. */
+enum class StartAction {
+    PLAY, RESUME, REPLAY;
+
+    companion object {
+        fun of(hasPlace: Boolean, finished: Boolean): StartAction = when {
+            finished -> REPLAY
+            hasPlace -> RESUME
+            else -> PLAY
+        }
+    }
+}
 
 data class TransferRow(val face: BookFace, val transfer: TransferUi)
 
@@ -165,8 +180,7 @@ data class MiniPlayerUi(
     val isPlaying: Boolean,
     val enabled: Boolean,
     val disabledReason: String? = null,
-    /** A saved place exists: the paused key reads Resume, as in the full player. */
-    val hasPlace: Boolean = false,
+    val start: StartAction = StartAction.PLAY,
 )
 
 enum class SleepChoice { OFF, MINUTES_15, MINUTES_30, MINUTES_45, MINUTES_60, END_OF_SEGMENT }
@@ -232,7 +246,7 @@ sealed interface DetailAction {
     data object DownloadDisabled : DetailAction
     data object Unsupported : DetailAction
     data class Transferring(val transfer: TransferUi) : DetailAction
-    data class Play(val resume: Boolean, val isPlaying: Boolean) : DetailAction
+    data class Play(val start: StartAction, val isPlaying: Boolean) : DetailAction
     data object Repair : DetailAction
 }
 

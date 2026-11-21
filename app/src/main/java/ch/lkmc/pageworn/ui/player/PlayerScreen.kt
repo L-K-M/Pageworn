@@ -59,6 +59,7 @@ import ch.lkmc.pageworn.ui.model.PlayerUiState
 import ch.lkmc.pageworn.ui.model.SegmentRow
 import ch.lkmc.pageworn.ui.model.SleepChoice
 import ch.lkmc.pageworn.ui.model.SleepUi
+import ch.lkmc.pageworn.ui.model.StartAction
 import ch.lkmc.pageworn.ui.theme.PagewornTheme
 
 private enum class PlayerSheet { SPEED, SEGMENTS, SLEEP }
@@ -117,7 +118,7 @@ fun PlayerScreen(state: PlayerUiState, onCollapse: () -> Unit, onPlayPause: () -
             state.bookLine?.let { Text(it, Modifier.padding(top = 12.dp), color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.metadata) }
             Row(Modifier.fillMaxWidth().padding(top = 20.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
                 SkipKey(back = true, onClick = onSkipBack, enabled = state.transportEnabled, disabledReason = state.failureMessage)
-                PlayPauseKey(state.isPlaying, state.face.title, 72.dp, enabled = state.transportEnabled, disabledReason = state.failureMessage, resume = state.hasPlace && !state.isPlaying, onClick = onPlayPause)
+                PlayPauseKey(state.isPlaying, state.face.title, 72.dp, enabled = state.transportEnabled, disabledReason = state.failureMessage, start = StartAction.of(state.hasPlace, state.finished), onClick = onPlayPause)
                 SkipKey(back = false, onClick = onSkipForward, enabled = state.transportEnabled, disabledReason = state.failureMessage)
             }
             @Composable fun utilities() {

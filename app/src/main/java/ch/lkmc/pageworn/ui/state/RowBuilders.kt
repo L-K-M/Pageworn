@@ -21,6 +21,7 @@ import ch.lkmc.pageworn.ui.model.EmptyState
 import ch.lkmc.pageworn.ui.model.Format
 import ch.lkmc.pageworn.ui.model.ReadyBadge
 import ch.lkmc.pageworn.ui.model.ReadyBookRow
+import ch.lkmc.pageworn.ui.model.StartAction
 import ch.lkmc.pageworn.ui.model.TransferPhase
 import ch.lkmc.pageworn.ui.model.TransferRow
 import ch.lkmc.pageworn.ui.model.TransferUi
@@ -174,7 +175,10 @@ object RowBuilders {
             edition != null && edition.state == EditionState.REPAIR_NEEDED -> CatalogRow(face, CatalogAction.RepairNeeded, Copy.DAMAGED_COPY)
             edition != null -> CatalogRow(
                 face.copy(cover = edition.coverFile?.let { CoverImage.Local(File(editionDir, it)) } ?: face.cover),
-                CatalogAction.Ready(isPlaying = live.key == key && live.isPlaying, hasPlace = (progress?.positionMs ?: 0) > 0 && progress?.finished != true),
+                CatalogAction.Ready(
+                    isPlaying = live.key == key && live.isPlaying,
+                    start = StartAction.of(hasPlace = (progress?.positionMs ?: 0) > 0, finished = progress?.finished == true),
+                ),
             )
             unsupported -> CatalogRow(face, CatalogAction.Unsupported, Copy.UNSUPPORTED_FORMAT)
             !canDownload -> CatalogRow(face, CatalogAction.DownloadDisabled, Copy.DOWNLOAD_DISABLED)

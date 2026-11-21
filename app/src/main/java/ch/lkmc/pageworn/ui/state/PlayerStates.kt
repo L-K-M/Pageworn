@@ -13,6 +13,7 @@ import ch.lkmc.pageworn.ui.model.Copy
 import ch.lkmc.pageworn.ui.model.CoverImage
 import ch.lkmc.pageworn.ui.model.Format
 import ch.lkmc.pageworn.ui.model.MiniPlayerUi
+import ch.lkmc.pageworn.ui.model.StartAction
 import ch.lkmc.pageworn.ui.model.PlayerUiState
 import ch.lkmc.pageworn.ui.model.SegmentRow
 import ch.lkmc.pageworn.ui.model.SleepChoice
@@ -133,6 +134,6 @@ object PlayerStates {
         val finished = progress?.finished == true
         // The same rule as the full player, so both keys name the same next action.
         val hasPlace = !finished && progress != null && (progress.positionMs > 0 || isLive)
-        return MiniPlayerUi(face(plan), subtitle, isLive && live.isPlaying, enabled = failure == null, disabledReason = failure, hasPlace = hasPlace)
+        return MiniPlayerUi(face(plan), subtitle, isLive && live.isPlaying, enabled = failure == null, disabledReason = failure, start = StartAction.of(hasPlace, finished))
     }
 }

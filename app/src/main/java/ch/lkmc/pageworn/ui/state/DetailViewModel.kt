@@ -19,6 +19,7 @@ import ch.lkmc.pageworn.ui.model.Copy
 import ch.lkmc.pageworn.ui.model.CoverImage
 import ch.lkmc.pageworn.ui.model.DetailAction
 import ch.lkmc.pageworn.ui.model.Format
+import ch.lkmc.pageworn.ui.model.StartAction
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -83,7 +84,7 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
         val action = when {
             i.transfer != null -> DetailAction.Transferring(RowBuilders.transferUi(i.transfer))
             edition?.state == EditionState.REPAIR_NEEDED -> DetailAction.Repair
-            edition != null -> DetailAction.Play(resume = hasPlace, isPlaying = isLive && live.isPlaying)
+            edition != null -> DetailAction.Play(StartAction.of(hasPlace, finished = i.progress?.finished == true), isPlaying = isLive && live.isPlaying)
             i.profile?.canDownload == false -> DetailAction.DownloadDisabled
             else -> DetailAction.Download
         }

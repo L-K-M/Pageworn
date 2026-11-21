@@ -44,9 +44,9 @@ fun LibraryPreview() {
     PagewornTheme { DemoArt {
         MainScaffold(Destination.LIBRARY, {}, MiniPlayerUi(orchard, "Chapter 4 · The Gate", false, true), {}, {}) { padding ->
             LibraryScreen(state = LibraryUiState(rows = listOf(
-                CatalogRow(orchard, CatalogAction.Ready(false, true)),
+                CatalogRow(orchard, CatalogAction.Ready(false, StartAction.RESUME)),
                 CatalogRow(coast, CatalogAction.Transferring(transfer)),
-                CatalogRow(rain, CatalogAction.Ready(false, false)),
+                CatalogRow(rain, CatalogAction.Ready(false, StartAction.PLAY)),
                 CatalogRow(hours, CatalogAction.Download),
             )), listState = rememberLazyListState(), onQueryChange = {}, onSelectLibrary = {}, onOpenBook = {}, onDownload = {}, onPlayPause = {}, onPauseTransfer = {}, onResumeTransfer = {}, onCancelTransfer = {}, onAction = {}, onOpenSettings = {}, contentPadding = padding)
         }

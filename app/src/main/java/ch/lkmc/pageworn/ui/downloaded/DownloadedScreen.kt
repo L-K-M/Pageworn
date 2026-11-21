@@ -38,6 +38,7 @@ import ch.lkmc.pageworn.ui.model.Copy
 import ch.lkmc.pageworn.ui.model.DownloadedUiState
 import ch.lkmc.pageworn.ui.model.ReadyBadge
 import ch.lkmc.pageworn.ui.model.ReadyBookRow
+import ch.lkmc.pageworn.ui.model.StartAction
 import ch.lkmc.pageworn.ui.model.TransferRow
 import ch.lkmc.pageworn.ui.model.UiAction
 import ch.lkmc.pageworn.ui.theme.PagewornTheme
@@ -102,8 +103,8 @@ private fun DownloadedBookRow(row: ReadyBookRow, onOpenBook: (BookKey) -> Unit, 
                     is ReadyBadge.RepairNeeded -> { Text("Repair needed", color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status); Text(badge.message, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status) }
                 }
             }
-            if (!compact && row.playable) PlayPauseKey(row.isPlaying, row.face.title, 36.dp, resume = row.hasPlace) { onPlayPause(row.face.key) }
+            if (!compact && row.playable) PlayPauseKey(row.isPlaying, row.face.title, 36.dp, start = row.start) { onPlayPause(row.face.key) }
         }
-        if (compact && row.playable) PlayPauseKey(row.isPlaying, row.face.title, 36.dp, resume = row.hasPlace) { onPlayPause(row.face.key) }
+        if (compact && row.playable) PlayPauseKey(row.isPlaying, row.face.title, 36.dp, start = row.start) { onPlayPause(row.face.key) }
     }
 }

@@ -49,6 +49,7 @@ import ch.lkmc.pageworn.ui.model.CatalogAction
 import ch.lkmc.pageworn.ui.model.CatalogRow
 import ch.lkmc.pageworn.ui.model.Copy
 import ch.lkmc.pageworn.ui.model.LibraryUiState
+import ch.lkmc.pageworn.ui.model.StartAction
 import ch.lkmc.pageworn.ui.model.UiAction
 import ch.lkmc.pageworn.ui.theme.PagewornTheme
 
@@ -88,7 +89,7 @@ private fun CatalogBookRow(row: CatalogRow, onOpenBook: (BookKey) -> Unit, onDow
     val compact = LocalDensity.current.fontScale >= 1.5f
     Column(Modifier.fillMaxWidth().semantics { if (row.action is CatalogAction.Ready) stateDescription = "Downloaded" }.padding(horizontal = 20.dp, vertical = 12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Box(Modifier.width(76.dp).clickable(role = Role.Button) { onOpenBook(face.key) }.semantics { contentDescription = "Open ${face.title}" }) { BookCover(face, 76.dp, showRibbon = (row.action as? CatalogAction.Ready)?.hasPlace == true) }
+            Box(Modifier.width(76.dp).clickable(role = Role.Button) { onOpenBook(face.key) }.semantics { contentDescription = "Open ${face.title}" }) { BookCover(face, 76.dp, showRibbon = (row.action as? CatalogAction.Ready)?.start == StartAction.RESUME) }
             Column(Modifier.weight(1f)) {
                 Text(face.title, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.rowTitle)
                 face.author?.let { Text(it, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.metadata) }
@@ -114,7 +115,7 @@ private fun CatalogBookRow(row: CatalogRow, onOpenBook: (BookKey) -> Unit, onDow
 private fun CatalogActionView(row: CatalogRow, onDownload: (BookKey) -> Unit, onPlayPause: (BookKey) -> Unit, onPauseTransfer: (String) -> Unit, onResumeTransfer: (String) -> Unit) {
     when (val action = row.action) {
         CatalogAction.Download -> IconButton(onClick = { onDownload(row.face.key) }, modifier = Modifier.size(48.dp)) { PencilIcon(R.drawable.pw_pencil_download, "Download ${row.face.title}") }
-        is CatalogAction.Ready -> PlayPauseKey(action.isPlaying, row.face.title, 36.dp, resume = action.hasPlace) { onPlayPause(row.face.key) }
+        is CatalogAction.Ready -> PlayPauseKey(action.isPlaying, row.face.title, 36.dp, start = action.start) { onPlayPause(row.face.key) }
         is CatalogAction.Transferring -> {
             val t = action.transfer
             val callback = when { t.canPause -> ({ onPauseTransfer(t.jobId) }); t.canResume -> ({ onResumeTransfer(t.jobId) }); else -> null }
