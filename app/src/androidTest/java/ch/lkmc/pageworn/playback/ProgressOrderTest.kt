@@ -7,6 +7,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.core.FakeClock
 import ch.lkmc.pageworn.debug.LocalEditions
+import ch.lkmc.pageworn.testing.FaultyFiles
 import ch.lkmc.pageworn.testing.Fixtures
 import ch.lkmc.pageworn.testing.TestApp
 import ch.lkmc.pageworn.testing.awaitUntil
@@ -16,6 +17,7 @@ import ch.lkmc.pageworn.ui.state.DownloadedViewModel
 import com.google.common.collect.Range
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
+import java.util.concurrent.CountDownLatch
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -125,6 +127,36 @@ class ProgressOrderTest {
         delay(300)
         assertThat(stored(boundary).positionMs).isIn(Range.closed(139_900L, 140_100L))
         assertStart(c.startPosition(), 140_000, "seek to 140 s while paused")
+        c.release()
+    }
+
+    @Test
+    fun a29PlayWhileASeekIsStillLoadingStartsAtTheSeek() = onMain {
+        // The service reads through a store that holds the seek's first read of audio until Play
+        // has been handled, so Play arrives before the seek settles, as a quick press after a skip
+        // or a scrub can. The place saved before the seek must not undo it.
+        val faulty = FaultyFiles()
+        container.playbackDataSourceFactory = faulty
+        val c = connectController(context)
+        c.stopAt(boundary, 115_000)
+        val (trackA, _) = TestApp.publishedTrack(boundary, 0)
+        val loaderHeld = CountDownLatch(1)
+        faulty.faults = listOf(FaultyFiles.FailReads(trackA.name, FaultyFiles.mp4OffsetAt(trackA, 40_000), times = 0, heldUntil = loaderHeld))
+        c.seekTo(40_000)
+        withTimeout(5_000) { container.playbackHub.state.first { it.positionMs in 39_900..40_100 } }
+        val startedAt = coroutineScope {
+            val started = async(start = CoroutineStart.UNDISPATCHED) {
+                container.playbackHub.state.first { it.isPlaying }.positionMs
+            }
+            c.play()
+            withTimeout(5_000) { container.playbackHub.state.first { it.playWhenReady } }
+            delay(300)
+            loaderHeld.countDown()
+            withTimeout(10_000) { started.await() }
+        }
+        assertStart(startedAt, 40_000, "Play while the seek to 40 s loads")
+        c.pause()
+        c.awaitUntil(description = "paused") { !isPlaying }
         c.release()
     }
 

@@ -163,6 +163,12 @@ class PlaybackController(
             return
         }
         if (startResolved || exo.playWhenReady) return
+        if (pendingSeek) {
+            // A seek that has not settled yet is the listener's chosen place; restoring the place
+            // saved before it would undo it. It commits as an exact stop once the player is ready.
+            startResolved = true
+            return
+        }
         val saved = book.saved ?: return
         val start = ResumeRewind.startPosition(saved.positionMs, saved.stopKind, saved.updatedAt, clock.wallMillis())
             .coerceIn(0, book.durationMs)
