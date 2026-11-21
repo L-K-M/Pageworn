@@ -1,6 +1,14 @@
 package ch.lkmc.pageworn.server
 
 import com.google.common.truth.Truth.assertThat
+import java.net.Socket
+import java.security.Principal
+import java.security.PrivateKey
+import java.security.cert.X509Certificate
+import javax.net.ssl.SSLContext
+import javax.net.ssl.SSLEngine
+import javax.net.ssl.X509ExtendedKeyManager
+import javax.net.ssl.X509KeyManager
 import javax.net.ssl.X509TrustManager
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
@@ -117,22 +125,34 @@ class AddressHttpTest {
     @Test fun changedCertificateOnSameOriginIsRejected() = runBlocking {
         val original = HeldCertificate.Builder().commonName("elsewhere.example").build()
         val replacement = HeldCertificate.Builder().commonName("replacement.example").build()
-        val first = MockWebServer()
-        first.useHttps(HandshakeCertificates.Builder().heldCertificate(original).build().sslSocketFactory(), false)
-        first.start()
-        val port = first.port
-        val request = Request.Builder().url(first.url("/abs/status")).build()
-        val address = http(first, pin = sha256Fingerprint(original.certificate))
-        first.enqueue(MockResponse().addHeader("Connection", "close").setBody("ok"))
-        (address.execute(request) as ServerResult.Ok).value.close()
-        first.shutdown()
+        // One server that stays bound to its port and presents whichever certificate is current,
+        // so the origin is the same before and after the change.
+        val keys = SwitchingKeyManager(HandshakeCertificates.Builder().heldCertificate(original).build().keyManager)
+        val context = SSLContext.getInstance("TLS").apply { init(arrayOf(keys), null, null) }
+        MockWebServer().use { server ->
+            server.useHttps(context.socketFactory, false)
+            server.start()
+            val request = Request.Builder().url(server.url("/abs/status")).build()
+            val pin = sha256Fingerprint(original.certificate)
+            server.enqueue(MockResponse().addHeader("Connection", "close").setBody("ok"))
+            (http(server, pin = pin).execute(request) as ServerResult.Ok).value.close()
 
-        MockWebServer().use { changed ->
-            changed.useHttps(HandshakeCertificates.Builder().heldCertificate(replacement).build().sslSocketFactory(), false)
-            changed.start(port)
-            assertThat(address.execute(request)).isEqualTo(ServerResult.Failed(ServerError.Certificate(
+            keys.current = HandshakeCertificates.Builder().heldCertificate(replacement).build().keyManager
+            // A new client, as after a restart, so a resumed TLS session cannot skip the check.
+            assertThat(http(server, pin = pin).execute(request)).isEqualTo(ServerResult.Failed(ServerError.Certificate(
                 sha256Fingerprint(replacement.certificate), ServerError.Certificate.Kind.CHANGED)))
-            assertThat(changed.requestCount).isEqualTo(0)
+            assertThat(server.requestCount).isEqualTo(1)
         }
+    }
+
+    /** Presents the current key manager's certificate on each new handshake. */
+    private class SwitchingKeyManager(@Volatile var current: X509KeyManager) : X509ExtendedKeyManager() {
+        override fun chooseServerAlias(keyType: String?, issuers: Array<out Principal>?, socket: Socket?) = current.chooseServerAlias(keyType, issuers, socket)
+        override fun chooseEngineServerAlias(keyType: String?, issuers: Array<out Principal>?, engine: SSLEngine?) = current.chooseServerAlias(keyType, issuers, null)
+        override fun getCertificateChain(alias: String?): Array<X509Certificate>? = current.getCertificateChain(alias)
+        override fun getPrivateKey(alias: String?): PrivateKey? = current.getPrivateKey(alias)
+        override fun getServerAliases(keyType: String?, issuers: Array<out Principal>?): Array<String>? = current.getServerAliases(keyType, issuers)
+        override fun getClientAliases(keyType: String?, issuers: Array<out Principal>?): Array<String>? = current.getClientAliases(keyType, issuers)
+        override fun chooseClientAlias(keyType: Array<out String>?, issuers: Array<out Principal>?, socket: Socket?) = current.chooseClientAlias(keyType, issuers, socket)
     }
 }
