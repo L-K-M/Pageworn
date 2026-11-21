@@ -55,7 +55,10 @@ class PlaybackService : MediaLibraryService() {
             settings = container.settings,
             clock = container.liveClock,
             hub = container.playbackHub,
-            writer = container.progressWriter,
+            // Reads the container's writer at call time, so a writer a test installs later applies.
+            writer = ProgressWriter { key, token, position, duration, fingerprint, kind, finished, listened ->
+                container.progressWriter.write(key, token, position, duration, fingerprint, kind, finished, listened)
+            },
             items = items,
             scope = scope,
         )

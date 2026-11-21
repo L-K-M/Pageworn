@@ -26,6 +26,14 @@ object TestApp {
 
     /** Stops playback, clears Room, audio and settings, and restores the real clock and writer. */
     fun reset(clock: Clock = SystemClockSource) {
+        // A session service with a book in its player outlives stopService, and the next test's
+        // book has the same media ID: empty the player first so its edition is released.
+        onMain {
+            val controller = connectController(context)
+            controller.stop()
+            controller.clearMediaItems()
+            controller.release()
+        }
         context.stopService(Intent(context, PlaybackService::class.java))
         InstrumentationRegistry.getInstrumentation().waitForIdleSync()
         container.clock = clock

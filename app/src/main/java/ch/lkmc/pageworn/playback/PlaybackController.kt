@@ -254,6 +254,9 @@ class PlaybackController(
         val book = loaded ?: return
         if (!playerHolds(book)) return
         if (pendingSeek) return
+        // A finished book keeps its finished place until Replay or a seek moves it; switching to
+        // another book after the end must not store it as unfinished at its last position.
+        if (book.saved?.finished == true) return
         save(exo.currentPosition, kind, listened = listened)
     }
 
