@@ -400,6 +400,18 @@ class AccountService(
         db.libraries().deleteOthers(profileId, kept)
     }
 
+    /**
+     * A Download tap found no usable route or a failing server: Library repeats the state a
+     * refresh would show, until the next successful request clears it (A17).
+     */
+    fun reportUnavailable(reason: NoRoute) {
+        _notice.value = noticeOf(reason)
+    }
+
+    fun reportFailure(error: ServerError) {
+        _notice.value = noticeOf(error)
+    }
+
     private fun <T> done(routed: Routed<T>): T? = when (routed) {
         is Routed.Done -> routed.value.also { _notice.value = null }
         is Routed.Failed -> null.also { _notice.value = noticeOf(routed.error) }

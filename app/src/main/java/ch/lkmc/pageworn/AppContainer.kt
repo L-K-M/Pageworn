@@ -3,8 +3,13 @@ package ch.lkmc.pageworn
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.net.ConnectivityManager
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.FileDataSource
+import ch.lkmc.pageworn.account.AccountService
+import ch.lkmc.pageworn.account.AccountTransferRoutes
+import ch.lkmc.pageworn.account.ServerAccess
+import ch.lkmc.pageworn.catalog.CatalogRefresher
 import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.core.Clock
 import ch.lkmc.pageworn.core.SystemClockSource
@@ -13,26 +18,27 @@ import ch.lkmc.pageworn.data.EditionStore
 import ch.lkmc.pageworn.data.ProgressStore
 import ch.lkmc.pageworn.data.SettingsStore
 import ch.lkmc.pageworn.data.db.PagewornDatabase
+import ch.lkmc.pageworn.formats.FormatSupport
+import ch.lkmc.pageworn.formats.MediaProbe
 import ch.lkmc.pageworn.playback.EditionSource
 import ch.lkmc.pageworn.playback.PlaybackHub
 import ch.lkmc.pageworn.playback.PlayerConnection
-import ch.lkmc.pageworn.ui.state.AppNotices
 import ch.lkmc.pageworn.playback.ProgressWriter
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import android.net.ConnectivityManager
-import ch.lkmc.pageworn.account.AccountService
-import ch.lkmc.pageworn.account.ServerAccess
-import ch.lkmc.pageworn.catalog.CatalogRefresher
 import ch.lkmc.pageworn.server.KeystoreTokenVault
 import ch.lkmc.pageworn.server.LocalNetworkAccess
 import ch.lkmc.pageworn.server.RouteMode
 import ch.lkmc.pageworn.server.TokenVault
+import ch.lkmc.pageworn.transfer.JobSchedulerTransfers
+import ch.lkmc.pageworn.transfer.ProbeTrackVerifier
+import ch.lkmc.pageworn.transfer.TransferCoordinator
+import ch.lkmc.pageworn.ui.state.AppNotices
 import java.io.File
 import java.security.KeyStore
 import javax.net.ssl.TrustManagerFactory
 import javax.net.ssl.X509TrustManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import okhttp3.OkHttpClient
 
 /**
@@ -99,6 +105,14 @@ class AppContainer(private val app: PagewornApp) {
 
     /** Publishes catalog refreshes and reads the published listing with its status. */
     val catalog: CatalogRefresher by lazy { CatalogRefresher(database, { liveClock.wallMillis() }) }
+
+    /** Downloads: the durable queue, run by the user-initiated transfer job. */
+    val transfers: TransferCoordinator by lazy {
+        TransferCoordinator(
+            database, editionFiles, editionStore, AccountTransferRoutes(database, serverAccess),
+            ProbeTrackVerifier(MediaProbe(app)), FormatSupport(), liveClock,
+        ).also { it.scheduler = JobSchedulerTransfers(app) }
+    }
 
     val accounts: AccountService by lazy {
         AccountService(database, tokenVault, serverAccess, localNetwork, catalog, { liveClock.wallMillis() })

@@ -6,6 +6,7 @@ import ch.lkmc.pageworn.AppContainer
 import ch.lkmc.pageworn.account.ServerNotice
 import ch.lkmc.pageworn.catalog.CatalogListing
 import ch.lkmc.pageworn.catalog.ListingStatus
+import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.data.db.BookProgressEntity
 import ch.lkmc.pageworn.data.db.LibraryEntity
 import ch.lkmc.pageworn.data.db.LocalEditionEntity
@@ -86,11 +87,26 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
-    private val conditions = combine(container.accounts.notice, librariesChecked) { notice, checked -> notice to checked }
+    private val actions = TransferActions(container)
+
+    private data class Conditions(val notice: ServerNotice?, val checked: Boolean, val refusal: DownloadRefusal?)
+
+    private val conditions = combine(container.accounts.notice, librariesChecked, actions.refusal) { notice, checked, refusal -> Conditions(notice, checked, refusal) }
 
     val state: StateFlow<LibraryUiState> = combine(scope, query, listing, local, conditions) { s, q, rows, l, condition ->
-        build(s, q, rows, l, condition.first, condition.second)
+        withRefusal(build(s, q, rows, l, condition.notice, condition.checked), condition.refusal)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryUiState())
+
+    /** A Download tap refused for the book itself says why on its row. */
+    private fun withRefusal(state: LibraryUiState, refusal: DownloadRefusal?): LibraryUiState {
+        if (refusal == null || !refusal.onRow) return state
+        return state.copy(rows = state.rows.map { if (it.face.key == refusal.key) it.copy(message = refusal.text) else it })
+    }
+
+    fun download(key: BookKey) = actions.download(key)
+    fun pauseTransfer(jobId: String) = actions.pause(jobId)
+    fun resumeTransfer(jobId: String) = actions.resume(jobId)
+    fun cancelTransfer(jobId: String) = actions.cancel(jobId)
 
     fun firstVisible() {
         if (visibleOnce) return

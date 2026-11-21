@@ -110,8 +110,7 @@ fun AppNavHost(container: AppContainer, openPlayer: Boolean, navController: NavH
                     onSelectSpeed = player::setSpeed,
                     onSelectSegment = player::selectSegment,
                     onSelectSleep = player::setSleep,
-                    // Repair re-downloads the edition; the transfer path arrives with M3.
-                    onRepair = {},
+                    onRepair = player::repair,
                     onUsePreviousPosition = { player.resolveContinuity(usePrevious = true) },
                     onStartOver = { player.resolveContinuity(usePrevious = false) },
                 )
@@ -130,12 +129,12 @@ fun AppNavHost(container: AppContainer, openPlayer: Boolean, navController: NavH
                 BookDetailScreen(
                     state = it,
                     onBack = { navController.popBackStack() },
-                    onDownload = {},
+                    onDownload = detail::download,
                     onPlayPause = { player.playPause(key) },
-                    onRepair = {},
-                    onPauseTransfer = {},
-                    onResumeTransfer = {},
-                    onCancelTransfer = {},
+                    onRepair = detail::download,
+                    onPauseTransfer = detail::pauseTransfer,
+                    onResumeTransfer = detail::resumeTransfer,
+                    onCancelTransfer = detail::cancelTransfer,
                     onSelectSegment = { start -> player.playFrom(key, start) },
                     onRemove = detail::remove,
                 )
@@ -226,12 +225,11 @@ private fun MainRoute(container: AppContainer, main: MainViewModel, player: Play
                     onQueryChange = library::setQuery,
                     onSelectLibrary = library::selectLibrary,
                     onOpenBook = openBook,
-                    // Downloads and transfer controls arrive with M3.
-                    onDownload = {},
+                    onDownload = library::download,
                     onPlayPause = player::playPause,
-                    onPauseTransfer = {},
-                    onResumeTransfer = {},
-                    onCancelTransfer = {},
+                    onPauseTransfer = library::pauseTransfer,
+                    onResumeTransfer = library::resumeTransfer,
+                    onCancelTransfer = library::cancelTransfer,
                     onAction = { action ->
                         when (action) {
                             UiAction.CLEAR_SEARCH -> library.setQuery("")
@@ -254,10 +252,10 @@ private fun MainRoute(container: AppContainer, main: MainViewModel, player: Play
                     listState = downloadedList,
                     onOpenBook = openBook,
                     onPlayPause = player::playPause,
-                    onPauseTransfer = {},
-                    onResumeTransfer = {},
-                    onRetryTransfer = {},
-                    onCancelTransfer = {},
+                    onPauseTransfer = downloaded::pauseTransfer,
+                    onResumeTransfer = downloaded::resumeTransfer,
+                    onRetryTransfer = downloaded::resumeTransfer,
+                    onCancelTransfer = downloaded::cancelTransfer,
                     onAction = { action ->
                         when (action) {
                             UiAction.BROWSE_LIBRARY -> main.select(Destination.LIBRARY)

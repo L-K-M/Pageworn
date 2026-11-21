@@ -48,9 +48,17 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
         db.progress().observe(key.profileId, key.itemId),
     ) { profile, book, edition, transfer, progress -> Inputs(profile, book, edition, transfer, progress) }
 
-    val state: StateFlow<BookDetailUiState?> = combine(inputs, container.playbackHub.state) { i, live ->
-        build(i, i.edition?.let { plans.plan(it) }, live)
+    private val actions = TransferActions(container)
+
+    val state: StateFlow<BookDetailUiState?> = combine(inputs, container.playbackHub.state, actions.refusal) { i, live, refusal ->
+        build(i, i.edition?.let { plans.plan(it) }, live)?.let { built -> refusal?.let { built.copy(message = it.text) } ?: built }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Download, or Repair download: stages a fresh generation and keeps the saved place. */
+    fun download() = actions.download(key)
+    fun pauseTransfer(jobId: String) = actions.pause(jobId)
+    fun resumeTransfer(jobId: String) = actions.resume(jobId)
+    fun cancelTransfer(jobId: String) = actions.cancel(jobId)
 
     /** Removes the downloaded audio; the saved place stays (docs/03-android-and-data.md). */
     fun remove() {

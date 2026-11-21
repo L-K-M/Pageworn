@@ -47,6 +47,12 @@
             </intent-filter>
         </service>
 
+        <!-- Downloads run as user-initiated data transfer jobs (RUN_USER_INITIATED_JOBS). -->
+        <service
+            android:name=".transfer.TransferJobService"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
+
         <receiver
             android:name="androidx.media3.session.MediaButtonReceiver"
             android:exported="true">

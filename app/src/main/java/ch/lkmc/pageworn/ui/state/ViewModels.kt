@@ -126,6 +126,13 @@ class PlayerViewModel(private val container: AppContainer) : ViewModel() {
         viewModelScope.launch { connection.setSleep(choice) }
     }
 
+    private val transferActions = TransferActions(container)
+
+    /** Repair download of the shown book: stages a fresh generation and keeps the saved place. */
+    fun repair() {
+        viewModelScope.launch { shownKey.first()?.let(transferActions::download) }
+    }
+
     /** After changed audio: keep the previous position (exact) or start over. */
     fun resolveContinuity(usePrevious: Boolean) {
         val key = currentKey() ?: return
@@ -145,6 +152,11 @@ class PlayerViewModel(private val container: AppContainer) : ViewModel() {
 
 class DownloadedViewModel(private val container: AppContainer) : ViewModel() {
     private val plans = PlanCache(container)
+    private val actions = TransferActions(container)
+
+    fun pauseTransfer(jobId: String) = actions.pause(jobId)
+    fun resumeTransfer(jobId: String) = actions.resume(jobId)
+    fun cancelTransfer(jobId: String) = actions.cancel(jobId)
 
     val state: StateFlow<DownloadedUiState> = combine(
         container.editionStore.observeEverything(),

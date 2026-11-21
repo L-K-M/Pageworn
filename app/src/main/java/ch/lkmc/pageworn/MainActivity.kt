@@ -10,6 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import ch.lkmc.pageworn.ui.AppNavHost
 import ch.lkmc.pageworn.ui.theme.PagewornTheme
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     companion object {
@@ -29,6 +30,13 @@ class MainActivity : ComponentActivity() {
                 AppNavHost(container, openPlayer)
             }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // The platform runs a transfer job only if it was scheduled while the app was visible.
+        val container = (application as PagewornApp).container
+        container.appScope.launch { container.transfers.onForeground() }
     }
 
     override fun onNewIntent(intent: Intent) {
