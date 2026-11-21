@@ -10,6 +10,7 @@ import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
 import androidx.media3.extractor.DefaultExtractorsFactory
+import androidx.media3.extractor.mp3.Mp3Extractor
 
 /**
  * Resolves one book [MediaItem] to a [ConcatenatingMediaSource2] over the edition's ordered local
@@ -21,11 +22,7 @@ import androidx.media3.extractor.DefaultExtractorsFactory
 class BookMediaSourceFactory(
     private val dataSourceFactory: DataSource.Factory,
 ) : MediaSource.Factory {
-    private val extractors = DefaultExtractorsFactory()
-        .setConstantBitrateSeekingEnabled(true)
-        .setConstantBitrateSeekingAlwaysEnabled(true)
-        .setMp3ExtractorFlags(androidx.media3.extractor.mp3.Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING)
-    private var progressive = ProgressiveMediaSource.Factory(dataSourceFactory, extractors)
+    private var progressive = ProgressiveMediaSource.Factory(dataSourceFactory, extractorsFactory())
 
     override fun setDrmSessionManagerProvider(drmSessionManagerProvider: DrmSessionManagerProvider): MediaSource.Factory {
         progressive = progressive.setDrmSessionManagerProvider(drmSessionManagerProvider)
@@ -48,5 +45,18 @@ class BookMediaSourceFactory(
             builder.add(child, plan.timeline.tracks[i].durationMs)
         }
         return builder.build()
+    }
+
+    companion object {
+        /**
+         * Extractor settings for local audiobook files. MP3 uses index seeking, which reads the file
+         * up to the target instead of trusting a coarse Xing table, so late seeks in long VBR files
+         * land on the audio that was asked for. Streams without an index (ADTS AAC, MP3 without a
+         * header) fall back to constant-bitrate seeking. The format matrix measures the result.
+         */
+        fun extractorsFactory(): DefaultExtractorsFactory = DefaultExtractorsFactory()
+            .setConstantBitrateSeekingEnabled(true)
+            .setConstantBitrateSeekingAlwaysEnabled(true)
+            .setMp3ExtractorFlags(Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING)
     }
 }

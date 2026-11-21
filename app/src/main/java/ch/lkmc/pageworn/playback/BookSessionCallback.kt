@@ -12,6 +12,7 @@ import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
 import ch.lkmc.pageworn.AppContainer
 import ch.lkmc.pageworn.core.BookKey
@@ -21,28 +22,41 @@ import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.guava.future
 
 /**
  * Session callback: who may connect, what the car sees, and how a book media ID becomes a playable
- * item. The playback rules themselves (positions, rewind, sleep, failures) live in [PlaybackController].
+ * item. The playback rules themselves live in [PlaybackController].
  */
 class BookSessionCallback(
     private val service: MediaLibraryService,
     private val container: AppContainer,
+    private val controller: () -> PlaybackController,
+    private val items: BookItems,
 ) : MediaLibrarySession.Callback {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
+    fun release() = scope.cancel()
+
     override fun onConnect(session: MediaSession, controller: MediaSession.ControllerInfo): MediaSession.ConnectionResult {
         val isOwn = controller.packageName == service.packageName
         val isCar = session.isAutoCompanionController(controller)
+        // The titles on this phone are private: only the app, Android Auto and the system's own
+        // trusted surfaces (notification, lock screen, resumption control) may connect.
         if (!isOwn && !isCar && !controller.isTrusted) {
             return MediaSession.ConnectionResult.reject()
         }
         val commands = MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS.buildUpon()
             .add(SessionCommand(PagewornCommands.NEXT_CHAPTER, Bundle.EMPTY))
             .add(SessionCommand(PagewornCommands.PREVIOUS_CHAPTER, Bundle.EMPTY))
+            .apply {
+                if (isOwn) {
+                    add(SessionCommand(PagewornCommands.SET_SLEEP, Bundle.EMPTY))
+                    add(SessionCommand(PagewornCommands.SEEK_IN_BOOK, Bundle.EMPTY))
+                }
+            }
             .build()
         return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
             .setAvailableSessionCommands(commands)
@@ -76,6 +90,8 @@ class BookSessionCallback(
         return ImmutableList.of(back, forward, previousChapter, nextChapter)
     }
 
+    // --- The car's list ------------------------------------------------------------------------
+
     override fun onGetLibraryRoot(
         session: MediaLibrarySession,
         browser: MediaSession.ControllerInfo,
@@ -106,11 +122,15 @@ class BookSessionCallback(
         pageSize: Int,
         params: MediaLibraryService.LibraryParams?,
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = scope.future {
-        if (parentId != ROOT_ID) return@future LibraryResult.ofError(SessionError_NOT_FOUND)
+        if (parentId != ROOT_ID) return@future LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
         val books = container.editionSource.readyBooks()
-        val items = books.map { browsableItem(it, browser.packageName) }
-        val from = (page * pageSize).coerceAtMost(items.size)
-        val to = (from + pageSize).coerceAtMost(items.size)
+        if (books.isEmpty()) {
+            // An empty list is a successful result; the message is a non-fatal session error.
+            session.sendError(browser, SessionError(SessionError.ERROR_NOT_SUPPORTED, NOTHING_DOWNLOADED))
+        }
+        val items = books.map { items.browsable(it, browser.packageName) }
+        val from = (page.coerceAtLeast(0) * pageSize.coerceAtLeast(1)).coerceAtMost(items.size)
+        val to = (from + pageSize.coerceAtLeast(1)).coerceAtMost(items.size)
         LibraryResult.ofItemList(ImmutableList.copyOf(items.subList(from, to)), params)
     }
 
@@ -119,10 +139,12 @@ class BookSessionCallback(
         browser: MediaSession.ControllerInfo,
         mediaId: String,
     ): ListenableFuture<LibraryResult<MediaItem>> = scope.future {
-        val key = BookKey.fromMediaId(mediaId) ?: return@future LibraryResult.ofError(SessionError_NOT_FOUND)
-        val plan = container.editionSource.plan(key) ?: return@future LibraryResult.ofError(SessionError_NOT_FOUND)
-        LibraryResult.ofItem(browsableItem(plan, browser.packageName), null)
+        val key = BookKey.fromMediaId(mediaId) ?: return@future LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
+        val plan = container.editionSource.plan(key) ?: return@future LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
+        LibraryResult.ofItem(items.browsable(plan, browser.packageName), null)
     }
+
+    // --- Resolving books for the player --------------------------------------------------------
 
     override fun onSetMediaItems(
         mediaSession: MediaSession,
@@ -135,9 +157,9 @@ class BookSessionCallback(
             ?: mediaItems.firstOrNull()
             ?: throw UnsupportedOperationException("No media item")
         val key = BookKey.fromMediaId(requested.mediaId) ?: throw UnsupportedOperationException("Not a book")
-        val plan = container.editionSource.plan(key) ?: throw UnsupportedOperationException("Book is not ready")
-        val position = if (startPositionMs == C.TIME_UNSET) 0L else plan.timeline.clamp(startPositionMs)
-        MediaSession.MediaItemsWithStartPosition(listOf(playableItem(plan)), 0, position)
+        val explicit = startPositionMs.takeIf { it != C.TIME_UNSET && startIndex != C.INDEX_UNSET }
+        val (item, start) = controller().resolve(key, explicit) ?: throw UnsupportedOperationException("Book is not ready")
+        MediaSession.MediaItemsWithStartPosition(listOf(item), 0, start)
     }
 
     override fun onAddMediaItems(
@@ -145,10 +167,31 @@ class BookSessionCallback(
         controller: MediaSession.ControllerInfo,
         mediaItems: MutableList<MediaItem>,
     ): ListenableFuture<MutableList<MediaItem>> = scope.future {
-        mediaItems.mapNotNull { item ->
-            BookKey.fromMediaId(item.mediaId)?.let { container.editionSource.plan(it) }?.let { playableItem(it) }
-        }.toMutableList()
+        // One book at a time: adding resolves the first book like a set.
+        val key = mediaItems.firstNotNullOfOrNull { BookKey.fromMediaId(it.mediaId) } ?: throw UnsupportedOperationException("Not a book")
+        val (item, _) = controller().resolve(key, null) ?: throw UnsupportedOperationException("Book is not ready")
+        mutableListOf(item)
     }
+
+    override fun onPlaybackResumption(
+        mediaSession: MediaSession,
+        controller: MediaSession.ControllerInfo,
+        isForPlayback: Boolean,
+    ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> = scope.future {
+        val key = container.settings.lastActiveBook.value ?: throw UnsupportedOperationException("No book to resume")
+        if (isForPlayback) {
+            val (item, start) = controller().resolve(key, null) ?: throw UnsupportedOperationException("Book is not ready")
+            MediaSession.MediaItemsWithStartPosition(listOf(item), 0, start)
+        } else {
+            // Metadata only, for the resumption control after a restart: no network, cover as bytes.
+            val plan = container.editionSource.plan(key) ?: throw UnsupportedOperationException("Book is not ready")
+            val artwork = plan.coverFile?.takeIf { it.isFile && it.length() < 2_000_000 }?.readBytes()
+            val position = container.progressStore.read(key)?.positionMs ?: 0L
+            MediaSession.MediaItemsWithStartPosition(listOf(items.forResumptionMetadata(plan, artwork)), 0, position)
+        }
+    }
+
+    // --- Custom commands -----------------------------------------------------------------------
 
     override fun onCustomCommand(
         session: MediaSession,
@@ -156,54 +199,40 @@ class BookSessionCallback(
         customCommand: SessionCommand,
         args: Bundle,
     ): ListenableFuture<SessionResult> {
+        val c = controller()
+        val plan = c.loadedPlan ?: return Futures.immediateFuture(SessionResult(SessionError.ERROR_INVALID_STATE))
         val player = session.player
-        val item = player.currentMediaItem
-        val plan = item?.localConfiguration?.tag as? EditionPlan
-            ?: return Futures.immediateFuture(SessionResult(SessionResult.RESULT_ERROR_INVALID_STATE))
         val timeline = plan.timeline
         when (customCommand.customAction) {
             PagewornCommands.NEXT_CHAPTER -> timeline.nextSegmentStart(player.currentPosition)?.let { player.seekTo(it) }
             PagewornCommands.PREVIOUS_CHAPTER -> player.seekTo(timeline.previousSegmentTarget(player.currentPosition))
-            else -> return Futures.immediateFuture(SessionResult(SessionResult.RESULT_ERROR_NOT_SUPPORTED))
+            PagewornCommands.SET_SLEEP -> when (val mode = args.getString(PagewornCommands.ARG_SLEEP_MODE)) {
+                PagewornCommands.SLEEP_OFF -> c.setSleepOff()
+                PagewornCommands.SLEEP_END_OF_SEGMENT -> c.setSleepEndOfSegment()
+                PagewornCommands.SLEEP_TIMED -> c.setSleepTimed(args.getInt(PagewornCommands.ARG_SLEEP_MINUTES).coerceIn(1, 24 * 60))
+                else -> return Futures.immediateFuture(SessionResult(SessionError.ERROR_BAD_VALUE)).also { mode }
+            }
+            PagewornCommands.SEEK_IN_BOOK -> player.seekTo(timeline.clamp(args.getLong(PagewornCommands.ARG_POSITION_MS)))
+            else -> return Futures.immediateFuture(SessionResult(SessionError.ERROR_NOT_SUPPORTED))
         }
         return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
     }
 
-    /** Item for browsing (car list, item lookups): metadata only, no local file reference. */
-    private fun browsableItem(plan: EditionPlan, callerPackage: String): MediaItem =
-        MediaItem.Builder()
-            .setMediaId(plan.key.mediaId)
-            .setMediaMetadata(metadata(plan, callerPackage))
-            .build()
-
-    /** Item handed to the player: carries the resolved edition for [BookMediaSourceFactory]. */
-    fun playableItem(plan: EditionPlan): MediaItem =
-        MediaItem.Builder()
-            .setMediaId(plan.key.mediaId)
-            .setUri("pageworn://book/${plan.key.profileId}/${plan.generationId}")
-            .setTag(plan)
-            .setMediaMetadata(metadata(plan, null))
-            .build()
-
-    private fun metadata(plan: EditionPlan, callerPackage: String?): MediaMetadata =
-        MediaMetadata.Builder()
-            .setTitle(plan.title)
-            .setArtist(plan.author)
-            .setAlbumTitle(plan.title)
-            .setIsPlayable(true)
-            .setIsBrowsable(false)
-            .setMediaType(MediaMetadata.MEDIA_TYPE_AUDIO_BOOK)
-            .setDurationMs(plan.timeline.durationMs)
-            .setArtworkUri(CoverProvider.uriFor(service, plan.key, plan.generationId, callerPackage))
-            .build()
-
     companion object {
         const val ROOT_ID = "root"
-        private const val SessionError_NOT_FOUND = androidx.media3.session.SessionError.ERROR_BAD_VALUE
+        const val NOTHING_DOWNLOADED = "Download books on your phone to listen here."
     }
 }
 
 object PagewornCommands {
     const val NEXT_CHAPTER = "ch.lkmc.pageworn.NEXT_CHAPTER"
     const val PREVIOUS_CHAPTER = "ch.lkmc.pageworn.PREVIOUS_CHAPTER"
+    const val SET_SLEEP = "ch.lkmc.pageworn.SET_SLEEP"
+    const val SEEK_IN_BOOK = "ch.lkmc.pageworn.SEEK_IN_BOOK"
+    const val ARG_SLEEP_MODE = "mode"
+    const val ARG_SLEEP_MINUTES = "minutes"
+    const val ARG_POSITION_MS = "position"
+    const val SLEEP_OFF = "off"
+    const val SLEEP_TIMED = "timed"
+    const val SLEEP_END_OF_SEGMENT = "end"
 }

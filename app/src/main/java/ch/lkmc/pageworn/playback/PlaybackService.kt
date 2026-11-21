@@ -4,11 +4,16 @@ import android.content.Intent
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
 import ch.lkmc.pageworn.PagewornApp
 import ch.lkmc.pageworn.R
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 
 /**
  * The one media library session. The UI, the notification, the lock screen, headsets, the car's
@@ -17,14 +22,19 @@ import ch.lkmc.pageworn.R
 class PlaybackService : MediaLibraryService() {
 
     private var session: MediaLibrarySession? = null
-    private var exoPlayer: ExoPlayer? = null
+    private var controller: PlaybackController? = null
+    private var callback: BookSessionCallback? = null
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     override fun onCreate() {
         super.onCreate()
-        val app = application as PagewornApp
-        val container = app.container
+        val container = (application as PagewornApp).container
         val exo = ExoPlayer.Builder(this)
-            .setMediaSourceFactory(BookMediaSourceFactory(container.playbackDataSourceFactory))
+            .setMediaSourceFactory(
+                BookMediaSourceFactory(container.playbackDataSourceFactory)
+                    // A transient read error is retried once from the same position.
+                    .setLoadErrorHandlingPolicy(DefaultLoadErrorHandlingPolicy(1)),
+            )
             .setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(C.USAGE_MEDIA)
@@ -37,13 +47,26 @@ class PlaybackService : MediaLibraryService() {
             .setSeekBackIncrementMs(BookPlayer.SEEK_BACK_MS)
             .setSeekForwardIncrementMs(BookPlayer.SEEK_FORWARD_MS)
             .build()
-        exoPlayer = exo
-        val player = BookPlayer(exo)
-        val callback = BookSessionCallback(this, container)
-        session = MediaLibrarySession.Builder(this, player, callback)
+        val items = BookItems(this)
+        val playback = PlaybackController(
+            exo = exo,
+            editions = container.editionStore,
+            progress = container.progressStore,
+            settings = container.settings,
+            clock = container.liveClock,
+            hub = container.playbackHub,
+            writer = container.progressWriter,
+            items = items,
+            scope = scope,
+        )
+        controller = playback
+        val player = BookPlayer(exo, playback::beforePlay)
+        val cb = BookSessionCallback(this, container, { playback }, items)
+        callback = cb
+        session = MediaLibrarySession.Builder(this, player, cb)
             .setId(SESSION_ID)
             .setSessionActivity(container.sessionActivity(this))
-            .setMediaButtonPreferences(callback.mediaButtonPreferences(forCar = false))
+            .setMediaButtonPreferences(cb.mediaButtonPreferences(forCar = false))
             .build()
         setMediaNotificationProvider(
             DefaultMediaNotificationProvider.Builder(this).build().apply {
@@ -62,12 +85,15 @@ class PlaybackService : MediaLibraryService() {
     }
 
     override fun onDestroy() {
+        controller?.release()
+        callback?.release()
         session?.run {
             player.release()
             release()
         }
         session = null
-        exoPlayer = null
+        controller = null
+        scope.cancel()
         super.onDestroy()
     }
 

@@ -1,0 +1,1060 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "55f73ce658a81c83515b9251aed9e65e",
+    "entities": [
+      {
+        "tableName": "profile",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`profileId` TEXT NOT NULL, `accountId` TEXT NOT NULL, `accountName` TEXT NOT NULL, `pairingLibraryId` TEXT, `chosenLibraryId` TEXT, `serverVersion` TEXT, `createdAt` INTEGER NOT NULL, `canDownload` INTEGER NOT NULL, PRIMARY KEY(`profileId`))",
+        "fields": [
+          {
+            "fieldPath": "profileId",
+            "columnName": "profileId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accountId",
+            "columnName": "accountId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accountName",
+            "columnName": "accountName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pairingLibraryId",
+            "columnName": "pairingLibraryId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "chosenLibraryId",
+            "columnName": "chosenLibraryId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "serverVersion",
+            "columnName": "serverVersion",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canDownload",
+            "columnName": "canDownload",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "profileId"
+          ]
+        }
+      },
+      {
+        "tableName": "address",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`addressId` TEXT NOT NULL, `profileId` TEXT NOT NULL, `baseUrl` TEXT NOT NULL, `label` TEXT NOT NULL, `priority` INTEGER NOT NULL, `enabled` INTEGER NOT NULL, `lastSuccessAt` INTEGER, `credentialRef` TEXT, `cleartextOptIn` INTEGER NOT NULL, `confirmedCertSha256` TEXT, `certificateState` TEXT NOT NULL, `presentedCertSha256` TEXT, `passedNormalValidation` INTEGER NOT NULL, `pairingState` TEXT NOT NULL, `sessionState` TEXT NOT NULL, PRIMARY KEY(`addressId`))",
+        "fields": [
+          {
+            "fieldPath": "addressId",
+            "columnName": "addressId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "profileId",
+            "columnName": "profileId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "baseUrl",
+            "columnName": "baseUrl",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "label",
+            "columnName": "label",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "priority",
+            "columnName": "priority",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "enabled",
+            "columnName": "enabled",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastSuccessAt",
+            "columnName": "lastSuccessAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "credentialRef",
+            "columnName": "credentialRef",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "cleartextOptIn",
+            "columnName": "cleartextOptIn",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "confirmedCertSha256",
+            "columnName": "confirmedCertSha256",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "certificateState",
+            "columnName": "certificateState",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "presentedCertSha256",
+            "columnName": "presentedCertSha256",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "passedNormalValidation",
+            "columnName": "passedNormalValidation",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pairingState",
+            "columnName": "pairingState",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sessionState",
+            "columnName": "sessionState",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "addressId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_address_profileId_baseUrl",
+            "unique": true,
+            "columnNames": [
+              "profileId",
+              "baseUrl"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_address_profileId_baseUrl` ON `${TABLE_NAME}` (`profileId`, `baseUrl`)"
+          }
+        ]
+      },
+      {
+        "tableName": "library",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`profileId` TEXT NOT NULL, `libraryId` TEXT NOT NULL, `name` TEXT NOT NULL, `displayOrder` INTEGER NOT NULL, `lastRefreshAt` INTEGER, `publishedRefreshId` TEXT, PRIMARY KEY(`profileId`, `libraryId`))",
+        "fields": [
+          {
+            "fieldPath": "profileId",
+            "columnName": "profileId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "libraryId",
+            "columnName": "libraryId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "displayOrder",
+            "columnName": "displayOrder",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastRefreshAt",
+            "columnName": "lastRefreshAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "publishedRefreshId",
+            "columnName": "publishedRefreshId",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "profileId",
+            "libraryId"
+          ]
+        }
+      },
+      {
+        "tableName": "catalog_book",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`profileId` TEXT NOT NULL, `libraryId` TEXT NOT NULL, `itemId` TEXT NOT NULL, `title` TEXT NOT NULL, `authors` TEXT, `narrators` TEXT, `sortIndex` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `durationMs` INTEGER, `sizeBytes` INTEGER, `refreshId` TEXT NOT NULL, PRIMARY KEY(`profileId`, `libraryId`, `itemId`))",
+        "fields": [
+          {
+            "fieldPath": "profileId",
+            "columnName": "profileId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "libraryId",
+            "columnName": "libraryId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "itemId",
+            "columnName": "itemId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "authors",
+            "columnName": "authors",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "narrators",
+            "columnName": "narrators",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "sortIndex",
+            "columnName": "sortIndex",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "durationMs",
+            "columnName": "durationMs",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sizeBytes",
+            "columnName": "sizeBytes",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "refreshId",
+            "columnName": "refreshId",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "profileId",
+            "libraryId",
+            "itemId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_catalog_book_profileId_itemId",
+            "unique": false,
+            "columnNames": [
+              "profileId",
+              "itemId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_catalog_book_profileId_itemId` ON `${TABLE_NAME}` (`profileId`, `itemId`)"
+          }
+        ]
+      },
+      {
+        "tableName": "refresh_attempt",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`refreshId` TEXT NOT NULL, `profileId` TEXT NOT NULL, `libraryId` TEXT NOT NULL, `sequence` INTEGER NOT NULL, `startedAt` INTEGER NOT NULL, `state` TEXT NOT NULL, `firstLoad` INTEGER NOT NULL, `serverTotal` INTEGER, PRIMARY KEY(`refreshId`))",
+        "fields": [
+          {
+            "fieldPath": "refreshId",
+            "columnName": "refreshId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "profileId",
+            "columnName": "profileId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "libraryId",
+            "columnName": "libraryId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sequence",
+            "columnName": "sequence",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startedAt",
+            "columnName": "startedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "state",
+            "columnName": "state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "firstLoad",
+            "columnName": "firstLoad",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "serverTotal",
+            "columnName": "serverTotal",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "refreshId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_refresh_attempt_profileId_libraryId",
+            "unique": false,
+            "columnNames": [
+              "profileId",
+              "libraryId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_refresh_attempt_profileId_libraryId` ON `${TABLE_NAME}` (`profileId`, `libraryId`)"
+          }
+        ]
+      },
+      {
+        "tableName": "catalog_staging",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`refreshId` TEXT NOT NULL, `itemId` TEXT NOT NULL, `title` TEXT NOT NULL, `authors` TEXT, `narrators` TEXT, `sortIndex` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `durationMs` INTEGER, `sizeBytes` INTEGER, `playable` INTEGER NOT NULL, PRIMARY KEY(`refreshId`, `itemId`))",
+        "fields": [
+          {
+            "fieldPath": "refreshId",
+            "columnName": "refreshId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "itemId",
+            "columnName": "itemId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "authors",
+            "columnName": "authors",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "narrators",
+            "columnName": "narrators",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "sortIndex",
+            "columnName": "sortIndex",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "durationMs",
+            "columnName": "durationMs",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sizeBytes",
+            "columnName": "sizeBytes",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "playable",
+            "columnName": "playable",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "refreshId",
+            "itemId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_catalog_staging_refreshId_sortIndex",
+            "unique": false,
+            "columnNames": [
+              "refreshId",
+              "sortIndex"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_catalog_staging_refreshId_sortIndex` ON `${TABLE_NAME}` (`refreshId`, `sortIndex`)"
+          }
+        ]
+      },
+      {
+        "tableName": "local_edition",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`profileId` TEXT NOT NULL, `itemId` TEXT NOT NULL, `generationId` TEXT NOT NULL, `fingerprint` TEXT NOT NULL, `state` TEXT NOT NULL, `durationMs` INTEGER NOT NULL, `relativeDir` TEXT NOT NULL, `coverFile` TEXT, `title` TEXT NOT NULL, `authors` TEXT, `narrators` TEXT, `description` TEXT, `chapterSource` TEXT, `publishedAt` INTEGER NOT NULL, `sizeBytes` INTEGER NOT NULL, PRIMARY KEY(`profileId`, `itemId`))",
+        "fields": [
+          {
+            "fieldPath": "profileId",
+            "columnName": "profileId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "itemId",
+            "columnName": "itemId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "generationId",
+            "columnName": "generationId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fingerprint",
+            "columnName": "fingerprint",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "state",
+            "columnName": "state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "durationMs",
+            "columnName": "durationMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "relativeDir",
+            "columnName": "relativeDir",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "coverFile",
+            "columnName": "coverFile",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "authors",
+            "columnName": "authors",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "narrators",
+            "columnName": "narrators",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "chapterSource",
+            "columnName": "chapterSource",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "publishedAt",
+            "columnName": "publishedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sizeBytes",
+            "columnName": "sizeBytes",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "profileId",
+            "itemId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_local_edition_generationId",
+            "unique": true,
+            "columnNames": [
+              "generationId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_local_edition_generationId` ON `${TABLE_NAME}` (`generationId`)"
+          }
+        ]
+      },
+      {
+        "tableName": "track",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`generationId` TEXT NOT NULL, `ordinal` INTEGER NOT NULL, `sourceFileId` TEXT NOT NULL, `sourceRevision` INTEGER NOT NULL, `sizeBytes` INTEGER NOT NULL, `localFilename` TEXT NOT NULL, `startMs` INTEGER NOT NULL, `durationMs` INTEGER NOT NULL, `title` TEXT, `extension` TEXT NOT NULL, `codec` TEXT, PRIMARY KEY(`generationId`, `ordinal`))",
+        "fields": [
+          {
+            "fieldPath": "generationId",
+            "columnName": "generationId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ordinal",
+            "columnName": "ordinal",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceFileId",
+            "columnName": "sourceFileId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceRevision",
+            "columnName": "sourceRevision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sizeBytes",
+            "columnName": "sizeBytes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "localFilename",
+            "columnName": "localFilename",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startMs",
+            "columnName": "startMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "durationMs",
+            "columnName": "durationMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "extension",
+            "columnName": "extension",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "codec",
+            "columnName": "codec",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "generationId",
+            "ordinal"
+          ]
+        }
+      },
+      {
+        "tableName": "chapter",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`generationId` TEXT NOT NULL, `ordinal` INTEGER NOT NULL, `title` TEXT NOT NULL, `origin` TEXT NOT NULL, `startMs` INTEGER NOT NULL, `endMs` INTEGER NOT NULL, PRIMARY KEY(`generationId`, `ordinal`))",
+        "fields": [
+          {
+            "fieldPath": "generationId",
+            "columnName": "generationId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ordinal",
+            "columnName": "ordinal",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "origin",
+            "columnName": "origin",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startMs",
+            "columnName": "startMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "endMs",
+            "columnName": "endMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "generationId",
+            "ordinal"
+          ]
+        }
+      },
+      {
+        "tableName": "pending_removal",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`profileId` TEXT NOT NULL, `itemId` TEXT NOT NULL, `generationId` TEXT, `requestedAt` INTEGER NOT NULL, PRIMARY KEY(`profileId`, `itemId`))",
+        "fields": [
+          {
+            "fieldPath": "profileId",
+            "columnName": "profileId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "itemId",
+            "columnName": "itemId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "generationId",
+            "columnName": "generationId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "requestedAt",
+            "columnName": "requestedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "profileId",
+            "itemId"
+          ]
+        }
+      },
+      {
+        "tableName": "transfer",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`jobId` TEXT NOT NULL, `profileId` TEXT NOT NULL, `itemId` TEXT NOT NULL, `stagingGenerationId` TEXT NOT NULL, `manifestFingerprint` TEXT, `state` TEXT NOT NULL, `activeMarker` INTEGER, `userPaused` INTEGER NOT NULL, `failureCategory` TEXT, `attempt` INTEGER NOT NULL, `nextRetryAt` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `bytesTotal` INTEGER, `bytesDone` INTEGER NOT NULL, `shortfallBytes` INTEGER, `servingAddressId` TEXT, `replacesGenerationId` TEXT, `title` TEXT NOT NULL, `authors` TEXT, `coverUpdatedAt` INTEGER, PRIMARY KEY(`jobId`))",
+        "fields": [
+          {
+            "fieldPath": "jobId",
+            "columnName": "jobId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "profileId",
+            "columnName": "profileId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "itemId",
+            "columnName": "itemId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stagingGenerationId",
+            "columnName": "stagingGenerationId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "manifestFingerprint",
+            "columnName": "manifestFingerprint",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "state",
+            "columnName": "state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "activeMarker",
+            "columnName": "activeMarker",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "userPaused",
+            "columnName": "userPaused",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "failureCategory",
+            "columnName": "failureCategory",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "attempt",
+            "columnName": "attempt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nextRetryAt",
+            "columnName": "nextRetryAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bytesTotal",
+            "columnName": "bytesTotal",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "bytesDone",
+            "columnName": "bytesDone",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "shortfallBytes",
+            "columnName": "shortfallBytes",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "servingAddressId",
+            "columnName": "servingAddressId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "replacesGenerationId",
+            "columnName": "replacesGenerationId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "authors",
+            "columnName": "authors",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "coverUpdatedAt",
+            "columnName": "coverUpdatedAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "jobId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_transfer_profileId_itemId_activeMarker",
+            "unique": true,
+            "columnNames": [
+              "profileId",
+              "itemId",
+              "activeMarker"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_transfer_profileId_itemId_activeMarker` ON `${TABLE_NAME}` (`profileId`, `itemId`, `activeMarker`)"
+          }
+        ]
+      },
+      {
+        "tableName": "transfer_file",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`jobId` TEXT NOT NULL, `ordinal` INTEGER NOT NULL, `sourceFileId` TEXT NOT NULL, `sizeBytes` INTEGER, `mtimeMs` INTEGER, `extension` TEXT NOT NULL, `codec` TEXT, `durationMs` INTEGER NOT NULL, `title` TEXT, `localFilename` TEXT NOT NULL, `bytesJournal` INTEGER NOT NULL, `state` TEXT NOT NULL, `urlFingerprint` TEXT, `validator` TEXT, `validatorIsDate` INTEGER NOT NULL, PRIMARY KEY(`jobId`, `ordinal`))",
+        "fields": [
+          {
+            "fieldPath": "jobId",
+            "columnName": "jobId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ordinal",
+            "columnName": "ordinal",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceFileId",
+            "columnName": "sourceFileId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sizeBytes",
+            "columnName": "sizeBytes",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "mtimeMs",
+            "columnName": "mtimeMs",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "extension",
+            "columnName": "extension",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "codec",
+            "columnName": "codec",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "durationMs",
+            "columnName": "durationMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "localFilename",
+            "columnName": "localFilename",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bytesJournal",
+            "columnName": "bytesJournal",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "state",
+            "columnName": "state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "urlFingerprint",
+            "columnName": "urlFingerprint",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "validator",
+            "columnName": "validator",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "validatorIsDate",
+            "columnName": "validatorIsDate",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "jobId",
+            "ordinal"
+          ]
+        }
+      },
+      {
+        "tableName": "book_progress",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`profileId` TEXT NOT NULL, `itemId` TEXT NOT NULL, `positionMs` INTEGER NOT NULL, `durationAtSaveMs` INTEGER NOT NULL, `editionFingerprint` TEXT, `finished` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `stopKind` TEXT NOT NULL DEFAULT 'ORDINARY', `lastListenedAt` INTEGER, `playbackGeneration` INTEGER NOT NULL, `writeSequence` INTEGER NOT NULL, `pendingContinuityChoice` INTEGER NOT NULL, PRIMARY KEY(`profileId`, `itemId`))",
+        "fields": [
+          {
+            "fieldPath": "profileId",
+            "columnName": "profileId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "itemId",
+            "columnName": "itemId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "positionMs",
+            "columnName": "positionMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "durationAtSaveMs",
+            "columnName": "durationAtSaveMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "editionFingerprint",
+            "columnName": "editionFingerprint",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "finished",
+            "columnName": "finished",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stopKind",
+            "columnName": "stopKind",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'ORDINARY'"
+          },
+          {
+            "fieldPath": "lastListenedAt",
+            "columnName": "lastListenedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "playbackGeneration",
+            "columnName": "playbackGeneration",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "writeSequence",
+            "columnName": "writeSequence",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pendingContinuityChoice",
+            "columnName": "pendingContinuityChoice",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "profileId",
+            "itemId"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '55f73ce658a81c83515b9251aed9e65e')"
+    ]
+  }
+}

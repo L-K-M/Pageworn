@@ -21,3 +21,6 @@ build/
 *.jks
 *.keystore
 /release-test/
+
+# Local Audiobookshelf reference instance state (server-fixture/abs.sh)
+/server-fixture/.state/
