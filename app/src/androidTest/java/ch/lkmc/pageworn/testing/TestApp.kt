@@ -2,6 +2,7 @@ package ch.lkmc.pageworn.testing
 
 import android.content.Intent
 import androidx.media3.datasource.FileDataSource
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.test.platform.app.InstrumentationRegistry
 import ch.lkmc.pageworn.AppContainer
 import ch.lkmc.pageworn.PagewornApp
@@ -39,6 +40,7 @@ object TestApp {
         InstrumentationRegistry.getInstrumentation().waitForIdleSync()
         container.clock = clock
         container.playbackDataSourceFactory = FileDataSource.Factory()
+        container.playbackRenderersFactory = { DefaultRenderersFactory(it) }
         container.progressWriter = ProgressWriter.of(container.progressStore, container.appScope)
         container.playbackHub.clear()
         container.database.clearAllTables()

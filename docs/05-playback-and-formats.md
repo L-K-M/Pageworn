@@ -58,7 +58,7 @@ For each row, record a redistributable or generated fixture ID, extension, conta
 - Start new books at zero and resumed books at the stored global offset, less the [resume rewind](#resume-rewind). Support 15-second rewind, 30-second advance, Play/Pause, whole chapter selection, and the chapter scrubber. Clamp skips at the book edges. The slider spans the book when it has no chapter or track divisions.
 - Provide 0.75×, 1×, 1.25×, 1.5×, 1.75× and 2×. Persist the last selected speed. Progress stays in media time at all speeds. Sleep duration uses elapsed wall time.
 - Persist on explicit seek, pause and other checkpoints in the [storage contract](03-android-and-data.md). The maximum intended loss after unexpected process death during continuous playback is five seconds on the book timeline at every supported speed, plus the measured seek error when playback resumes. A deliberate pause or completed seek should resume within the format’s measured seek tolerance.
-- Mark finished on natural end, an explicit seek to book end, or a sleep stop at book end. Listening to an intermediate chapter end continues into the next chapter unless a timer requests a pause. Replay resets position and finished status through one transaction.
+- Mark finished on natural end, an explicit seek to book end, or a sleep stop at book end. A seek that lands within 250 ms of the end is a seek to the end: while paused, Media3 1.11.1 resolves a seek to the end of the boundary book to 1 ms before it and stays ready rather than ending (observed on both emulators). Listening to an intermediate chapter end continues into the next chapter unless a timer requests a pause. Replay resets position and finished status through one transaction.
 
 ## Resume rewind
 

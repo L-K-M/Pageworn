@@ -29,7 +29,7 @@ class PlaybackService : MediaLibraryService() {
     override fun onCreate() {
         super.onCreate()
         val container = (application as PagewornApp).container
-        val exo = ExoPlayer.Builder(this)
+        val exo = ExoPlayer.Builder(this, container.playbackRenderersFactory(this))
             .setMediaSourceFactory(
                 BookMediaSourceFactory(container.playbackDataSourceFactory)
                     // A transient read error is retried once from the same position.

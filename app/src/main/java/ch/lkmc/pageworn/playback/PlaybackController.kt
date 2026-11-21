@@ -276,6 +276,14 @@ class PlaybackController(
 
     private fun commitSeek() {
         pendingSeek = false
+        val book = loaded
+        if (book != null && exo.currentPosition >= book.durationMs - END_OF_BOOK_SEEK_MS) {
+            // An explicit seek to the end of the book finishes it. ExoPlayer resolves a seek there
+            // to just before the end and, while paused, stays ready instead of ending.
+            save(book.durationMs, StopKind.EXACT, finished = true, listened = false)
+            clearSleep()
+            return
+        }
         save(exo.currentPosition, pendingSeekKind, listened = false)
     }
 
@@ -452,6 +460,13 @@ class PlaybackController(
 
     companion object {
         private const val TAG = "PagewornPlayback"
+
+        /**
+         * A seek that lands this close to the end of the book is a seek to its end. A paused seek to
+         * the end of the boundary book rests 1 ms before it; the window also covers the last frame
+         * of every listener format.
+         */
+        private const val END_OF_BOOK_SEEK_MS = 250L
         const val TICK_MS = 250L
 
         /** A checkpoint at least every five seconds of media advancement; 4 s plus one tick at 2×. */

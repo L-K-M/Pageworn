@@ -6,6 +6,8 @@ import android.content.Intent
 import android.net.ConnectivityManager
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.FileDataSource
+import androidx.media3.exoplayer.DefaultRenderersFactory
+import androidx.media3.exoplayer.RenderersFactory
 import ch.lkmc.pageworn.account.AccountService
 import ch.lkmc.pageworn.account.AccountTransferRoutes
 import ch.lkmc.pageworn.account.Routed
@@ -73,6 +75,9 @@ class AppContainer(private val app: PagewornApp) {
 
     /** Local file reads only: the player never sees an HTTP data source. */
     var playbackDataSourceFactory: DataSource.Factory = FileDataSource.Factory()
+
+    /** The playback service's renderers. Tests may tee the decoded audio to hear where a seek lands. */
+    var playbackRenderersFactory: (Context) -> RenderersFactory = { DefaultRenderersFactory(it) }
 
     val editionSource: EditionSource get() = editionStore
 

@@ -29,6 +29,10 @@ class CueListener : TeeAudioProcessor.AudioBufferSink {
     private var count = 0
     private val lock = Any()
 
+    /** Flushes so far: a seek has restarted the capture once this has risen. */
+    @Volatile var flushes = 0
+        private set
+
     /** Frames captured since the last flush, divided by the sample rate. */
     val capturedMs: Long get() = synchronized(lock) { if (sampleRate == 0) 0 else count * 1000L / sampleRate }
 
@@ -38,6 +42,7 @@ class CueListener : TeeAudioProcessor.AudioBufferSink {
             channels = channelCount.coerceAtLeast(1)
             this.encoding = encoding
             count = 0
+            flushes++
         }
     }
 
