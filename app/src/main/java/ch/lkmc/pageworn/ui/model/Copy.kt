@@ -42,6 +42,7 @@ object Copy {
     const val SIGN_IN = "Sign in"
     const val SIGN_OUT = "Sign out"
     const val CANCEL = "Cancel"
+    const val PAUSE = "Pause"
     const val TRUST_CERTIFICATE = "Trust this certificate"
     const val TRUST_NEW_CERTIFICATE = "Trust the new certificate"
     const val ENABLE_NOTIFICATIONS = "Enable notifications"

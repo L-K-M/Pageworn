@@ -79,7 +79,7 @@ private fun DownloadTransferRow(row: TransferRow, onOpenBook: (BookKey) -> Unit,
             if (transfer.canPause && !compact) TransferPauseKey(row.face.title) { onPauseTransfer(transfer.jobId) }
         }
         if (compact) TransferIndicator(transfer, compact = false)
-        if (transfer.canPause && compact) TextAction("Pause download of ${row.face.title}") { onPauseTransfer(transfer.jobId) }
+        if (transfer.canPause && compact) TextAction(Copy.PAUSE, spokenLabel = "Pause download of ${row.face.title}") { onPauseTransfer(transfer.jobId) }
         if (transfer.canResume) TextAction("Resume download of ${row.face.title}") { onResumeTransfer(transfer.jobId) }
         if (transfer.canRetry) TextAction("Retry download of ${row.face.title}") { onRetryTransfer(transfer.jobId) }
         if (transfer.canCancel) TextAction(Copy.CANCEL, spokenLabel = "Cancel download of ${row.face.title}") { onCancelTransfer(transfer.jobId) }

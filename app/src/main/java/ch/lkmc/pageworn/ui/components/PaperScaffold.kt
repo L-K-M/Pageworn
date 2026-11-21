@@ -31,6 +31,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -50,6 +52,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.layout.onSizeChanged
 import android.graphics.BitmapFactory
 import ch.lkmc.pageworn.R
@@ -63,6 +66,9 @@ import ch.lkmc.pageworn.ui.theme.PagewornTheme
 /** pw_tab_*.png are 418 × 300 px; the notch apex of the fishtail is at 239 px. */
 private const val TAB_ASPECT = 300f / 418f
 private const val TAB_NOTCH_APEX = 239f / 300f
+
+/** Smallest size a bookmark label shrinks to so that it stays on one line. */
+private val TAB_LABEL_MIN_SIZE = 10.sp
 
 private fun DrawScope.tile(image: ImageBitmap, alpha: Float) {
     drawRect(brush = ShaderBrush(ImageShader(image, TileMode.Repeated, TileMode.Repeated)), alpha = alpha)
@@ -114,7 +120,19 @@ fun BindingFooter(destination: Destination, onSelect: (Destination) -> Unit, mod
                             Modifier.offset(y = tabTop + shift).wrapContentHeight(Alignment.Top, unbounded = true).requiredSize(width = tabWidth, height = tabHeight),
                         )
                         Box(Modifier.offset(y = shift).width(tabWidth).height(exposed), contentAlignment = Alignment.Center) {
-                            Text(if (item == Destination.LIBRARY) "Library" else "Downloaded", Modifier.background(if (highContrast) if (item == Destination.LIBRARY) Color(0xFFFAF5E9) else Color(0xFF833828) else Color.Transparent, RoundedCornerShape(2.dp)).padding(horizontal = 4.dp), color = if (item == Destination.LIBRARY) Color(0xFF30251E) else Color(0xFFF3EBD9), style = type.ribbonLabel.copy(fontWeight = if (selected) androidx.compose.ui.text.font.FontWeight.SemiBold else androidx.compose.ui.text.font.FontWeight.Normal), maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                            // One line on whole fabric: a label too wide for the tab at large text
+                            // sizes shrinks rather than breaking inside the word (asset guide).
+                            BasicText(
+                                if (item == Destination.LIBRARY) "Library" else "Downloaded",
+                                Modifier.background(if (highContrast) if (item == Destination.LIBRARY) Color(0xFFFAF5E9) else Color(0xFF833828) else Color.Transparent, RoundedCornerShape(2.dp)).padding(horizontal = 4.dp),
+                                style = type.ribbonLabel.copy(
+                                    color = if (item == Destination.LIBRARY) Color(0xFF30251E) else Color(0xFFF3EBD9),
+                                    fontWeight = if (selected) androidx.compose.ui.text.font.FontWeight.SemiBold else androidx.compose.ui.text.font.FontWeight.Normal,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                ),
+                                maxLines = 1,
+                                autoSize = TextAutoSize.StepBased(minFontSize = TAB_LABEL_MIN_SIZE, maxFontSize = type.ribbonLabel.fontSize),
+                            )
                         }
                     }
                 }

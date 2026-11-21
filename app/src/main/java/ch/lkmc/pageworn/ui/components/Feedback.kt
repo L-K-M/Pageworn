@@ -17,6 +17,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.Role
@@ -75,10 +78,15 @@ fun TransferIndicator(transfer: TransferUi, compact: Boolean) {
         if (value != null) progressBarRangeInfo = ProgressBarRangeInfo(value, 0f..1f)
     }
     if (compact) {
-        Box(semantics.size(48.dp), contentAlignment = Alignment.Center) {
-            if (active && value == null) CircularProgressIndicator(Modifier.size(42.dp), strokeWidth = 3.dp)
-            else CircularProgressIndicator(progress = { value ?: 0f }, modifier = Modifier.size(42.dp), strokeWidth = 3.dp, color = colors.accent)
-            Text(if (active) progress else transfer.stateText, color = colors.primaryInk, style = PagewornTheme.type.metadata, maxLines = 2)
+        // The ring holds the progress; the row's metadata line carries the state text. At large
+        // text sizes the ring grows around its label instead of the label overflowing it.
+        Box(semantics.defaultMinSize(48.dp, 48.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.defaultMinSize(42.dp, 42.dp).squareAroundContent(), contentAlignment = Alignment.Center) {
+                val ring = Modifier.matchParentSize()
+                if (active && value == null) CircularProgressIndicator(ring, strokeWidth = 3.dp)
+                else CircularProgressIndicator(progress = { value ?: 0f }, modifier = ring, strokeWidth = 3.dp, color = colors.accent)
+                Text(progress, Modifier.padding(6.dp), color = colors.primaryInk, style = PagewornTheme.type.metadata, maxLines = 1)
+            }
         }
     } else {
         Column(semantics.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -91,4 +99,13 @@ fun TransferIndicator(transfer: TransferUi, compact: Boolean) {
             transfer.message?.let { Text(it, color = colors.secondaryInk, style = PagewornTheme.type.status) }
         }
     }
+}
+
+/** Gives the content a square as wide as its natural longer side, so a ring drawn in it stays round. */
+private fun Modifier.squareAroundContent(): Modifier = layout { measurable, constraints ->
+    val width = measurable.maxIntrinsicWidth(constraints.maxHeight)
+    val side = maxOf(width, measurable.minIntrinsicHeight(width), constraints.minWidth, constraints.minHeight)
+        .coerceAtMost(minOf(constraints.maxWidth, constraints.maxHeight))
+    val placeable = measurable.measure(Constraints.fixed(side, side))
+    layout(side, side) { placeable.place(0, 0) }
 }
