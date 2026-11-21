@@ -56,6 +56,11 @@ Pageworn v1 serves audiobooks. Ebooks, podcasts, streaming, remote playback, cro
 | Session expired or signed out | “Sign in to refresh your library.” | Sign in to the affected address |
 | Signing out | “Sign out? Your downloaded books and saved places stay on this phone.” | Sign out, or Cancel |
 | Different account | “This phone holds books for [account name]. Sign in with that account.” | Sign in again |
+| Invalid address | “Enter a web address, such as https://books.example.com/audiobookshelf.” Shown under the address field; addresses with a user name, a query or a fragment count as invalid. | Correct the address |
+| Wrong user name or password | “The user name or password is incorrect.” Shown under the password field. | Correct them and continue |
+| Unencrypted address | “Pageworn will send your password and books to this address without encryption. Anyone on the same network can read them.” Shown before an http address is first used, with a switch the listener turns on to allow it for that address. | Allow unencrypted access, or use an https address |
+| Local network access needed | “Pageworn needs local network access to reach [address].” Shown just before the system asks, on Android 17. | Continue, which opens the system's request |
+| Confirm another address | “Signed in as [user name]. This address reaches the server with your library [library name].” | Add address, or Cancel |
 | Mismatched pairing | “This address leads to a different server.” Shown when the account matches but the server lacks the library seen at first sign-in. | Check the address, or use another address |
 | Unrecognized certificate | “Your phone doesn’t recognize this address’s certificate.” Show the certificate’s SHA-256 fingerprint. | Trust this certificate, or use another address |
 | Certificate changed | “The certificate for [address label] has changed.” Connection setup and Server addresses add the new fingerprint. | Server addresses, or use another address. Where the fingerprint shows, Trust the new certificate takes the place of the first. |
