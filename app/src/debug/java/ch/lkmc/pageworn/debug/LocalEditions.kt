@@ -2,16 +2,10 @@ package ch.lkmc.pageworn.debug
 
 import ch.lkmc.pageworn.AppContainer
 import ch.lkmc.pageworn.core.BookKey
-import ch.lkmc.pageworn.core.edition.EditionFingerprint
-import ch.lkmc.pageworn.core.edition.SourceFile
-import ch.lkmc.pageworn.core.timeline.BookTimeline
-import ch.lkmc.pageworn.core.timeline.ChapterMapBuilder
 import ch.lkmc.pageworn.core.timeline.RawChapter
+import ch.lkmc.pageworn.data.EditionAssembler
 import ch.lkmc.pageworn.data.EditionFiles
-import ch.lkmc.pageworn.data.EditionManifest
 import ch.lkmc.pageworn.data.EditionStore
-import ch.lkmc.pageworn.data.ManifestChapter
-import ch.lkmc.pageworn.data.ManifestTrack
 import java.io.File
 import java.util.UUID
 
@@ -39,30 +33,15 @@ object LocalEditions {
         files.ensureRoots()
         val staging = files.staging(generationId)
         staging.mkdirs()
-        val spans = BookTimeline.contiguousTracks(tracks.map { it.durationMs }, tracks.map { it.title })
-        val duration = spans.last().endMs
-        val chapters = ChapterMapBuilder.build(duration, serverChapters, embeddedChapters, spans.map { it.startMs })
-        val trackTitles = chapters.trackTitles
-        val manifestTracks = tracks.mapIndexed { i, t ->
+        val staged = tracks.mapIndexed { i, t ->
             val name = EditionFiles.trackFileName(i, t.file.extension)
             t.file.copyTo(File(staging, name), overwrite = true)
-            ManifestTrack(i, t.sourceFileId, t.mtimeMs, t.file.length(), name, spans[i].startMs, t.durationMs, trackTitles?.get(i) ?: t.title, EditionFiles.sanitizeExtension(t.file.extension), null)
+            EditionAssembler.StagedTrack(name, t.sourceFileId, t.mtimeMs, t.file.length(), t.durationMs, t.title, t.file.extension, null)
         }
         val coverName = cover?.let { c -> EditionFiles.COVER + "." + EditionFiles.sanitizeExtension(c.extension).also { c.copyTo(File(staging, EditionFiles.COVER + "." + it), overwrite = true) } }
-        val manifest = EditionManifest(
-            generationId = generationId,
-            jobId = null,
-            profileId = key.profileId,
-            itemId = key.itemId,
-            fingerprint = EditionFingerprint.of(tracks.map { SourceFile(it.sourceFileId, it.file.length(), it.mtimeMs, it.durationMs) }),
-            title = title,
-            authors = authors,
-            narrators = narrators,
-            description = description,
-            coverFile = coverName,
-            chapterSource = chapters.source,
-            tracks = manifestTracks,
-            chapters = chapters.chapters.mapIndexed { i, c -> ManifestChapter(i, c.title, c.origin, c.startMs, c.endMs) },
+        val manifest = EditionAssembler.assemble(
+            generationId, jobId = null, key, EditionAssembler.Metadata(title, authors, narrators, description),
+            staged, serverChapters, embeddedChapters, coverName,
         )
         return container.editionStore.publish(manifest)
     }
