@@ -61,12 +61,16 @@ class TransferJobService : JobService() {
     }
 }
 
-/** Schedules [TransferJobService]; the platform accepts it only while the app is visible. */
+/**
+ * Schedules [TransferJobService]; the platform accepts it only while the app is visible.
+ *
+ * Scheduling the same ID replaces a pending job and stops a running one. The coordinator asks
+ * only while no queue runs in this process, so nothing of ours is stopped, and the job listed
+ * may be one that just called jobFinished: keeping it instead would strand the new work.
+ */
 class JobSchedulerTransfers(private val context: Context) : TransferScheduler {
     override fun schedule(): Boolean {
         val scheduler = context.getSystemService(JobScheduler::class.java) ?: return false
-        // Scheduling the same ID again would stop a running job.
-        if (scheduler.getPendingJob(TransferJobService.JOB_ID) != null) return true
         val info = JobInfo.Builder(TransferJobService.JOB_ID, ComponentName(context, TransferJobService::class.java))
             .setUserInitiated(true)
             .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)

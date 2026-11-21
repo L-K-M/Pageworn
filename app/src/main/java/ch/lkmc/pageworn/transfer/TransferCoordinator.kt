@@ -236,12 +236,16 @@ class TransferCoordinator(
      */
     suspend fun runQueue() = runLock.withLock {
         ensureRecovered()
-        queueRunning = true
-        try {
-            drain()
-        } finally {
-            queueRunning = false
-        }
+        do {
+            queueRunning = true
+            try {
+                drain()
+            } finally {
+                queueRunning = false
+            }
+            // A Download or Resume that arrived after the drain found nothing, but before the
+            // flag dropped, saw a running queue and scheduled no job: drain again for it.
+        } while (transfers.allActive().any { runnableLater(it) })
     }
 
     private suspend fun drain() {
