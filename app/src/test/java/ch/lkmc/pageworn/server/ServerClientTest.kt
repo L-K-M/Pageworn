@@ -47,6 +47,9 @@ class ServerClientTest {
 
     private fun enqueueFixture(name: String) { server.enqueue(MockResponse().setBody(fixture(name))) }
 
+    private fun imageResponse(bytes: ByteArray, contentType: String = "image/webp"): MockResponse =
+        MockResponse().setResponseCode(200).setHeader("Content-Type", contentType).setBody(Buffer().write(bytes))
+
     @Test fun parseBaseUrlTable() {
         val cases = mapOf(
             "example.com" to "https://example.com/",
@@ -197,6 +200,48 @@ class ServerClientTest {
         val request = server.takeRequest()
         assertThat(request.path).isEqualTo("/abs/auth/refresh")
         assertThat(request.getHeader("x-refresh-token")).isEqualTo("old-refresh")
+        assertThat(request.getHeader("Authorization")).isNull()
+    }
+
+    @Test fun coverThumbnailSendsNoTokenAndTheExpectedQuery() = runBlocking {
+        server.enqueue(imageResponse(byteArrayOf(1, 2, 3)))
+        val cover = client().coverThumbnail("24ce6539-29bf-4b23-b239-22a38a406464", 200, 1795273325727)
+        assertThat((cover as ServerResult.Ok).value.asList()).containsExactly(1.toByte(), 2.toByte(), 3.toByte()).inOrder()
+        val request = server.takeRequest()
+        assertThat(request.path).isEqualTo(
+            "/abs/api/items/24ce6539-29bf-4b23-b239-22a38a406464/cover?width=200&format=webp&ts=1795273325727")
+        assertThat(request.getHeader("Authorization")).isNull()
+    }
+
+    @Test fun coverPathEncodesTheItemId() = runBlocking {
+        server.enqueue(imageResponse(byteArrayOf(1)))
+        client().coverThumbnail("item 1", 200, 1)
+        assertThat(server.takeRequest().path).isEqualTo("/abs/api/items/item%201/cover?width=200&format=webp&ts=1")
+    }
+
+    @Test fun coverThumbnailRejectsNonImageAndOversizeBodies() = runBlocking {
+        val client = client()
+        server.enqueue(imageResponse("<html>".toByteArray(), "text/html"))
+        val nonImage = client.coverThumbnail("item-1", 200, 1) as ServerResult.Failed
+        assertThat(nonImage.error).isInstanceOf(ServerError.Unexpected::class.java)
+        server.enqueue(imageResponse(ByteArray(2 * 1024 * 1024 + 1)))
+        val oversize = client.coverThumbnail("item-1", 200, 1) as ServerResult.Failed
+        assertThat(oversize.error).isInstanceOf(ServerError.Unexpected::class.java)
+    }
+
+    @Test fun coverThumbnailMaps404ToNotFound() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(404))
+        assertThat(client().coverThumbnail("item-1", 200, 1))
+            .isEqualTo(ServerResult.Failed(ServerError.NotFound))
+        assertThat(server.takeRequest().getHeader("Authorization")).isNull()
+    }
+
+    @Test fun coverOriginalRequestsRawWithoutAToken() = runBlocking {
+        server.enqueue(imageResponse(byteArrayOf(9, 8)))
+        val cover = client().coverOriginal("item-1")
+        assertThat((cover as ServerResult.Ok).value.asList()).containsExactly(9.toByte(), 8.toByte()).inOrder()
+        val request = server.takeRequest()
+        assertThat(request.path).isEqualTo("/abs/api/items/item-1/cover?raw=1")
         assertThat(request.getHeader("Authorization")).isNull()
     }
 
