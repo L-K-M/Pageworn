@@ -50,9 +50,17 @@ class MediaProbe(private val context: Context) {
             if (error != null || settled == null) {
                 return@withContext Result(false, null, null, null, error?.let(::describe) ?: "not ready after $timeoutMs ms")
             }
-            val format = player.currentTracks.groups.firstOrNull { it.type == C.TRACK_TYPE_AUDIO && it.length > 0 }?.getTrackFormat(0)
+            val audio = player.currentTracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO && it.length > 0 }
             val duration = player.duration.takeIf { it != C.TIME_UNSET && it > 0 }
-            if (format == null) return@withContext Result(false, duration, null, null, "no audio track")
+            if (audio.isEmpty()) return@withContext Result(false, duration, null, null, "no audio track")
+            // The player becomes ready with an audio track that no decoder on this phone handles
+            // (ALAC, MPEG layer II on the emulators); such a file opens but plays nothing.
+            val supported = audio.firstOrNull { it.isTrackSupported(0) }
+            if (supported == null) {
+                val unsupported = audio.first().getTrackFormat(0)
+                return@withContext Result(false, duration, unsupported.sampleMimeType, unsupported.codecs, "no decoder for ${unsupported.sampleMimeType}")
+            }
+            val format = supported.getTrackFormat(0)
             Result(
                 duration != null, duration, format.sampleMimeType, format.codecs,
                 if (duration == null) "unknown duration" else null,
