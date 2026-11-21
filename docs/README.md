@@ -22,6 +22,8 @@ The documentation and media live together under `docs/`. Copy the art used by th
 | [06-delivery-and-tests.md](06-delivery-and-tests.md) | Ordered milestones, fixtures, acceptance tests, and release criteria |
 | [07-screen-gallery.md](07-screen-gallery.md) | Four individual visual targets with state and layout notes |
 | [08-assets-and-implementation.md](08-assets-and-implementation.md) | Reusable assets, sizing, native overlays, state handling, and delivery checks |
+| [format-matrix.md](format-matrix.md) | Recorded format coverage on the test targets, with the device evidence |
+| [milestones/](milestones/) | One report per completed milestone, in the format of the delivery plan |
 
 ## Working vocabulary
 

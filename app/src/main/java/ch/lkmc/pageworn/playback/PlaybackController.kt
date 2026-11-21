@@ -197,6 +197,18 @@ class PlaybackController(
         publish()
     }
 
+    override fun onTimelineChanged(timeline: androidx.media3.common.Timeline, reason: Int) {
+        val book = loaded ?: return
+        if (exo.mediaItemCount == 0) {
+            // The book was stopped and cleared (before removal): release its reader and timer.
+            clearSleep()
+            editions.release(book.plan.generationId)
+            loaded = null
+            failed = false
+            publish()
+        }
+    }
+
     override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
         settings.setSpeed(playbackParameters.speed)
         publish()

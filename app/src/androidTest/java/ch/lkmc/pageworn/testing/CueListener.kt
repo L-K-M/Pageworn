@@ -95,6 +95,9 @@ class CueListener : TeeAudioProcessor.AudioBufferSink {
         null
     }
 
+    /** Every cue frequency heard in the capture, with its onset in milliseconds. */
+    fun heard(freqs: List<Int>): Map<Int, Long> = freqs.mapNotNull { f -> onsetMs(f)?.let { f to it } }.toMap()
+
     private fun amplitude(start: Int, n: Int, freq: Int, rate: Int): Float {
         val k = 2.0 * cos(2.0 * PI * freq / rate)
         var s1 = 0.0

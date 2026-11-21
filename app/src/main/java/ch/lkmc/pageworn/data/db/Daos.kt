@@ -142,6 +142,9 @@ interface EditionDao {
     @Query("SELECT * FROM local_edition")
     suspend fun all(): List<LocalEditionEntity>
 
+    @Query("SELECT * FROM local_edition")
+    fun observeEverything(): Flow<List<LocalEditionEntity>>
+
     @Query("SELECT * FROM track WHERE generationId = :generationId ORDER BY ordinal")
     suspend fun tracks(generationId: String): List<TrackEntity>
 
@@ -241,6 +244,9 @@ interface ProgressDao {
 
     @Query("SELECT * FROM book_progress WHERE profileId = :profileId")
     fun observeAll(profileId: String): Flow<List<BookProgressEntity>>
+
+    @Query("SELECT * FROM book_progress")
+    fun observeEverything(): Flow<List<BookProgressEntity>>
 
     @Upsert
     suspend fun upsert(progress: BookProgressEntity)

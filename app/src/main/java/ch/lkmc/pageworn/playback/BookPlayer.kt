@@ -23,8 +23,10 @@ class BookPlayer(player: Player, private val beforePlay: () -> Unit = {}) : Forw
     }
 
 
-    override fun getAvailableCommands(): Player.Commands =
-        super.getAvailableCommands().buildUpon()
+    override fun getAvailableCommands(): Player.Commands = adjust(super.getAvailableCommands())
+
+    private fun adjust(commands: Player.Commands): Player.Commands =
+        commands.buildUpon()
             .addAll(
                 Player.COMMAND_SEEK_TO_NEXT,
                 Player.COMMAND_SEEK_TO_PREVIOUS,
@@ -33,6 +35,21 @@ class BookPlayer(player: Player, private val beforePlay: () -> Unit = {}) : Forw
             )
             .removeAll(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM, Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
             .build()
+
+    // The forwarding player passes the wrapped player's command events through unchanged, and the
+    // session forwards those to controllers; correct them on the way.
+    private val wrappers = HashMap<Player.Listener, Player.Listener>()
+
+    override fun addListener(listener: Player.Listener) {
+        val wrapped = CommandAdjustingListener(listener, ::adjust)
+        synchronized(wrappers) { wrappers[listener] = wrapped }
+        super.addListener(wrapped)
+    }
+
+    override fun removeListener(listener: Player.Listener) {
+        val wrapped = synchronized(wrappers) { wrappers.remove(listener) } ?: listener
+        super.removeListener(wrapped)
+    }
 
     override fun isCommandAvailable(command: Int): Boolean = availableCommands.contains(command)
 

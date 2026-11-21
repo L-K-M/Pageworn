@@ -10,6 +10,7 @@ import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
 import androidx.media3.extractor.DefaultExtractorsFactory
+import androidx.media3.extractor.ExtractorsFactory
 import androidx.media3.extractor.mp3.Mp3Extractor
 
 /**
@@ -49,14 +50,16 @@ class BookMediaSourceFactory(
 
     companion object {
         /**
-         * Extractor settings for local audiobook files. MP3 uses index seeking, which reads the file
-         * up to the target instead of trusting a coarse Xing table, so late seeks in long VBR files
-         * land on the audio that was asked for. Streams without an index (ADTS AAC, MP3 without a
-         * header) fall back to constant-bitrate seeking. The format matrix measures the result.
+         * Extractor settings for local audiobook files. MP3 files seek through an exact frame index
+         * ([ExactMp3ExtractorsFactory]) instead of the coarse Xing table, so late seeks in long VBR
+         * files land on the audio that was asked for. Streams without any index (ADTS AAC) fall back
+         * to constant-bitrate seeking. The format matrix measures the result on each target.
          */
-        fun extractorsFactory(): DefaultExtractorsFactory = DefaultExtractorsFactory()
-            .setConstantBitrateSeekingEnabled(true)
-            .setConstantBitrateSeekingAlwaysEnabled(true)
-            .setMp3ExtractorFlags(Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING)
+        fun extractorsFactory(): ExtractorsFactory = ExactMp3ExtractorsFactory(
+            DefaultExtractorsFactory()
+                .setConstantBitrateSeekingEnabled(true)
+                .setConstantBitrateSeekingAlwaysEnabled(true)
+                .setMp3ExtractorFlags(Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING),
+        )
     }
 }
