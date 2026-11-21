@@ -64,7 +64,7 @@ class PlaybackService : MediaLibraryService() {
         )
         controller = playback
         val player = BookPlayer(exo, playback::beforePlay)
-        val cb = BookSessionCallback(this, container, { playback }, items)
+        val cb = BookSessionCallback(packageName, container, { playback }, items)
         callback = cb
         session = MediaLibrarySession.Builder(this, player, cb)
             .setId(SESSION_ID)

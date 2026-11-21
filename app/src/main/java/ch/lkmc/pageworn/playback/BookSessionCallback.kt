@@ -30,7 +30,8 @@ import kotlinx.coroutines.guava.future
  * item. The playback rules themselves live in [PlaybackController].
  */
 class BookSessionCallback(
-    private val service: MediaLibraryService,
+    /** The app's own package: its UI connects as a controller like any other surface. */
+    private val ownPackage: String,
     private val container: AppContainer,
     private val controller: () -> PlaybackController,
     private val items: BookItems,
@@ -41,7 +42,7 @@ class BookSessionCallback(
     fun release() = scope.cancel()
 
     override fun onConnect(session: MediaSession, controller: MediaSession.ControllerInfo): MediaSession.ConnectionResult {
-        val isOwn = controller.packageName == service.packageName
+        val isOwn = controller.packageName == ownPackage
         val isCar = session.isAutoCompanionController(controller)
         // The titles on this phone are private: only the app, Android Auto and the system's own
         // trusted surfaces (notification, lock screen, resumption control) may connect.
