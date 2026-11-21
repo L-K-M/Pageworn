@@ -1,0 +1,33 @@
+name: Repository checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scripts:
+    name: Build and release tooling
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Validate shell scripts and release versions
+        run: |
+          set -euo pipefail
+          shellcheck -x scripts/*.sh
+          [[ "$(scripts/release-version.sh 1.2.3)" == 1002003 ]]
+          [[ "$(scripts/release-version.sh 0.0.1)" == 1 ]]
+          [[ "$(scripts/release-version.sh 2099.999.999)" == 2099999999 ]]
+          for version in 0.0.0 1.2 v1.2.3 1.2.3-beta.1 01.2.3 1.1000.0 1.0.1000 2100.0.0; do
+            if scripts/release-version.sh "$version"; then
+              echo "Accepted invalid release version $version" >&2
+              exit 1
+            fi
+          done
