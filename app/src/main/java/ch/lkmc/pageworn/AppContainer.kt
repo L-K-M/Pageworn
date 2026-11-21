@@ -15,6 +15,8 @@ import ch.lkmc.pageworn.data.SettingsStore
 import ch.lkmc.pageworn.data.db.PagewornDatabase
 import ch.lkmc.pageworn.playback.EditionSource
 import ch.lkmc.pageworn.playback.PlaybackHub
+import ch.lkmc.pageworn.playback.PlayerConnection
+import ch.lkmc.pageworn.ui.state.AppNotices
 import ch.lkmc.pageworn.playback.ProgressWriter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -43,6 +45,8 @@ class AppContainer(private val app: PagewornApp) {
     val editionFiles: EditionFiles by lazy { EditionFiles(File(app.filesDir, "audio")) }
     val editionStore: EditionStore by lazy { EditionStore(database, editionFiles, liveClock) }
     val playbackHub = PlaybackHub()
+    val playerConnection: PlayerConnection by lazy { PlayerConnection(app, playbackHub) }
+    val notices: AppNotices by lazy { AppNotices(settings) }
 
     /** Where the player's progress writes go. Tests may hold a write back to deliver it late. */
     var progressWriter: ProgressWriter = ProgressWriter.of(progressStore, appScope)

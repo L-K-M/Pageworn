@@ -264,6 +264,13 @@ class EditionStore(
             .mapNotNull { toPlan(it) }
     }
 
+    /** Every published edition on the phone (one profile owns them all), without pending removals. */
+    fun observeEverything(): Flow<List<LocalEditionEntity>> =
+        combine(db.editions().observeEverything(), db.editions().observePendingRemovals()) { editions, removals ->
+            val pending = removals.map { BookKey(it.profileId, it.itemId) }.toSet()
+            editions.filter { it.key !in pending }
+        }
+
     fun observeEditions(profileId: String): Flow<List<LocalEditionEntity>> =
         combine(db.editions().observeAll(profileId), db.editions().observePendingRemovals()) { editions, removals ->
             val pending = removals.map { BookKey(it.profileId, it.itemId) }.toSet()

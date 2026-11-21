@@ -1,0 +1,198 @@
+package ch.lkmc.pageworn.ui.state
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import ch.lkmc.pageworn.AppContainer
+import ch.lkmc.pageworn.core.BookKey
+import ch.lkmc.pageworn.core.progress.StopKind
+import ch.lkmc.pageworn.core.timeline.BookTimeline
+import ch.lkmc.pageworn.data.db.BookProgressEntity
+import ch.lkmc.pageworn.data.db.LocalEditionEntity
+import ch.lkmc.pageworn.playback.EditionPlan
+import ch.lkmc.pageworn.ui.model.Destination
+import ch.lkmc.pageworn.ui.model.DownloadedUiState
+import ch.lkmc.pageworn.ui.model.MiniPlayerUi
+import ch.lkmc.pageworn.ui.model.PlayerUiState
+import ch.lkmc.pageworn.ui.model.SleepChoice
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.shareIn
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import java.util.concurrent.ConcurrentHashMap
+
+/** Caches edition plans (timeline, files, cover) by generation for row labels and the player. */
+class PlanCache(private val container: AppContainer) {
+    private val plans = ConcurrentHashMap<String, EditionPlan>()
+
+    suspend fun plan(edition: LocalEditionEntity): EditionPlan? =
+        plans[edition.generationId] ?: container.editionStore.anyPlan(edition.key)?.also { plans[it.generationId] = it }
+
+    suspend fun timelines(editions: List<LocalEditionEntity>): Map<String, BookTimeline> =
+        editions.mapNotNull { e -> plan(e)?.let { e.generationId to it.timeline } }.toMap()
+}
+
+/** The book the mini-player and full player show: the loaded one, or the last active book at rest. */
+@OptIn(ExperimentalCoroutinesApi::class)
+class PlayerViewModel(private val container: AppContainer) : ViewModel() {
+    private val plans = PlanCache(container)
+    private val connection get() = container.playerConnection
+
+    private val shownKey: Flow<BookKey?> =
+        combine(container.playbackHub.state.map { it.key }.distinctUntilChanged(), container.settings.lastActiveBook) { live, last -> live ?: last }
+            .distinctUntilChanged()
+
+    private data class Shown(val plan: EditionPlan, val edition: LocalEditionEntity?, val progress: BookProgressEntity?)
+
+    private val shown: Flow<Shown?> = shownKey.flatMapLatest { key ->
+        if (key == null) {
+            flowOf(null)
+        } else {
+            combine(
+                container.database.editions().observeEdition(key.profileId, key.itemId),
+                container.database.progress().observe(key.profileId, key.itemId),
+            ) { edition, progress ->
+                edition?.let { e -> plans.plan(e)?.let { Shown(it, e, progress) } }
+            }
+        }
+    }
+
+    private val playerStates = combine(shown, container.playbackHub.state) { s, live ->
+        s?.let { PlayerStates.player(it.plan, it.edition, it.progress, live) }
+    }.shareIn(viewModelScope, SharingStarted.Eagerly, replay = 1)
+
+    val player: StateFlow<PlayerUiState?> = playerStates.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /** True once [player] reflects local state, so null then means there is no book to show. */
+    val playerLoaded: StateFlow<Boolean> = playerStates.map { true }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    val mini: StateFlow<MiniPlayerUi?> = combine(shown, container.playbackHub.state) { s, live ->
+        s?.let { PlayerStates.mini(it.plan, it.edition, it.progress, live) }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    private fun currentKey(): BookKey? = player.value?.face?.key
+
+    fun togglePlayPause() {
+        val key = currentKey() ?: return
+        viewModelScope.launch { connection.playPause(key) }
+    }
+
+    fun playPause(key: BookKey) {
+        viewModelScope.launch { connection.playPause(key) }
+    }
+
+    fun skipBack() = launchIfLoaded { connection.skipBack() }
+    fun skipForward() = launchIfLoaded { connection.skipForward() }
+
+    fun seekTo(positionMs: Long) {
+        val key = currentKey() ?: return
+        viewModelScope.launch {
+            if (container.playbackHub.state.value.key == key) {
+                connection.seekTo(positionMs)
+            } else {
+                // Moving the place of a resting book: an exact stop.
+                val plan = container.editionStore.anyPlan(key) ?: return@launch
+                container.progressStore.saveOutsideSession(key, plan.timeline.clamp(positionMs), plan.timeline.durationMs, plan.fingerprint, StopKind.EXACT)
+            }
+        }
+    }
+
+    fun selectSegment(startMs: Long) {
+        val key = currentKey() ?: return
+        viewModelScope.launch { connection.playFrom(key, startMs) }
+    }
+
+    /** A chapter row in a book's details starts that book there. */
+    fun playFrom(key: BookKey, startMs: Long) {
+        viewModelScope.launch { connection.playFrom(key, startMs) }
+    }
+
+    fun setSpeed(speed: Float) {
+        container.settings.setSpeed(speed)
+        viewModelScope.launch { connection.setSpeed(speed) }
+    }
+
+    fun setSleep(choice: SleepChoice) {
+        viewModelScope.launch { connection.setSleep(choice) }
+    }
+
+    /** After changed audio: keep the previous position (exact) or start over. */
+    fun resolveContinuity(usePrevious: Boolean) {
+        val key = currentKey() ?: return
+        viewModelScope.launch {
+            val plan = container.editionStore.anyPlan(key) ?: return@launch
+            val previous = container.progressStore.read(key)?.positionMs ?: 0L
+            val position = if (usePrevious) plan.timeline.clamp(previous) else 0L
+            container.progressStore.saveOutsideSession(key, position, plan.timeline.durationMs, plan.fingerprint, StopKind.EXACT)
+        }
+    }
+
+    private fun launchIfLoaded(block: suspend () -> Unit) {
+        if (container.playbackHub.state.value.key == null) return
+        viewModelScope.launch { block() }
+    }
+}
+
+class DownloadedViewModel(private val container: AppContainer) : ViewModel() {
+    private val plans = PlanCache(container)
+
+    val state: StateFlow<DownloadedUiState> = combine(
+        container.editionStore.observeEverything(),
+        container.database.progress().observeEverything(),
+        container.database.transfers().observeActive(),
+        container.playbackHub.state,
+        container.notices.downloadedStatus,
+    ) { editions, progress, transfers, live, status ->
+        val (transferRows, bookRows) = RowBuilders.downloadedRows(
+            editions = editions,
+            dirOf = { container.editionFiles.published(it.generationId) },
+            progress = progress.associateBy { it.key },
+            timelines = plans.timelines(editions),
+            transfers = transfers,
+            live = live,
+        )
+        DownloadedUiState(
+            transfers = transferRows,
+            books = bookRows,
+            status = status,
+            empty = if (transferRows.isEmpty() && bookRows.isEmpty()) RowBuilders.noDownloads() else null,
+        )
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, DownloadedUiState())
+}
+
+/**
+ * Which main section shows. A cold launch decides from local state alone (A17): Downloaded when a
+ * downloaded book exists, otherwise the section shown last. A warm start keeps this view model and
+ * so keeps the section.
+ */
+class MainViewModel(private val container: AppContainer) : ViewModel() {
+    private val remembered = container.settings.lastDestination?.let { runCatching { Destination.valueOf(it) }.getOrNull() } ?: Destination.LIBRARY
+    private val _destination = MutableStateFlow(remembered)
+    val destination: StateFlow<Destination> = _destination
+
+    /** False until the cold-launch decision is made, so the wrong section never flashes. */
+    private val _decided = MutableStateFlow(false)
+    val decided: StateFlow<Boolean> = _decided
+
+    init {
+        viewModelScope.launch {
+            if (container.editionStore.observeEverything().first().isNotEmpty()) _destination.value = Destination.DOWNLOADED
+            _decided.value = true
+        }
+    }
+
+    fun select(destination: Destination) {
+        if (destination != _destination.value) container.notices.leftDownloaded(_destination.value, destination)
+        _destination.value = destination
+        container.settings.lastDestination = destination.name
+    }
+}
