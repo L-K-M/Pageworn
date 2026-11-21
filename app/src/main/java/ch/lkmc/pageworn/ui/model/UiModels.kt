@@ -165,6 +165,8 @@ data class MiniPlayerUi(
     val isPlaying: Boolean,
     val enabled: Boolean,
     val disabledReason: String? = null,
+    /** A saved place exists: the paused key reads Resume, as in the full player. */
+    val hasPlace: Boolean = false,
 )
 
 enum class SleepChoice { OFF, MINUTES_15, MINUTES_30, MINUTES_45, MINUTES_60, END_OF_SEGMENT }

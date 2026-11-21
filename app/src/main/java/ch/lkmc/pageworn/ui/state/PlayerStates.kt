@@ -111,6 +111,9 @@ object PlayerStates {
         val position = plan.timeline.clamp(if (isLive) live.positionMs else progress?.positionMs ?: 0L)
         val failed = (isLive && live.failed) || edition?.state == EditionState.REPAIR_NEEDED
         val subtitle = if (plan.timeline.division == Division.WHOLE_BOOK) plan.author else segmentTitle(plan, plan.timeline.segmentIndexAt(position))
-        return MiniPlayerUi(face(plan), subtitle, isLive && live.isPlaying, enabled = !failed, disabledReason = if (failed) Copy.PLAYBACK_STOPPED else null)
+        val finished = progress?.finished == true
+        // The same rule as the full player, so both keys name the same next action.
+        val hasPlace = !finished && progress != null && (progress.positionMs > 0 || isLive)
+        return MiniPlayerUi(face(plan), subtitle, isLive && live.isPlaying, enabled = !failed, disabledReason = if (failed) Copy.PLAYBACK_STOPPED else null, hasPlace = hasPlace)
     }
 }
