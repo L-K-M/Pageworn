@@ -63,6 +63,13 @@ object PlayerStates {
     }
 
     /**
+     * The live player failed on the edition that is still published. A repair publishes another
+     * generation, which the next play loads, so the failure no longer disables its keys.
+     */
+    private fun liveFailure(plan: EditionPlan, edition: LocalEditionEntity?, live: LivePlayback): Boolean =
+        live.key == plan.key && live.failed && (edition == null || live.plan?.generationId == edition.generationId)
+
+    /**
      * The player for [plan]. When the live player holds this book its position and state win;
      * otherwise the saved place is shown, as Downloaded and the ribbon show it while the book rests.
      */
@@ -78,7 +85,7 @@ object PlayerStates {
         val position = timeline.clamp(if (isLive) live.positionMs else progress?.positionMs ?: 0L)
         val segment = timeline.segmentAt(position)
         val whole = timeline.division == Division.WHOLE_BOOK
-        val failed = (isLive && live.failed) || edition?.state == EditionState.REPAIR_NEEDED
+        val failed = liveFailure(plan, edition, live) || edition?.state == EditionState.REPAIR_NEEDED
         return PlayerUiState(
             face = face(plan),
             narrator = edition?.narrators,
@@ -109,7 +116,7 @@ object PlayerStates {
     fun mini(plan: EditionPlan, edition: LocalEditionEntity?, progress: BookProgressEntity?, live: LivePlayback): MiniPlayerUi {
         val isLive = live.key == plan.key
         val position = plan.timeline.clamp(if (isLive) live.positionMs else progress?.positionMs ?: 0L)
-        val failed = (isLive && live.failed) || edition?.state == EditionState.REPAIR_NEEDED
+        val failed = liveFailure(plan, edition, live) || edition?.state == EditionState.REPAIR_NEEDED
         val subtitle = if (plan.timeline.division == Division.WHOLE_BOOK) plan.author else segmentTitle(plan, plan.timeline.segmentIndexAt(position))
         val finished = progress?.finished == true
         // The same rule as the full player, so both keys name the same next action.

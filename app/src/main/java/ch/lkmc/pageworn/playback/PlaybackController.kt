@@ -1,6 +1,7 @@
 package ch.lkmc.pageworn.playback
 
 import android.os.Looper
+import android.util.Log
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
@@ -54,6 +55,15 @@ class PlaybackController(
 
     /** A seek whose resolved position is committed once the player is ready there. */
     private var pendingSeek = false
+
+    /**
+     * The stop kind the pending seek commits with: ordinary when it was made during playback, exact
+     * when made while paused, timed once a timer stops playback before the seek completes.
+     */
+    private var pendingSeekKind = StopKind.EXACT
+
+    /** Audio played since the book was loaded or last moved; a failure before that saves nothing. */
+    private var played = false
     private var lastCommittedPosition = C.TIME_UNSET
     private var wasPlaying = false
 
@@ -119,6 +129,7 @@ class PlaybackController(
         startResolved = explicitStartMs == null
         failed = false
         pendingSeek = false
+        played = false
         lastCommittedPosition = C.TIME_UNSET
         settings.setLastActiveBook(key)
         if (explicitStartMs != null || saved?.finished == true) {
@@ -169,6 +180,7 @@ class PlaybackController(
         if (isPlaying) {
             startResolved = false
             failed = false
+            played = true
         } else if (wasPlaying && exo.playbackState != Player.STATE_ENDED && exo.playerError == null) {
             val kind = pauseCause ?: StopKind.ORDINARY
             pauseCause = null
@@ -182,6 +194,8 @@ class PlaybackController(
         if (reason == Player.DISCONTINUITY_REASON_SEEK || reason == Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT) {
             // Invalidate samples from before the seek; commit the resolved position once ready there.
             pendingSeek = true
+            pendingSeekKind = if (exo.playWhenReady) StopKind.ORDINARY else StopKind.EXACT
+            played = false
             retargetSleepAfterSeek(newPosition.positionMs)
             if (exo.playbackState == Player.STATE_READY) commitSeek()
         }
@@ -214,22 +228,49 @@ class PlaybackController(
         publish()
     }
 
+    /**
+     * A decode, demux or read failure that the loader's single retry did not cure (playback failure
+     * handling in docs/05-playback-and-formats.md). The player stops with the error; this pauses it,
+     * so neither the end of an interruption nor a pending resume restarts it, and keeps the place:
+     *
+     * - A failure during playback saves the last rendered position. A track that cannot be opened
+     *   fails once the one before it has played to its end, so a position within half a second of
+     *   that boundary is saved as the boundary itself: the failing track at offset zero.
+     * - A failed seek keeps the place saved before it, and a failure before any audio played (a
+     *   resume into a track that cannot be opened) keeps the saved place.
+     * - An End of track or End of chapter timer whose boundary is that same track boundary fires
+     *   first and completes normally; the failure surfaces on the next play, as does any failure
+     *   that arrives while no play is requested.
+     *
+     * The edition becomes Repair needed. An armed timed sleep stays armed with its deadline.
+     */
     override fun onPlayerError(error: PlaybackException) {
         val book = loaded ?: return
-        failed = true
-        // A failed seek keeps the place saved before it; a failure while playing keeps the last
-        // rendered position, snapped to a track boundary the failing track starts at.
-        val position = if (pendingSeek) null else snapToBoundary(exo.currentPosition)
+        val requested = exo.playWhenReady
+        val seekFailed = pendingSeek
         pendingSeek = false
-        if (position != null) save(position, StopKind.ORDINARY, listened = true)
+        exo.playWhenReady = false
+        val position = snapToBoundary(exo.currentPosition)
+        Log.i(TAG, "playback failed (${error.errorCodeName}) at ${exo.currentPosition} ms, place $position ms, requested=$requested seek=$seekFailed played=$played")
+        val timer = sleep as? SleepState.EndOf
+        if (!seekFailed && played && timer != null && timer.boundaryMs == position) {
+            onSleepBoundary(position)
+            return
+        }
+        if (!requested) {
+            publish()
+            return
+        }
+        failed = true
+        if (!seekFailed && played) save(position, StopKind.ORDINARY, listened = true)
+        played = false
         scope.launch { editions.markRepairNeeded(book.key, book.plan.generationId) }
         publish()
     }
 
     private fun commitSeek() {
         pendingSeek = false
-        val kind = if (exo.playWhenReady) StopKind.ORDINARY else StopKind.EXACT
-        save(exo.currentPosition, kind, listened = false)
+        save(exo.currentPosition, pendingSeekKind, listened = false)
     }
 
     private fun onBookEnded() {
@@ -239,12 +280,18 @@ class PlaybackController(
         exo.playWhenReady = false
     }
 
-    /** Positions within half a second before a track edge resolve to the edge itself. */
+    /**
+     * Positions within half a second of an internal track boundary resolve to the boundary itself.
+     * A track that cannot be opened fails when the one before it has been read to its end, with up
+     * to a few hundred milliseconds of it still in the audio output, or just after the player's clock
+     * has crossed into it (observed on both emulators: 27 to 37 ms past the boundary). Either way the
+     * place is the failing track at offset zero.
+     */
     private fun snapToBoundary(positionMs: Long): Long {
         val timeline = loaded?.plan?.timeline ?: return positionMs
         val p = timeline.clamp(positionMs)
-        val track = timeline.tracks.firstOrNull { p >= it.endMs - BOUNDARY_SNAP_MS && p <= it.endMs }
-        return track?.endMs?.coerceAtMost(timeline.durationMs) ?: p
+        val boundary = timeline.tracks.drop(1).map { it.startMs }.firstOrNull { kotlin.math.abs(p - it) <= BOUNDARY_SNAP_MS }
+        return boundary ?: p
     }
 
     // --- Saving --------------------------------------------------------------------------------
@@ -330,6 +377,7 @@ class PlaybackController(
     private fun onSleepBoundary(boundaryMs: Long) {
         val current = sleep as? SleepState.EndOf ?: return
         if (current.boundaryMs != boundaryMs) return
+        sleepMessage?.cancel()
         sleepMessage = null
         sleep = SleepState.Off
         if (exo.playWhenReady) {
@@ -349,6 +397,12 @@ class PlaybackController(
             // A timed stop of audible playback: the pause saves the place with the timed stop kind.
             pauseCause = StopKind.TIMED
             exo.pause()
+        } else if (exo.playWhenReady && exo.playbackSuppressionReason == Player.PLAYBACK_SUPPRESSION_REASON_NONE) {
+            // Expiry while playback waits for data (after a seek, or for a read retry): the timer
+            // stops playback that was asked for, so it saves the timed stop kind, and the data
+            // arriving later does not start playback.
+            exo.pause()
+            if (pendingSeek) pendingSeekKind = StopKind.TIMED else checkpoint(StopKind.TIMED, listened = true)
         } else if (exo.playWhenReady) {
             // Expiry during a transient interruption: recovery must not start playback, and the saved
             // place and its stop kind stay as they were.
@@ -367,7 +421,8 @@ class PlaybackController(
 
     private fun publish() {
         val book = loaded
-        val position = if (book != null && playerHolds(book)) exo.currentPosition else book?.saved?.positionMs ?: 0L
+        // After a failure the player may rest at a failed seek's target; the place is the saved one.
+        val position = if (book != null && playerHolds(book) && !failed) exo.currentPosition else book?.saved?.positionMs ?: 0L
         val remaining = when (val s = sleep) {
             is SleepState.Timed -> (s.deadlineElapsedMs - clock.elapsedRealtimeMillis()).coerceAtLeast(0)
             is SleepState.EndOf -> (s.boundaryMs - position).coerceAtLeast(0)
@@ -390,6 +445,7 @@ class PlaybackController(
     }
 
     companion object {
+        private const val TAG = "PagewornPlayback"
         const val TICK_MS = 250L
 
         /** A checkpoint at least every five seconds of media advancement; 4 s plus one tick at 2×. */

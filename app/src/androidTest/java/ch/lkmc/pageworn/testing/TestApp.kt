@@ -1,6 +1,7 @@
 package ch.lkmc.pageworn.testing
 
 import android.content.Intent
+import androidx.media3.datasource.FileDataSource
 import androidx.test.platform.app.InstrumentationRegistry
 import ch.lkmc.pageworn.AppContainer
 import ch.lkmc.pageworn.PagewornApp
@@ -37,6 +38,7 @@ object TestApp {
         context.stopService(Intent(context, PlaybackService::class.java))
         InstrumentationRegistry.getInstrumentation().waitForIdleSync()
         container.clock = clock
+        container.playbackDataSourceFactory = FileDataSource.Factory()
         container.progressWriter = ProgressWriter.of(container.progressStore, container.appScope)
         container.playbackHub.clear()
         container.database.clearAllTables()
@@ -53,12 +55,21 @@ object TestApp {
         runBlocking { MediaProbe(context).probe(file) }.durationMs ?: throw AssertionError("Fixture ${file.name} did not open")
     }
 
+    /** Track [ordinal] of [key]'s published edition: its file, and the book time at which it starts. */
+    suspend fun publishedTrack(key: BookKey, ordinal: Int): Pair<File, Long> {
+        val edition = checkNotNull(container.database.editions().edition(key.profileId, key.itemId))
+        val tracks = container.database.editions().tracks(edition.generationId)
+        val file = File(container.editionFiles.published(edition.generationId), tracks[ordinal].localFilename)
+        return file to tracks.take(ordinal).sumOf { it.durationMs }
+    }
+
     /** The boundary book: tracks of 90 s and 120 s, server chapters at 0, 75 and 140 s by default. */
     fun publishBoundaryBook(
         itemId: String = "boundary-book",
         title: String = "Boundary Book",
         chapters: List<RawChapter> = listOf(RawChapter(0, 75_000, "Chapter One"), RawChapter(75_000, 140_000, "Chapter Two"), RawChapter(140_000, 210_000, "Chapter Three")),
         fixtureId: String = "boundary-book",
+        cover: File? = null,
     ): BookKey = runBlocking {
         val key = key(itemId)
         val files = Fixtures.install(fixtureId)
@@ -66,6 +77,7 @@ object TestApp {
             container, key, title, "Fixture Author",
             files.map { LocalEditions.Track(it, probeDuration(it), it.nameWithoutExtension) },
             serverChapters = chapters,
+            cover = cover,
         )
         key
     }

@@ -112,6 +112,14 @@ A decoder, demuxer or read failure during playback is distinct from a damaged ed
 - Retry a transient read error once from the same position. If the retry also fails, pause as described above. Unsupported codecs and DRM-protected files keep the existing format rules and preserve the place.
 - After repair or re-download, restore the saved position when the edition fingerprint still matches. Otherwise use the previous-position choice required for materially changed audio.
 - The failure pause cancels any pending auto-resume and leaves an armed sleep timer as it is, as the [sleep table](#sleep-behavior) states.
+- A failure counts against the generation that failed. Once a repair publishes a new generation, the player and mini-player no longer show the failure.
+
+Observed with Media3 1.11.1 on the API 34 and API 37 emulators (A10d, A10e), and the rules that follow from it:
+
+- The loader reads ahead of playback, by about 100 s of book time at 2×. A read error that its retry does not cure surfaces only when playback reaches the audio the loader could not read, so the place saved is the last rendered position before that audio: 94 ms before it at 2× in the automated case.
+- A track that cannot be opened surfaces 27 to 37 ms after the boundary into it, or with up to a few hundred milliseconds of the track before still in the audio output. A failure within 500 ms of an internal track boundary is therefore saved as the boundary itself.
+- A failure that arrives while no play is requested, such as one met by a seek while paused, keeps the place and marks nothing. The next play opens the audio again and surfaces the failure then. A failure while playback is only suppressed, as during a transient interruption, counts as requested: the book pauses, and the end of the interruption does not resume it.
+- A timed sleep whose deadline passes while playback waits for the loader’s retry stops playback with the timed stop kind; the retry does not restart it.
 
 ## Sleep behavior
 
