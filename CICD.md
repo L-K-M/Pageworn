@@ -1,0 +1,61 @@
+# CI/CD
+
+Pageworn requires JDK 21, Android SDK platform `android-37.0` and build tools
+`37.0.0`. Use the pinned Gradle wrapper from the Android project. Set
+`ANDROID_HOME` to the SDK directory or configure `sdk.dir` in `local.properties`.
+
+```sh
+scripts/build.sh
+./gradlew :app:installDebug
+```
+
+The build script assembles the debug APK and runs JVM tests. The Android CI
+workflow introduced with M0 runs those checks on every push and pull request.
+The **Repository checks** workflow separately validates the scripts and release
+version encoding, including before the Android project lands. Emulator and
+physical-device checks follow the [milestone plan](docs/06-delivery-and-tests.md).
+
+## Pull request review
+
+The standard GLM 5.3 workflow reviews ready PRs from branches in this repository
+using the pinned `L-K-M/zai-code-review` action. It uses the base branch's
+workflow and cancels stale runs when new commits arrive. It requires the
+`ZAI_API_KEY` repository secret. `MIMO_API_KEY` enables the MiMo fast tier and
+`STEPFUN_API_KEY` enables the StepFun fallback. A skipped or failed run leaves
+the revision without an automated review. Follow the review rules in
+[AGENTS.md](AGENTS.md).
+
+## Signed GitHub releases
+
+Once the [M6 checks](docs/06-delivery-and-tests.md#milestones) pass, run from a
+clean `main` checkout that matches `origin/main`. Install `lkm-release` from
+the [shared release tool](https://github.com/L-K-M/release-tool).
+
+```sh
+scripts/release.sh 1.2.3        # create local tag v1.2.3
+scripts/release.sh 1.2.3 --push # create and push that tag instead
+```
+
+The tag sets `versionName` to `1.2.3` and `versionCode` to `1002003`.
+Choose a version newer than every existing release tag. Minor and patch each
+use three places in the version code. A tag on `main` triggers the JVM tests
+and a signed, shrunk release build. CI verifies the APK signature, app ID and
+version before publishing `pageworn-v1.2.3.apk`. Release notes include the
+Android Auto unknown-sources setting.
+
+Add these repository secrets before tagging:
+
+| Secret | Value |
+| --- | --- |
+| `PAGEWORN_KEYSTORE_BASE64` | Base64 of the release keystore file |
+| `PAGEWORN_KEYSTORE_PASSWORD` | Keystore password |
+| `PAGEWORN_KEY_ALIAS` | Alias of the release signing key |
+| `PAGEWORN_KEY_PASSWORD` | Signing key password |
+
+Keep the same key for upgrades. CI decodes it into a temporary file for the
+build and removes that file when the signing step exits. For a local smoke
+build, point `PAGEWORN_KEYSTORE_FILE` to a throwaway keystore outside the repo,
+export the other three signing inputs, then run
+`scripts/build.sh --release 1.2.3`. The resulting release APK is a test
+fixture. The install and playback smoke check is
+[A31](docs/06-delivery-and-tests.md#acceptance-matrix).

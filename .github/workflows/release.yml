@@ -1,0 +1,110 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish signed APK
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    timeout-minutes: 45
+    env:
+      BUILD_TOOLS_VERSION: '37.0.0'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate tag
+        run: |
+          set -euo pipefail
+          scripts/release-version.sh "${GITHUB_REF_NAME#v}"
+          git merge-base --is-ancestor HEAD origin/main || {
+            echo '::error::The release tag must point to a commit on main.'
+            exit 1
+          }
+          [[ -x ./gradlew && -f app/build.gradle.kts ]] || {
+            echo '::error::This tag does not contain the Android Gradle project.'
+            exit 1
+          }
+
+      - uses: gradle/actions/wrapper-validation@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+        with:
+          packages: platform-tools
+
+      - name: Install Android SDK packages
+        run: sdkmanager 'platforms;android-37.0' "build-tools;$BUILD_TOOLS_VERSION"
+
+      - name: Run JVM tests
+        run: ./gradlew --console=plain :app:testDebugUnitTest
+
+      - name: Build and verify signed APK
+        env:
+          PAGEWORN_KEYSTORE_BASE64: ${{ secrets.PAGEWORN_KEYSTORE_BASE64 }}
+          PAGEWORN_KEYSTORE_PASSWORD: ${{ secrets.PAGEWORN_KEYSTORE_PASSWORD }}
+          PAGEWORN_KEY_ALIAS: ${{ secrets.PAGEWORN_KEY_ALIAS }}
+          PAGEWORN_KEY_PASSWORD: ${{ secrets.PAGEWORN_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for name in PAGEWORN_KEYSTORE_BASE64 PAGEWORN_KEYSTORE_PASSWORD PAGEWORN_KEY_ALIAS PAGEWORN_KEY_PASSWORD; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::Missing repository secret $name."
+              exit 1
+            fi
+          done
+
+          umask 077
+          PAGEWORN_KEYSTORE_FILE="$(mktemp "$RUNNER_TEMP/pageworn-release.XXXXXX")"
+          export PAGEWORN_KEYSTORE_FILE
+          trap 'rm -f -- "$PAGEWORN_KEYSTORE_FILE"' EXIT
+          if ! printf '%s' "$PAGEWORN_KEYSTORE_BASE64" | base64 --decode > "$PAGEWORN_KEYSTORE_FILE"; then
+            echo '::error::PAGEWORN_KEYSTORE_BASE64 is not a valid base64-encoded keystore.'
+            exit 1
+          fi
+          unset PAGEWORN_KEYSTORE_BASE64
+
+          version="${GITHUB_REF_NAME#v}"
+          version_code="$(scripts/release-version.sh "$version")"
+          scripts/build.sh --release "$version"
+
+          apk=app/build/outputs/apk/release/app-release.apk
+          build_tools="$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION"
+          "$build_tools/apksigner" verify --min-sdk-version 34 "$apk"
+          package_info="$("$build_tools/aapt2" dump badging "$apk" | awk '/^package:/')"
+          if [[ "$package_info" != "package: name='ch.lkmc.pageworn' versionCode='$version_code' versionName='$version'"* ]]; then
+            echo '::error::The APK package ID or version does not match the release tag.'
+            exit 1
+          fi
+
+          mkdir -p artifacts
+          cp "$apk" "artifacts/pageworn-$GITHUB_REF_NAME.apk"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
+        with:
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: artifacts/pageworn-${{ github.ref_name }}.apk
+          body: |
+            Install the signed APK attached to this release. Android Auto lists
+            Pageworn after you enable **Unknown sources** in Android Auto's
+            developer settings.
