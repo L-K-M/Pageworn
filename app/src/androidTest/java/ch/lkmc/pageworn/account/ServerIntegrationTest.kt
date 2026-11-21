@@ -10,10 +10,12 @@ import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.core.progress.StopKind
 import ch.lkmc.pageworn.data.db.CertificateState
 import ch.lkmc.pageworn.data.db.SessionState
+import ch.lkmc.pageworn.debug.LocalEditions
 import ch.lkmc.pageworn.server.AddressPolicy
 import ch.lkmc.pageworn.server.BaseUrl
 import ch.lkmc.pageworn.server.ServerError
 import ch.lkmc.pageworn.server.ServerResult
+import ch.lkmc.pageworn.testing.Fixtures
 import ch.lkmc.pageworn.testing.TestApp
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
@@ -28,11 +30,13 @@ import org.junit.runner.RunWith
 /**
  * The M2 exit check against the local Audiobookshelf v2.38.0 reference instance, reached from the
  * emulator over two origins of one server: `http://10.0.2.2:13378/` ("Home", cleartext opt-in) and
- * `https://10.0.2.2:13443/` ("Tailscale", the TLS front with a self-signed certificate).
+ * `https://10.0.2.2:13443/` ("Tailscale", the TLS front with a self-signed certificate). Phase 5
+ * adds `https://10.0.2.2:13445/` ("Office"), whose certificate comes from a fixture authority the
+ * host installs in the emulator's user store.
  *
  * The phases run in order as separate instrumentation runs, because the host changes the world
- * between them (it swaps the TLS certificate, or revokes the local-network permission, which
- * kills the app). `server-fixture/m2-check.sh` runs them and passes the disposable accounts'
+ * between them (it swaps the TLS certificate, revokes the local-network permission, which
+ * kills the app, or installs an authority). `server-fixture/m2-check.sh` runs them and passes the disposable accounts'
  * credentials and the TLS front's fingerprint as instrumentation arguments; nothing secret is in
  * the repository. Without those arguments every phase skips itself.
  */
@@ -252,6 +256,99 @@ class ServerIntegrationTest {
         assertThat(CatalogRefresher(db, { 0 }).observeListing(profileId(), library, "").first().rows).hasSize(9)
     }
 
+    // --- Phase 5: an address whose certificate comes from an installed authority (A26c) ----------
+
+    @Test
+    fun phase5InstalledAuthority() = runBlocking {
+        assumeTrue(db.profiles().current() != null)
+        // The host installs the fixture authority in the emulator's user store and says so.
+        assumeTrue("needs -e privateAuthority installed", args.getString("privateAuthority") == "installed")
+        val listener = arg("absListener")
+        val password = arg("absListenerPassword")
+        val service = service()
+
+        // Accepted without a prompt: no fingerprint to confirm, and normal validation passed.
+        val office = service.checked(OFFICE, "Office")
+        assertThat(office.trustedSha256).isNull()
+        assertThat(office.passedNormalValidation).isTrue()
+        val pairing = service.signIn(office, listener, password)
+        assertThat(pairing).isInstanceOf(SignInResult.ConfirmPairing::class.java)
+        val officeId = service.confirmPairing((pairing as SignInResult.ConfirmPairing).pairing)
+
+        // With the other addresses disabled it serves the catalog by itself.
+        val others = db.addresses().forProfile(profileId()).filter { it.addressId != officeId }
+        others.forEach { service.setEnabled(it.addressId, false) }
+        assertThat(service.refreshCatalog(audiobooks().libraryId)).isInstanceOf(RefreshOutcome.Published::class.java)
+        assertThat(routedTo()).isEqualTo(officeId)
+        assertThat(db.addresses().get(officeId)!!.confirmedCertSha256).isNull()
+
+        // Leave the two addresses of the earlier phases as they were.
+        others.forEach { service.setEnabled(it.addressId, true) }
+        service.remove(officeId)
+    }
+
+    // --- Phase 6: the listener manages the addresses (A19) ----------------------------------------
+
+    @Test
+    fun phase6ManageAddresses() = runBlocking {
+        assumeTrue(db.profiles().current() != null)
+        val listener = arg("absListener")
+        val password = arg("absListenerPassword")
+        val tlsSha256 = arg("tlsSha256")
+        val service = service()
+        val library = audiobooks().libraryId
+        val boundary = CatalogRefresher(db, { 0 }).observeListing(profileId(), library, "").first().rows.single { it.title == "Boundary Book" }
+        val key = BookKey(profileId(), boundary.itemId)
+        val files = Fixtures.install("boundary-book")
+        LocalEditions.publish(container, key, boundary.title, boundary.authors, files.map { LocalEditions.Track(it, TestApp.probeDuration(it), it.nameWithoutExtension) })
+        val homeId = address("Home").addressId
+        val tailscaleId = address("Tailscale").addressId
+        assertThat(routedTo()).isEqualTo(homeId)
+
+        // Rename: the list shows the new label, and a blank label keeps the old one.
+        service.rename(tailscaleId, "Remote")
+        service.rename(tailscaleId, "   ")
+        assertThat(db.addresses().get(tailscaleId)!!.label).isEqualTo("Remote")
+
+        // Reorder: moving Remote first makes it the active route.
+        service.move(tailscaleId, up = true)
+        assertThat(db.addresses().forProfile(profileId()).sortedBy { it.priority }.map { it.label }).containsExactly("Remote", "Home").inOrder()
+        assertThat(routedTo()).isEqualTo(tailscaleId)
+
+        // Test: each address answers by itself.
+        assertThat(service.test(homeId)).isEqualTo(Outcome.Ok(Unit))
+        assertThat(service.test(tailscaleId)).isEqualTo(Outcome.Ok(Unit))
+
+        // Removing the active address revokes its session and moves the route to Home.
+        service.remove(tailscaleId)
+        assertThat(db.addresses().forProfile(profileId()).map { it.label }).containsExactly("Home")
+        assertThat(container.tokenVault.read(tailscaleId)).isNull()
+        assertThat(routedTo()).isEqualTo(homeId)
+
+        // Add a second address again: the same account pairs after one confirmation.
+        val again = service.checked(TAILSCALE, "Tailscale", trust = tlsSha256)
+        val pairing = service.signIn(again, listener, password)
+        assertThat(pairing).isInstanceOf(SignInResult.ConfirmPairing::class.java)
+        val addedId = service.confirmPairing((pairing as SignInResult.ConfirmPairing).pairing)
+        assertThat(db.addresses().forProfile(profileId()).sortedBy { it.priority }.map { it.label }).containsExactly("Home", "Tailscale").inOrder()
+
+        // Removing every address, the last one included, keeps the profile, the catalog, the
+        // downloaded edition and the saved place.
+        service.remove(homeId)
+        service.remove(addedId)
+        assertThat(db.profiles().current()).isNotNull()
+        assertThat(db.addresses().forProfile(profileId())).isEmpty()
+        assertThat(CatalogRefresher(db, { 0 }).observeListing(profileId(), library, "").first().rows).hasSize(9)
+        assertThat(container.editionStore.observeEverything().first().map { it.key }).contains(key)
+        assertThat(container.progressStore.read(key)!!.positionMs).isEqualTo(115_000)
+    }
+
+    private suspend fun routedTo(): String {
+        val routed = container.serverAccess.route { it.client.status() }
+        assertWithMessage("routed: $routed").that(routed).isInstanceOf(Routed.Done::class.java)
+        return (routed as Routed.Done).addressId
+    }
+
     private companion object {
         const val PAGE_SIZE = 4
         const val HOME = "http://10.0.2.2:13378/"
@@ -259,5 +356,8 @@ class ServerIntegrationTest {
 
         /** The emulator's other name for the host loopback: same TLS front, another origin. */
         const val TAILSCALE_OTHER_ORIGIN = "https://10.0.2.2:13444/"
+
+        /** The TLS front with a certificate for 10.0.2.2 from the installed fixture authority. */
+        const val OFFICE = "https://10.0.2.2:13445/"
     }
 }

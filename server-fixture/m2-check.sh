@@ -24,20 +24,37 @@ account() { python3 -c "import json,sys; print(json.load(open('$STATE/accounts.j
 fingerprint() { openssl x509 -noout -fingerprint -sha256 -in "$STATE/tls/$1.pem" | cut -d= -f2; }
 
 PIDS=()
-start_front() { # name port
-  python3 "$ROOT/server-fixture/tls_proxy.py" --listen "$2" --cert "$1" >/dev/null 2>&1 &
+start_front() { # name port [--issued]
+  python3 "$ROOT/server-fixture/tls_proxy.py" --listen "$2" --cert "$1" ${3:-} >/dev/null 2>&1 &
   PIDS+=($!)
+}
+
+# The user-added authority store; Android reads it in each new app process.
+USER_CA_DIR=/data/misc/user/0/cacerts-added
+authority_file() { echo "$USER_CA_DIR/$(openssl x509 -subject_hash_old -noout -in "$STATE/tls/authority.pem").0"; }
+as_root() { "$ADB" -s "$SERIAL" root >/dev/null 2>&1 && "$ADB" -s "$SERIAL" wait-for-device; }
+install_authority() {
+  as_root || return 1
+  local target; target="$(authority_file)"
+  "$ADB" -s "$SERIAL" shell "mkdir -p $USER_CA_DIR && chown system:system $USER_CA_DIR && chmod 755 $USER_CA_DIR" || return 1
+  "$ADB" -s "$SERIAL" push "$STATE/tls/authority.pem" "$target" >/dev/null 2>&1 || return 1
+  "$ADB" -s "$SERIAL" shell "chown system:system $target && chmod 644 $target && restorecon -R $USER_CA_DIR" >/dev/null 2>&1 || return 1
+  "$ADB" -s "$SERIAL" unroot >/dev/null 2>&1; "$ADB" -s "$SERIAL" wait-for-device
+}
+remove_authority() {
+  as_root && "$ADB" -s "$SERIAL" shell "rm -f $(authority_file)" >/dev/null
+  "$ADB" -s "$SERIAL" unroot >/dev/null 2>&1; "$ADB" -s "$SERIAL" wait-for-device
 }
 stop_fronts() { for p in "${PIDS[@]:-}"; do [ -n "$p" ] && kill "$p" 2>/dev/null || true; done; PIDS=(); sleep 1; }
 trap stop_fronts EXIT
 
-run_phase() { # method
+run_phase() { # method [class]
   local raw
   raw="$("$ADB" -s "$SERIAL" shell am instrument -w -r \
-    -e class "$CLASS#$1" \
+    -e class "${2:-$CLASS}#$1" \
     -e absListener "$(account listener username)" -e absListenerPassword "$(account listener password)" \
     -e absBrowser "$(account browser username)" -e absBrowserPassword "$(account browser password)" \
-    -e tlsSha256 "$TLS_SHA256" "$RUNNER")"
+    -e tlsSha256 "$TLS_SHA256" -e privateAuthority "${PRIVATE_AUTHORITY:-none}" "$RUNNER")"
   echo "$raw" | grep -E "observation=" | sed 's/^.*observation=/  observation: /' || true
   if echo "$raw" | grep -q "INSTRUMENTATION_STATUS_CODE: -2\|INSTRUMENTATION_STATUS_CODE: -1\|shortMsg=Process crashed"; then
     echo "FAIL $1"; echo "$raw" | grep -A12 "stack=" | head -30; return 1
@@ -69,4 +86,21 @@ TLS_SHA256="$(fingerprint second)" run_phase phase3SignOutThenSignIn || STATUS=1
 if [ "$API" -ge 37 ]; then "$ADB" -s "$SERIAL" shell pm revoke ch.lkmc.pageworn "$PERMISSION"; fi
 TLS_SHA256="$(fingerprint second)" run_phase phase4LocalNetworkDenied || STATUS=1
 if [ "$API" -ge 37 ]; then "$ADB" -s "$SERIAL" shell pm grant ch.lkmc.pageworn "$PERMISSION"; fi
+
+# Phase 5: an address whose certificate comes from an authority installed on the phone. The
+# fixture authority goes into the emulator's user store as root, and leaves it afterwards.
+python3 "$ROOT/server-fixture/tls_proxy.py" --cert office --issued --generate-only >/dev/null
+if install_authority; then
+  start_front office 13445 --issued; sleep 1
+  PRIVATE_AUTHORITY=installed TLS_SHA256="$(fingerprint second)" run_phase phase5InstalledAuthority || STATUS=1
+  remove_authority
+else
+  echo "FAIL phase5InstalledAuthority: could not install the fixture authority (needs a rootable image)"; STATUS=1
+fi
+
+# Phase 6: add, rename, reorder, test and remove addresses (A19).
+TLS_SHA256="$(fingerprint second)" run_phase phase6ManageAddresses || STATUS=1
+
+# The same flow through the screens: connection setup, Library, sign-out and sign-in.
+TLS_SHA256="$(fingerprint second)" run_phase connectBrowseSignOutAndSignInAgain ch.lkmc.pageworn.ui.ConnectFlowTest || STATUS=1
 exit $STATUS

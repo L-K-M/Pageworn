@@ -12,6 +12,11 @@ NAME selects .state/tls/NAME.pem and NAME.key; missing files are generated as a 
 certificate for "pageworn-fixture.invalid", a host name the emulator never dials, so only a
 confirmed fingerprint can make the client accept it. The proxy listens on 127.0.0.1 only;
 the emulator reaches it as 10.0.2.2.
+
+With --issued, NAME is instead a certificate for the emulator's host alias 10.0.2.2, issued by
+the fixture authority .state/tls/authority.pem, which the check installs on the emulator as a
+user-added authority (case A26c). Every key and certificate is generated locally and lives only
+in the ignored .state directory.
 """
 
 import argparse
@@ -39,6 +44,59 @@ def ensure_certificate(name: str) -> tuple[pathlib.Path, pathlib.Path]:
         check=True,
         capture_output=True,
     )
+    return cert, key
+
+
+def ensure_authority() -> tuple[pathlib.Path, pathlib.Path]:
+    STATE.mkdir(parents=True, exist_ok=True)
+    cert, key = STATE / "authority.pem", STATE / "authority.key"
+    if cert.exists() and key.exists():
+        return cert, key
+    subprocess.run(
+        [
+            "openssl", "req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:prime256v1",
+            "-nodes", "-days", "30", "-subj", "/CN=Pageworn fixture authority",
+            "-addext", "basicConstraints=critical,CA:TRUE",
+            "-addext", "keyUsage=critical,keyCertSign,cRLSign",
+            "-keyout", str(key), "-out", str(cert),
+        ],
+        check=True,
+        capture_output=True,
+    )
+    return cert, key
+
+
+def ensure_issued_certificate(name: str) -> tuple[pathlib.Path, pathlib.Path]:
+    authority, authority_key = ensure_authority()
+    cert, key = STATE / f"{name}.pem", STATE / f"{name}.key"
+    if cert.exists() and key.exists():
+        return cert, key
+    request = STATE / f"{name}.csr"
+    extensions = STATE / f"{name}.ext"
+    extensions.write_text(
+        "basicConstraints=critical,CA:FALSE\n"
+        "keyUsage=critical,digitalSignature\n"
+        "extendedKeyUsage=serverAuth\n"
+        "subjectAltName=IP:10.0.2.2\n"
+    )
+    subprocess.run(
+        [
+            "openssl", "req", "-new", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:prime256v1",
+            "-nodes", "-subj", "/CN=10.0.2.2", "-keyout", str(key), "-out", str(request),
+        ],
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        [
+            "openssl", "x509", "-req", "-in", str(request), "-CA", str(authority), "-CAkey", str(authority_key),
+            "-CAcreateserial", "-days", "30", "-extfile", str(extensions), "-out", str(cert),
+        ],
+        check=True,
+        capture_output=True,
+    )
+    request.unlink()
+    extensions.unlink()
     return cert, key
 
 
@@ -84,10 +142,11 @@ def main() -> None:
     parser.add_argument("--listen", type=int, default=13443)
     parser.add_argument("--backend", type=int, default=13378)
     parser.add_argument("--cert", default="first")
+    parser.add_argument("--issued", action="store_true", help="issue NAME for 10.0.2.2 from the fixture authority")
     parser.add_argument("--generate-only", action="store_true", help="create the certificate and print its fingerprint")
     args = parser.parse_args()
 
-    cert, key = ensure_certificate(args.cert)
+    cert, key = ensure_issued_certificate(args.cert) if args.issued else ensure_certificate(args.cert)
     if args.generate_only:
         print(fingerprint(cert))
         return
