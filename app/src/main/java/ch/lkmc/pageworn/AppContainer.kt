@@ -8,8 +8,10 @@ import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.FileDataSource
 import ch.lkmc.pageworn.account.AccountService
 import ch.lkmc.pageworn.account.AccountTransferRoutes
+import ch.lkmc.pageworn.account.Routed
 import ch.lkmc.pageworn.account.ServerAccess
 import ch.lkmc.pageworn.catalog.CatalogRefresher
+import ch.lkmc.pageworn.catalog.RemoteCovers
 import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.core.Clock
 import ch.lkmc.pageworn.core.SystemClockSource
@@ -105,6 +107,13 @@ class AppContainer(private val app: PagewornApp) {
 
     /** Publishes catalog refreshes and reads the published listing with its status. */
     val catalog: CatalogRefresher by lazy { CatalogRefresher(database, { liveClock.wallMillis() }) }
+
+    /** Library cover thumbnails: cached in the app cache and fetched through the profile's route. */
+    val remoteCovers: RemoteCovers by lazy {
+        RemoteCovers(File(app.cacheDir, "covers"), fetch = { itemId, widthPx, updatedAt ->
+            (serverAccess.route { it.client.coverThumbnail(itemId, widthPx, updatedAt) } as? Routed.Done)?.value
+        }, nowMs = { liveClock.wallMillis() })
+    }
 
     /** Downloads: the durable queue, run by the user-initiated transfer job. */
     val transfers: TransferCoordinator by lazy {
