@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Pageworn</string>
+    <string name="notification_channel_transfers">Downloads</string>
+    <string name="notification_channel_transfers_description">Progress and completion of book downloads</string>
+</resources>

@@ -1,0 +1,23 @@
+# Gradle and Android build output
+.gradle/
+build/
+/local.properties
+/captures/
+.kotlin/
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# IDE
+.idea/
+*.iml
+.DS_Store
+
+# Generated audio fixtures (regenerate with fixtures/generate.py)
+/fixtures/out/
+
+# Throwaway signing material used to test the release build
+*.jks
+*.keystore
+/release-test/

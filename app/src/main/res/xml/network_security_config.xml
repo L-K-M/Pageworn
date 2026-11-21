@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fixed at build time. The listener enters hosts at run time, so the HTTP client is the gate:
+     it sends cleartext only to an origin with a stored opt-in and accepts a certificate outside these
+     anchors only from the origin whose confirmed fingerprint it matches (see docs/03-android-and-data.md). -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
