@@ -13,11 +13,28 @@ android_version_code() {
   printf '%s\n' "$code"
 }
 
+require_newer_release() {
+  local version="$1" code="$2" tag existing_code
+  while read -r tag; do
+    existing_code="$(android_version_code "${tag#v}")" || continue
+    if ((existing_code >= code)); then
+      echo "error: v$version must be newer than $tag to upgrade an installed APK." >&2
+      return 1
+    fi
+  done
+}
+
 main() {
   local version="${1:-}" code
   if ! code="$(android_version_code "$version")"; then
     echo "error: use X.Y.Z without leading zeroes, above 0.0.0 and below 2100.0.0 (Y and Z at most 999)." >&2
     return 1
+  fi
+  if [[ "${2:-}" == --check-tag ]]; then
+    # GitHub checks out all release tags, including the one it is building.
+    local other_tags
+    other_tags="$(git for-each-ref --format='%(refname:short)' --exclude="refs/tags/v$version" 'refs/tags/v*')"
+    require_newer_release "$version" "$code" <<< "$other_tags"
   fi
   printf '%s\n' "$code"
 }

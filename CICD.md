@@ -37,9 +37,9 @@ scripts/release.sh 1.2.3 --push # create and push that tag instead
 ```
 
 The tag sets `versionName` to `1.2.3` and `versionCode` to `1002003`.
-Choose a version newer than every existing release tag. Minor and patch each
-use three places in the version code. A tag on `main` triggers the JVM tests
-and a signed, shrunk release build. CI verifies the APK signature, app ID and
+Both the script and CI require a version newer than other release tags. Minor
+and patch each use three places in the version code. A tag on `main` triggers
+the JVM tests and a signed, shrunk build. CI verifies the APK signature, app ID and
 version before publishing `pageworn-v1.2.3.apk`. Release notes include the
 Android Auto unknown-sources setting.
 

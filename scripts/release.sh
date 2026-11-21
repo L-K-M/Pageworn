@@ -50,12 +50,9 @@ fi
 source scripts/release-version.sh
 remote_tags="$(git ls-remote --refs --tags origin 'v*')"
 local_tags="$(git tag --list 'v*')"
-while read -r tag; do
-  existing_code="$(android_version_code "${tag#v}")" || continue
-  if ((existing_code >= code)); then
-    echo "error: v$version must be newer than $tag to upgrade an installed APK." >&2
-    exit 1
-  fi
-done < <(printf '%s\n' "$local_tags"; awk '{sub(/^refs\/tags\//, "", $2); print $2}' <<< "$remote_tags")
+require_newer_release "$version" "$code" < <(
+  printf '%s\n' "$local_tags"
+  awk '{sub(/^refs\/tags\//, "", $2); print $2}' <<< "$remote_tags"
+)
 
 exec "$BIN" "$@"

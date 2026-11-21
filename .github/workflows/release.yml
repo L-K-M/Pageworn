@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release
   cancel-in-progress: false
 
 jobs:
@@ -30,7 +30,7 @@ jobs:
       - name: Validate tag
         run: |
           set -euo pipefail
-          scripts/release-version.sh "${GITHUB_REF_NAME#v}"
+          scripts/release-version.sh "${GITHUB_REF_NAME#v}" --check-tag
           git merge-base --is-ancestor HEAD origin/main || {
             echo '::error::The release tag must point to a commit on main.'
             exit 1
