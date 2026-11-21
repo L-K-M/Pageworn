@@ -1,0 +1,137 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "http://server.example/api/libraries/d2e90e27-d9b9-48df-aba5-a997fe396361/items?limit=0&sort=media.metadata.title&minified=1",
+    "path": "/api/libraries/d2e90e27-d9b9-48df-aba5-a997fe396361/items?limit=0&sort=media.metadata.title&minified=1",
+    "headers": {
+      "authorization": "Bearer <access-token>",
+      "host": "server.example",
+      "user-agent": "pageworn-contract-capture"
+    },
+    "authenticatedAs": "listener"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-security-policy": "frame-ancestors 'self'",
+      "referrer-policy": "no-referrer",
+      "content-type": "application/json; charset=utf-8",
+      "content-length": "2179",
+      "etag": "W/\"883-FxeKcoog9ZE3W6OyrX1wIXYd/DA\"",
+      "date": "Sat, 21 Nov 2026 15:02:07 GMT",
+      "connection": "close"
+    },
+    "body": {
+      "results": [
+        {
+          "id": "8892c5ec-72ff-4fa9-89d6-947afa153302",
+          "ino": "1051841",
+          "oldLibraryItemId": null,
+          "libraryId": "d2e90e27-d9b9-48df-aba5-a997fe396361",
+          "folderId": "d31479b9-dcc8-4f60-b6f4-6b98c466edd1",
+          "path": "/second/Second Author/Second Book A",
+          "relPath": "Second Author/Second Book A",
+          "isFile": false,
+          "mtimeMs": 1795273325000,
+          "ctimeMs": 1795273325273,
+          "birthtimeMs": 1795273325226,
+          "addedAt": 1795273325453,
+          "updatedAt": 1795273325453,
+          "isMissing": false,
+          "isInvalid": false,
+          "mediaType": "book",
+          "media": {
+            "id": "e761cd43-30f5-483d-b25e-23ad8f912eb6",
+            "metadata": {
+              "title": "Second Book A",
+              "titleIgnorePrefix": "Second Book A",
+              "subtitle": null,
+              "authorName": "Second Author",
+              "authorNameLF": "Author, Second",
+              "narratorName": "",
+              "seriesName": "",
+              "genres": [],
+              "publishedYear": null,
+              "publishedDate": null,
+              "publisher": null,
+              "description": null,
+              "isbn": null,
+              "asin": null,
+              "language": null,
+              "explicit": false,
+              "abridged": false
+            },
+            "coverPath": null,
+            "tags": [],
+            "numTracks": 1,
+            "numAudioFiles": 1,
+            "numChapters": 0,
+            "duration": 150,
+            "size": 1800925
+          },
+          "numFiles": 1,
+          "size": 1800925
+        },
+        {
+          "id": "6cb224c6-78dd-4a2e-9c54-eaddba8dde67",
+          "ino": "1051843",
+          "oldLibraryItemId": null,
+          "libraryId": "d2e90e27-d9b9-48df-aba5-a997fe396361",
+          "folderId": "d31479b9-dcc8-4f60-b6f4-6b98c466edd1",
+          "path": "/second/Second Author/Second Book B",
+          "relPath": "Second Author/Second Book B",
+          "isFile": false,
+          "mtimeMs": 1795273325000,
+          "ctimeMs": 1795273325273,
+          "birthtimeMs": 1795273325231,
+          "addedAt": 1795273325411,
+          "updatedAt": 1795273325411,
+          "isMissing": false,
+          "isInvalid": false,
+          "mediaType": "book",
+          "media": {
+            "id": "f39dc516-677f-452c-a546-2a31a0565c34",
+            "metadata": {
+              "title": "Second Book B",
+              "titleIgnorePrefix": "Second Book B",
+              "subtitle": null,
+              "authorName": "Second Author",
+              "authorNameLF": "Author, Second",
+              "narratorName": "",
+              "seriesName": "",
+              "genres": [],
+              "publishedYear": null,
+              "publishedDate": null,
+              "publisher": null,
+              "description": null,
+              "isbn": null,
+              "asin": null,
+              "language": null,
+              "explicit": false,
+              "abridged": false
+            },
+            "coverPath": null,
+            "tags": [],
+            "numTracks": 2,
+            "numAudioFiles": 2,
+            "numChapters": 2,
+            "duration": 210,
+            "size": 1726447
+          },
+          "numFiles": 2,
+          "size": 1726447
+        }
+      ],
+      "total": 2,
+      "limit": 0,
+      "page": 0,
+      "sortBy": "media.metadata.title",
+      "sortDesc": false,
+      "mediaType": "book",
+      "minified": true,
+      "collapseseries": false,
+      "include": "",
+      "offset": 0
+    }
+  }
+}

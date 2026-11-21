@@ -1,0 +1,188 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "http://server.example/api/items/bf45e397-8f6f-44c1-8c18-af95d3163133?expanded=1",
+    "path": "/api/items/bf45e397-8f6f-44c1-8c18-af95d3163133?expanded=1",
+    "headers": {
+      "authorization": "Bearer <access-token>",
+      "host": "server.example",
+      "user-agent": "pageworn-contract-capture"
+    },
+    "authenticatedAs": "listener"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-security-policy": "frame-ancestors 'self'",
+      "referrer-policy": "no-referrer",
+      "content-type": "application/json; charset=utf-8",
+      "content-length": "3199",
+      "etag": "W/\"c7f-4WDnDsJIR5d640WV5fNnCgxomYw\"",
+      "date": "Sat, 21 Nov 2026 15:02:07 GMT",
+      "connection": "close"
+    },
+    "body": {
+      "id": "bf45e397-8f6f-44c1-8c18-af95d3163133",
+      "ino": "1051826",
+      "oldLibraryItemId": null,
+      "libraryId": "560a911a-be0e-4039-b397-811a9face6e8",
+      "folderId": "9685d242-eb03-485c-a8e4-6641951b52e1",
+      "path": "/audiobooks/Format Author/WMA Book",
+      "relPath": "Format Author/WMA Book",
+      "isFile": false,
+      "mtimeMs": 1795273325000,
+      "ctimeMs": 1795273325273,
+      "birthtimeMs": 1795273325194,
+      "addedAt": 1795273325553,
+      "updatedAt": 1795273325553,
+      "isMissing": false,
+      "isInvalid": false,
+      "mediaType": "book",
+      "media": {
+        "id": "9b3a3501-4af6-491c-b6f1-68314dd7dd8d",
+        "metadata": {
+          "title": "WMA Book",
+          "subtitle": null,
+          "authors": [
+            {
+              "id": "5f29634c-7ed6-471b-8ce4-83c6b7857ad7",
+              "name": "Format Author"
+            }
+          ],
+          "narrators": [],
+          "series": [],
+          "genres": [],
+          "publishedYear": null,
+          "publishedDate": null,
+          "publisher": null,
+          "description": null,
+          "isbn": null,
+          "asin": null,
+          "language": null,
+          "explicit": false,
+          "abridged": false,
+          "titleIgnorePrefix": "WMA Book",
+          "authorName": "Format Author",
+          "authorNameLF": "Author, Format",
+          "narratorName": "",
+          "seriesName": "",
+          "descriptionPlain": null
+        },
+        "coverPath": null,
+        "tags": [],
+        "numTracks": 1,
+        "numAudioFiles": 1,
+        "numChapters": 0,
+        "duration": 59.999,
+        "size": 829342,
+        "libraryItemId": "bf45e397-8f6f-44c1-8c18-af95d3163133",
+        "audioFiles": [
+          {
+            "index": 1,
+            "ino": "1051827",
+            "metadata": {
+              "filename": "sample.wma",
+              "ext": ".wma",
+              "path": "/audiobooks/Format Author/WMA Book/sample.wma",
+              "relPath": "sample.wma",
+              "size": 829342,
+              "mtimeMs": 1795273312000,
+              "ctimeMs": 1795273325273,
+              "birthtimeMs": 1795273325194
+            },
+            "addedAt": 1795273325552,
+            "updatedAt": 1795273325552,
+            "trackNumFromMeta": null,
+            "discNumFromMeta": null,
+            "trackNumFromFilename": null,
+            "discNumFromFilename": null,
+            "manuallyVerified": false,
+            "exclude": false,
+            "error": null,
+            "format": "ASF (Advanced / Active Streaming Format)",
+            "duration": 59.999,
+            "bitRate": 96000,
+            "language": null,
+            "codec": "wmav2",
+            "timeBase": "1/1000",
+            "channels": 1,
+            "channelLayout": null,
+            "chapters": [],
+            "embeddedCoverArt": null,
+            "metaTags": {
+              "tagEncoder": "Lavf63.1.102"
+            },
+            "mimeType": "audio/x-ms-wma"
+          }
+        ],
+        "chapters": [],
+        "ebookFile": null,
+        "tracks": [
+          {
+            "index": 1,
+            "ino": "1051827",
+            "metadata": {
+              "filename": "sample.wma",
+              "ext": ".wma",
+              "path": "/audiobooks/Format Author/WMA Book/sample.wma",
+              "relPath": "sample.wma",
+              "size": 829342,
+              "mtimeMs": 1795273312000,
+              "ctimeMs": 1795273325273,
+              "birthtimeMs": 1795273325194
+            },
+            "addedAt": 1795273325552,
+            "updatedAt": 1795273325552,
+            "trackNumFromMeta": null,
+            "discNumFromMeta": null,
+            "trackNumFromFilename": null,
+            "discNumFromFilename": null,
+            "manuallyVerified": false,
+            "exclude": false,
+            "error": null,
+            "format": "ASF (Advanced / Active Streaming Format)",
+            "duration": 59.999,
+            "bitRate": 96000,
+            "language": null,
+            "codec": "wmav2",
+            "timeBase": "1/1000",
+            "channels": 1,
+            "channelLayout": null,
+            "chapters": [],
+            "embeddedCoverArt": null,
+            "metaTags": {
+              "tagEncoder": "Lavf63.1.102"
+            },
+            "mimeType": "audio/x-ms-wma",
+            "title": "sample.wma",
+            "startOffset": 0,
+            "contentUrl": "/api/items/bf45e397-8f6f-44c1-8c18-af95d3163133/file/1051827"
+          }
+        ]
+      },
+      "numFiles": 1,
+      "size": 829342,
+      "lastScan": 1795273325552,
+      "scanVersion": "2.38.0",
+      "libraryFiles": [
+        {
+          "ino": "1051827",
+          "metadata": {
+            "filename": "sample.wma",
+            "ext": ".wma",
+            "path": "/audiobooks/Format Author/WMA Book/sample.wma",
+            "relPath": "sample.wma",
+            "size": 829342,
+            "mtimeMs": 1795273312000,
+            "ctimeMs": 1795273325273,
+            "birthtimeMs": 1795273325194
+          },
+          "isSupplementary": null,
+          "addedAt": 1795273325387,
+          "updatedAt": 1795273325387,
+          "fileType": "audio"
+        }
+      ]
+    }
+  }
+}

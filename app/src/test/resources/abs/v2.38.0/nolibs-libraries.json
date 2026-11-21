@@ -1,0 +1,28 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "http://server.example/api/libraries",
+    "path": "/api/libraries",
+    "headers": {
+      "authorization": "Bearer <access-token>",
+      "host": "server.example",
+      "user-agent": "pageworn-contract-capture"
+    },
+    "authenticatedAs": "nolibs"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-security-policy": "frame-ancestors 'self'",
+      "referrer-policy": "no-referrer",
+      "content-type": "application/json; charset=utf-8",
+      "content-length": "16",
+      "etag": "W/\"10-e8C6zSfmIuaUffrDqoRO1pS2HTU\"",
+      "date": "Sat, 21 Nov 2026 15:02:07 GMT",
+      "connection": "close"
+    },
+    "body": {
+      "libraries": []
+    }
+  }
+}

@@ -1,0 +1,188 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "http://server.example/api/items/8892c5ec-72ff-4fa9-89d6-947afa153302?expanded=1",
+    "path": "/api/items/8892c5ec-72ff-4fa9-89d6-947afa153302?expanded=1",
+    "headers": {
+      "authorization": "Bearer <access-token>",
+      "host": "server.example",
+      "user-agent": "pageworn-contract-capture"
+    },
+    "authenticatedAs": "listener"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-security-policy": "frame-ancestors 'self'",
+      "referrer-policy": "no-referrer",
+      "content-type": "application/json; charset=utf-8",
+      "content-length": "3170",
+      "etag": "W/\"c62-frkuR6OlfVhm2ZWl6x9GLe5ZRus\"",
+      "date": "Sat, 21 Nov 2026 15:02:07 GMT",
+      "connection": "close"
+    },
+    "body": {
+      "id": "8892c5ec-72ff-4fa9-89d6-947afa153302",
+      "ino": "1051841",
+      "oldLibraryItemId": null,
+      "libraryId": "d2e90e27-d9b9-48df-aba5-a997fe396361",
+      "folderId": "d31479b9-dcc8-4f60-b6f4-6b98c466edd1",
+      "path": "/second/Second Author/Second Book A",
+      "relPath": "Second Author/Second Book A",
+      "isFile": false,
+      "mtimeMs": 1795273325000,
+      "ctimeMs": 1795273325273,
+      "birthtimeMs": 1795273325226,
+      "addedAt": 1795273325453,
+      "updatedAt": 1795273325453,
+      "isMissing": false,
+      "isInvalid": false,
+      "mediaType": "book",
+      "media": {
+        "id": "e761cd43-30f5-483d-b25e-23ad8f912eb6",
+        "metadata": {
+          "title": "Second Book A",
+          "subtitle": null,
+          "authors": [
+            {
+              "id": "642d273f-2432-4aa3-b180-34c3a6d0000f",
+              "name": "Second Author"
+            }
+          ],
+          "narrators": [],
+          "series": [],
+          "genres": [],
+          "publishedYear": null,
+          "publishedDate": null,
+          "publisher": null,
+          "description": null,
+          "isbn": null,
+          "asin": null,
+          "language": null,
+          "explicit": false,
+          "abridged": false,
+          "titleIgnorePrefix": "Second Book A",
+          "authorName": "Second Author",
+          "authorNameLF": "Author, Second",
+          "narratorName": "",
+          "seriesName": "",
+          "descriptionPlain": null
+        },
+        "coverPath": null,
+        "tags": [],
+        "numTracks": 1,
+        "numAudioFiles": 1,
+        "numChapters": 0,
+        "duration": 150,
+        "size": 1800925,
+        "libraryItemId": "8892c5ec-72ff-4fa9-89d6-947afa153302",
+        "audioFiles": [
+          {
+            "index": 1,
+            "ino": "1051842",
+            "metadata": {
+              "filename": "book.mp3",
+              "ext": ".mp3",
+              "path": "/second/Second Author/Second Book A/book.mp3",
+              "relPath": "book.mp3",
+              "size": 1800925,
+              "mtimeMs": 1795273306000,
+              "ctimeMs": 1795273325273,
+              "birthtimeMs": 1795273325226
+            },
+            "addedAt": 1795273325452,
+            "updatedAt": 1795273325452,
+            "trackNumFromMeta": null,
+            "discNumFromMeta": null,
+            "trackNumFromFilename": null,
+            "discNumFromFilename": null,
+            "manuallyVerified": false,
+            "exclude": false,
+            "error": null,
+            "format": "MP2/3 (MPEG audio layer 2/3)",
+            "duration": 150,
+            "bitRate": 96000,
+            "language": null,
+            "codec": "mp3",
+            "timeBase": "1/14112000",
+            "channels": 1,
+            "channelLayout": "mono",
+            "chapters": [],
+            "embeddedCoverArt": null,
+            "metaTags": {
+              "tagEncoder": "Lavf63.1.102"
+            },
+            "mimeType": "audio/mpeg"
+          }
+        ],
+        "chapters": [],
+        "ebookFile": null,
+        "tracks": [
+          {
+            "index": 1,
+            "ino": "1051842",
+            "metadata": {
+              "filename": "book.mp3",
+              "ext": ".mp3",
+              "path": "/second/Second Author/Second Book A/book.mp3",
+              "relPath": "book.mp3",
+              "size": 1800925,
+              "mtimeMs": 1795273306000,
+              "ctimeMs": 1795273325273,
+              "birthtimeMs": 1795273325226
+            },
+            "addedAt": 1795273325452,
+            "updatedAt": 1795273325452,
+            "trackNumFromMeta": null,
+            "discNumFromMeta": null,
+            "trackNumFromFilename": null,
+            "discNumFromFilename": null,
+            "manuallyVerified": false,
+            "exclude": false,
+            "error": null,
+            "format": "MP2/3 (MPEG audio layer 2/3)",
+            "duration": 150,
+            "bitRate": 96000,
+            "language": null,
+            "codec": "mp3",
+            "timeBase": "1/14112000",
+            "channels": 1,
+            "channelLayout": "mono",
+            "chapters": [],
+            "embeddedCoverArt": null,
+            "metaTags": {
+              "tagEncoder": "Lavf63.1.102"
+            },
+            "mimeType": "audio/mpeg",
+            "title": "book.mp3",
+            "startOffset": 0,
+            "contentUrl": "/api/items/8892c5ec-72ff-4fa9-89d6-947afa153302/file/1051842"
+          }
+        ]
+      },
+      "numFiles": 1,
+      "size": 1800925,
+      "lastScan": 1795273325452,
+      "scanVersion": "2.38.0",
+      "libraryFiles": [
+        {
+          "ino": "1051842",
+          "metadata": {
+            "filename": "book.mp3",
+            "ext": ".mp3",
+            "path": "/second/Second Author/Second Book A/book.mp3",
+            "relPath": "book.mp3",
+            "size": 1800925,
+            "mtimeMs": 1795273306000,
+            "ctimeMs": 1795273325273,
+            "birthtimeMs": 1795273325226
+          },
+          "isSupplementary": null,
+          "addedAt": 1795273325379,
+          "updatedAt": 1795273325379,
+          "fileType": "audio"
+        }
+      ]
+    }
+  }
+}

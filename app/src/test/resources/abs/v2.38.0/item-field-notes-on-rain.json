@@ -1,0 +1,295 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "http://server.example/api/items/fcfa3035-164f-403c-bde5-ea63fd9d563a?expanded=1",
+    "path": "/api/items/fcfa3035-164f-403c-bde5-ea63fd9d563a?expanded=1",
+    "headers": {
+      "authorization": "Bearer <access-token>",
+      "host": "server.example",
+      "user-agent": "pageworn-contract-capture"
+    },
+    "authenticatedAs": "listener"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-security-policy": "frame-ancestors 'self'",
+      "referrer-policy": "no-referrer",
+      "content-type": "application/json; charset=utf-8",
+      "content-length": "5132",
+      "etag": "W/\"140c-sZvEkJzsh8x+OPCZ3jgsQtbThJ8\"",
+      "date": "Sat, 21 Nov 2026 15:02:07 GMT",
+      "connection": "close"
+    },
+    "body": {
+      "id": "fcfa3035-164f-403c-bde5-ea63fd9d563a",
+      "ino": "1051810",
+      "oldLibraryItemId": null,
+      "libraryId": "560a911a-be0e-4039-b397-811a9face6e8",
+      "folderId": "9685d242-eb03-485c-a8e4-6641951b52e1",
+      "path": "/audiobooks/Ada Bell/Field Notes on Rain",
+      "relPath": "Ada Bell/Field Notes on Rain",
+      "isFile": false,
+      "mtimeMs": 1795273325000,
+      "ctimeMs": 1795273325273,
+      "birthtimeMs": 1795273325172,
+      "addedAt": 1795273325773,
+      "updatedAt": 1795273325773,
+      "isMissing": false,
+      "isInvalid": false,
+      "mediaType": "book",
+      "media": {
+        "id": "d5b360f1-d8da-4097-bbbb-f20aaad3a3cf",
+        "metadata": {
+          "title": "Field Notes on Rain",
+          "subtitle": null,
+          "authors": [
+            {
+              "id": "ba2361f9-ec50-47b9-9a9d-a517bea00b43",
+              "name": "Ada Bell"
+            }
+          ],
+          "narrators": [],
+          "series": [],
+          "genres": [],
+          "publishedYear": null,
+          "publishedDate": null,
+          "publisher": null,
+          "description": null,
+          "isbn": null,
+          "asin": null,
+          "language": null,
+          "explicit": false,
+          "abridged": false,
+          "titleIgnorePrefix": "Field Notes on Rain",
+          "authorName": "Ada Bell",
+          "authorNameLF": "Bell, Ada",
+          "narratorName": "",
+          "seriesName": "",
+          "descriptionPlain": null
+        },
+        "coverPath": null,
+        "tags": [],
+        "numTracks": 2,
+        "numAudioFiles": 2,
+        "numChapters": 2,
+        "duration": 210,
+        "size": 1726447,
+        "libraryItemId": "fcfa3035-164f-403c-bde5-ea63fd9d563a",
+        "audioFiles": [
+          {
+            "index": 1,
+            "ino": "1051811",
+            "metadata": {
+              "filename": "01-part.m4a",
+              "ext": ".m4a",
+              "path": "/audiobooks/Ada Bell/Field Notes on Rain/01-part.m4a",
+              "relPath": "01-part.m4a",
+              "size": 739453,
+              "mtimeMs": 1795273306000,
+              "ctimeMs": 1795273325273,
+              "birthtimeMs": 1795273325172
+            },
+            "addedAt": 1795273325772,
+            "updatedAt": 1795273325772,
+            "trackNumFromMeta": null,
+            "discNumFromMeta": null,
+            "trackNumFromFilename": 1,
+            "discNumFromFilename": null,
+            "manuallyVerified": false,
+            "exclude": false,
+            "error": null,
+            "format": "QuickTime / MOV",
+            "duration": 90,
+            "bitRate": 64262,
+            "language": "und",
+            "codec": "aac",
+            "timeBase": "1/44100",
+            "channels": 1,
+            "channelLayout": "mono",
+            "chapters": [],
+            "embeddedCoverArt": null,
+            "metaTags": {
+              "tagEncoder": "Lavf63.1.102"
+            },
+            "mimeType": "audio/mp4"
+          },
+          {
+            "index": 2,
+            "ino": "1051812",
+            "metadata": {
+              "filename": "02-part.m4a",
+              "ext": ".m4a",
+              "path": "/audiobooks/Ada Bell/Field Notes on Rain/02-part.m4a",
+              "relPath": "02-part.m4a",
+              "size": 986994,
+              "mtimeMs": 1795273307000,
+              "ctimeMs": 1795273325273,
+              "birthtimeMs": 1795273325173
+            },
+            "addedAt": 1795273325772,
+            "updatedAt": 1795273325772,
+            "trackNumFromMeta": null,
+            "discNumFromMeta": null,
+            "trackNumFromFilename": 2,
+            "discNumFromFilename": null,
+            "manuallyVerified": false,
+            "exclude": false,
+            "error": null,
+            "format": "QuickTime / MOV",
+            "duration": 120,
+            "bitRate": 64355,
+            "language": "und",
+            "codec": "aac",
+            "timeBase": "1/44100",
+            "channels": 1,
+            "channelLayout": "mono",
+            "chapters": [],
+            "embeddedCoverArt": null,
+            "metaTags": {
+              "tagEncoder": "Lavf63.1.102"
+            },
+            "mimeType": "audio/mp4"
+          }
+        ],
+        "chapters": [
+          {
+            "id": 0,
+            "start": 0,
+            "end": 90,
+            "title": "01-part"
+          },
+          {
+            "id": 1,
+            "start": 90,
+            "end": 210,
+            "title": "02-part"
+          }
+        ],
+        "ebookFile": null,
+        "tracks": [
+          {
+            "index": 1,
+            "ino": "1051811",
+            "metadata": {
+              "filename": "01-part.m4a",
+              "ext": ".m4a",
+              "path": "/audiobooks/Ada Bell/Field Notes on Rain/01-part.m4a",
+              "relPath": "01-part.m4a",
+              "size": 739453,
+              "mtimeMs": 1795273306000,
+              "ctimeMs": 1795273325273,
+              "birthtimeMs": 1795273325172
+            },
+            "addedAt": 1795273325772,
+            "updatedAt": 1795273325772,
+            "trackNumFromMeta": null,
+            "discNumFromMeta": null,
+            "trackNumFromFilename": 1,
+            "discNumFromFilename": null,
+            "manuallyVerified": false,
+            "exclude": false,
+            "error": null,
+            "format": "QuickTime / MOV",
+            "duration": 90,
+            "bitRate": 64262,
+            "language": "und",
+            "codec": "aac",
+            "timeBase": "1/44100",
+            "channels": 1,
+            "channelLayout": "mono",
+            "chapters": [],
+            "embeddedCoverArt": null,
+            "metaTags": {
+              "tagEncoder": "Lavf63.1.102"
+            },
+            "mimeType": "audio/mp4",
+            "title": "01-part.m4a",
+            "startOffset": 0,
+            "contentUrl": "/api/items/fcfa3035-164f-403c-bde5-ea63fd9d563a/file/1051811"
+          },
+          {
+            "index": 2,
+            "ino": "1051812",
+            "metadata": {
+              "filename": "02-part.m4a",
+              "ext": ".m4a",
+              "path": "/audiobooks/Ada Bell/Field Notes on Rain/02-part.m4a",
+              "relPath": "02-part.m4a",
+              "size": 986994,
+              "mtimeMs": 1795273307000,
+              "ctimeMs": 1795273325273,
+              "birthtimeMs": 1795273325173
+            },
+            "addedAt": 1795273325772,
+            "updatedAt": 1795273325772,
+            "trackNumFromMeta": null,
+            "discNumFromMeta": null,
+            "trackNumFromFilename": 2,
+            "discNumFromFilename": null,
+            "manuallyVerified": false,
+            "exclude": false,
+            "error": null,
+            "format": "QuickTime / MOV",
+            "duration": 120,
+            "bitRate": 64355,
+            "language": "und",
+            "codec": "aac",
+            "timeBase": "1/44100",
+            "channels": 1,
+            "channelLayout": "mono",
+            "chapters": [],
+            "embeddedCoverArt": null,
+            "metaTags": {
+              "tagEncoder": "Lavf63.1.102"
+            },
+            "mimeType": "audio/mp4",
+            "title": "02-part.m4a",
+            "startOffset": 90,
+            "contentUrl": "/api/items/fcfa3035-164f-403c-bde5-ea63fd9d563a/file/1051812"
+          }
+        ]
+      },
+      "numFiles": 2,
+      "size": 1726447,
+      "lastScan": 1795273325772,
+      "scanVersion": "2.38.0",
+      "libraryFiles": [
+        {
+          "ino": "1051811",
+          "metadata": {
+            "filename": "01-part.m4a",
+            "ext": ".m4a",
+            "path": "/audiobooks/Ada Bell/Field Notes on Rain/01-part.m4a",
+            "relPath": "01-part.m4a",
+            "size": 739453,
+            "mtimeMs": 1795273306000,
+            "ctimeMs": 1795273325273,
+            "birthtimeMs": 1795273325172
+          },
+          "isSupplementary": null,
+          "addedAt": 1795273325388,
+          "updatedAt": 1795273325388,
+          "fileType": "audio"
+        },
+        {
+          "ino": "1051812",
+          "metadata": {
+            "filename": "02-part.m4a",
+            "ext": ".m4a",
+            "path": "/audiobooks/Ada Bell/Field Notes on Rain/02-part.m4a",
+            "relPath": "02-part.m4a",
+            "size": 986994,
+            "mtimeMs": 1795273307000,
+            "ctimeMs": 1795273325273,
+            "birthtimeMs": 1795273325173
+          },
+          "isSupplementary": null,
+          "addedAt": 1795273325388,
+          "updatedAt": 1795273325388,
+          "fileType": "audio"
+        }
+      ]
+    }
+  }
+}

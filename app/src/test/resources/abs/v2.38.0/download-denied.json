@@ -1,0 +1,27 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "http://server.example/api/items/7db9a669-a126-4a22-9319-910d59330990/file/1051823/download",
+    "path": "/api/items/7db9a669-a126-4a22-9319-910d59330990/file/1051823/download",
+    "headers": {
+      "accept-encoding": "identity",
+      "authorization": "Bearer <access-token>",
+      "host": "server.example",
+      "user-agent": "pageworn-contract-capture"
+    },
+    "authenticatedAs": "browser"
+  },
+  "response": {
+    "status": 403,
+    "headers": {
+      "content-security-policy": "frame-ancestors 'self'",
+      "referrer-policy": "no-referrer",
+      "content-type": "text/plain; charset=utf-8",
+      "content-length": "9",
+      "etag": "W/\"9-PatfYBLj4Um1qTm5zrukoLhNyPU\"",
+      "date": "Sat, 21 Nov 2026 15:02:07 GMT",
+      "connection": "close"
+    },
+    "body": "Forbidden"
+  }
+}

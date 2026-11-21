@@ -1,0 +1,249 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "http://server.example/api/items/24ce6539-29bf-4b23-b239-22a38a406464?expanded=1",
+    "path": "/api/items/24ce6539-29bf-4b23-b239-22a38a406464?expanded=1",
+    "headers": {
+      "authorization": "Bearer <access-token>",
+      "host": "server.example",
+      "user-agent": "pageworn-contract-capture"
+    },
+    "authenticatedAs": "listener"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-security-policy": "frame-ancestors 'self'",
+      "referrer-policy": "no-referrer",
+      "content-type": "application/json; charset=utf-8",
+      "content-length": "3825",
+      "etag": "W/\"ef1-WhZqjhy/XdgzKvk77FCIQKUEn0M\"",
+      "date": "Sat, 21 Nov 2026 15:02:07 GMT",
+      "connection": "close"
+    },
+    "body": {
+      "id": "24ce6539-29bf-4b23-b239-22a38a406464",
+      "ino": "1051814",
+      "oldLibraryItemId": null,
+      "libraryId": "560a911a-be0e-4039-b397-811a9face6e8",
+      "folderId": "9685d242-eb03-485c-a8e4-6641951b52e1",
+      "path": "/audiobooks/Elin Ward/The Night Orchard",
+      "relPath": "Elin Ward/The Night Orchard",
+      "isFile": false,
+      "mtimeMs": 1795273325000,
+      "ctimeMs": 1795273325273,
+      "birthtimeMs": 1795273325176,
+      "addedAt": 1795273325727,
+      "updatedAt": 1795273325727,
+      "isMissing": false,
+      "isInvalid": false,
+      "mediaType": "book",
+      "media": {
+        "id": "f0f378b6-ed46-4dbc-b6cf-420396857bcb",
+        "metadata": {
+          "title": "The Night Orchard",
+          "subtitle": null,
+          "authors": [
+            {
+              "id": "37b58d3a-768d-46fc-9f10-cb4e0008a547",
+              "name": "Elin Ward"
+            }
+          ],
+          "narrators": [],
+          "series": [],
+          "genres": [],
+          "publishedYear": null,
+          "publishedDate": null,
+          "publisher": null,
+          "description": null,
+          "isbn": null,
+          "asin": null,
+          "language": null,
+          "explicit": false,
+          "abridged": false,
+          "titleIgnorePrefix": "Night Orchard, The",
+          "authorName": "Elin Ward",
+          "authorNameLF": "Ward, Elin",
+          "narratorName": "",
+          "seriesName": "",
+          "descriptionPlain": null
+        },
+        "coverPath": "/metadata/items/24ce6539-29bf-4b23-b239-22a38a406464/cover.jpg",
+        "tags": [],
+        "numTracks": 1,
+        "numAudioFiles": 1,
+        "numChapters": 3,
+        "duration": 300,
+        "size": 2492784,
+        "libraryItemId": "24ce6539-29bf-4b23-b239-22a38a406464",
+        "audioFiles": [
+          {
+            "index": 1,
+            "ino": "1051815",
+            "metadata": {
+              "filename": "book.m4b",
+              "ext": ".m4b",
+              "path": "/audiobooks/Elin Ward/The Night Orchard/book.m4b",
+              "relPath": "book.m4b",
+              "size": 2492784,
+              "mtimeMs": 1795273305000,
+              "ctimeMs": 1795273325273,
+              "birthtimeMs": 1795273325176
+            },
+            "addedAt": 1795273325664,
+            "updatedAt": 1795273325664,
+            "trackNumFromMeta": null,
+            "discNumFromMeta": null,
+            "trackNumFromFilename": null,
+            "discNumFromFilename": null,
+            "manuallyVerified": false,
+            "exclude": false,
+            "error": null,
+            "format": "QuickTime / MOV",
+            "duration": 300,
+            "bitRate": 64305,
+            "language": "und",
+            "codec": "aac",
+            "timeBase": "1/44100",
+            "channels": 1,
+            "channelLayout": "mono",
+            "chapters": [
+              {
+                "start": 0,
+                "end": 100,
+                "title": "The Orchard Gate",
+                "id": 0
+              },
+              {
+                "start": 100,
+                "end": 200,
+                "title": "Under the Pear Tree",
+                "id": 1
+              },
+              {
+                "start": 200,
+                "end": 300,
+                "title": "Moonrise",
+                "id": 2
+              }
+            ],
+            "embeddedCoverArt": "mjpeg",
+            "metaTags": {
+              "tagArtist": "Elin Ward",
+              "tagTitle": "The Night Orchard",
+              "tagEncoder": "Lavf63.1.102"
+            },
+            "mimeType": "audio/mp4"
+          }
+        ],
+        "chapters": [
+          {
+            "start": 0,
+            "end": 100,
+            "title": "The Orchard Gate",
+            "id": 0
+          },
+          {
+            "start": 100,
+            "end": 200,
+            "title": "Under the Pear Tree",
+            "id": 1
+          },
+          {
+            "start": 200,
+            "end": 300,
+            "title": "Moonrise",
+            "id": 2
+          }
+        ],
+        "ebookFile": null,
+        "tracks": [
+          {
+            "index": 1,
+            "ino": "1051815",
+            "metadata": {
+              "filename": "book.m4b",
+              "ext": ".m4b",
+              "path": "/audiobooks/Elin Ward/The Night Orchard/book.m4b",
+              "relPath": "book.m4b",
+              "size": 2492784,
+              "mtimeMs": 1795273305000,
+              "ctimeMs": 1795273325273,
+              "birthtimeMs": 1795273325176
+            },
+            "addedAt": 1795273325664,
+            "updatedAt": 1795273325664,
+            "trackNumFromMeta": null,
+            "discNumFromMeta": null,
+            "trackNumFromFilename": null,
+            "discNumFromFilename": null,
+            "manuallyVerified": false,
+            "exclude": false,
+            "error": null,
+            "format": "QuickTime / MOV",
+            "duration": 300,
+            "bitRate": 64305,
+            "language": "und",
+            "codec": "aac",
+            "timeBase": "1/44100",
+            "channels": 1,
+            "channelLayout": "mono",
+            "chapters": [
+              {
+                "start": 0,
+                "end": 100,
+                "title": "The Orchard Gate",
+                "id": 0
+              },
+              {
+                "start": 100,
+                "end": 200,
+                "title": "Under the Pear Tree",
+                "id": 1
+              },
+              {
+                "start": 200,
+                "end": 300,
+                "title": "Moonrise",
+                "id": 2
+              }
+            ],
+            "embeddedCoverArt": "mjpeg",
+            "metaTags": {
+              "tagArtist": "Elin Ward",
+              "tagTitle": "The Night Orchard",
+              "tagEncoder": "Lavf63.1.102"
+            },
+            "mimeType": "audio/mp4",
+            "title": "book.m4b",
+            "startOffset": 0,
+            "contentUrl": "/api/items/24ce6539-29bf-4b23-b239-22a38a406464/file/1051815"
+          }
+        ]
+      },
+      "numFiles": 1,
+      "size": 2492784,
+      "lastScan": 1795273325665,
+      "scanVersion": "2.38.0",
+      "libraryFiles": [
+        {
+          "ino": "1051815",
+          "metadata": {
+            "filename": "book.m4b",
+            "ext": ".m4b",
+            "path": "/audiobooks/Elin Ward/The Night Orchard/book.m4b",
+            "relPath": "book.m4b",
+            "size": 2492784,
+            "mtimeMs": 1795273305000,
+            "ctimeMs": 1795273325273,
+            "birthtimeMs": 1795273325176
+          },
+          "isSupplementary": null,
+          "addedAt": 1795273325388,
+          "updatedAt": 1795273325388,
+          "fileType": "audio"
+        }
+      ]
+    }
+  }
+}

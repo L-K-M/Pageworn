@@ -1,0 +1,301 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "http://server.example/api/items/7db9a669-a126-4a22-9319-910d59330990?expanded=1",
+    "path": "/api/items/7db9a669-a126-4a22-9319-910d59330990?expanded=1",
+    "headers": {
+      "authorization": "Bearer <access-token>",
+      "host": "server.example",
+      "user-agent": "pageworn-contract-capture"
+    },
+    "authenticatedAs": "listener"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-security-policy": "frame-ancestors 'self'",
+      "referrer-policy": "no-referrer",
+      "content-type": "application/json; charset=utf-8",
+      "content-length": "5261",
+      "etag": "W/\"148d-BTOj53b05HCkLkG/MBa8OWwvawU\"",
+      "date": "Sat, 21 Nov 2026 15:02:07 GMT",
+      "connection": "close"
+    },
+    "body": {
+      "id": "7db9a669-a126-4a22-9319-910d59330990",
+      "ino": "1051822",
+      "oldLibraryItemId": null,
+      "libraryId": "560a911a-be0e-4039-b397-811a9face6e8",
+      "folderId": "9685d242-eb03-485c-a8e4-6641951b52e1",
+      "path": "/audiobooks/Fixture Author/Boundary Book",
+      "relPath": "Fixture Author/Boundary Book",
+      "isFile": false,
+      "mtimeMs": 1795273325000,
+      "ctimeMs": 1795273325273,
+      "birthtimeMs": 1795273325191,
+      "addedAt": 1795273325602,
+      "updatedAt": 1795273325602,
+      "isMissing": false,
+      "isInvalid": false,
+      "mediaType": "book",
+      "media": {
+        "id": "797cccc9-7fc7-4fee-a8d2-adfd56b83bfb",
+        "metadata": {
+          "title": "Boundary Book",
+          "subtitle": null,
+          "authors": [
+            {
+              "id": "940ba641-bb01-4ab4-b822-d7ad55df348a",
+              "name": "Fixture Author"
+            }
+          ],
+          "narrators": [],
+          "series": [],
+          "genres": [],
+          "publishedYear": null,
+          "publishedDate": null,
+          "publisher": null,
+          "description": null,
+          "isbn": null,
+          "asin": null,
+          "language": null,
+          "explicit": false,
+          "abridged": false,
+          "titleIgnorePrefix": "Boundary Book",
+          "authorName": "Fixture Author",
+          "authorNameLF": "Author, Fixture",
+          "narratorName": "",
+          "seriesName": "",
+          "descriptionPlain": null
+        },
+        "coverPath": null,
+        "tags": [],
+        "numTracks": 2,
+        "numAudioFiles": 2,
+        "numChapters": 3,
+        "duration": 210,
+        "size": 1726447,
+        "libraryItemId": "7db9a669-a126-4a22-9319-910d59330990",
+        "audioFiles": [
+          {
+            "index": 1,
+            "ino": "1051823",
+            "metadata": {
+              "filename": "01-track-a.m4a",
+              "ext": ".m4a",
+              "path": "/audiobooks/Fixture Author/Boundary Book/01-track-a.m4a",
+              "relPath": "01-track-a.m4a",
+              "size": 739453,
+              "mtimeMs": 1795273303000,
+              "ctimeMs": 1795273325273,
+              "birthtimeMs": 1795273325191
+            },
+            "addedAt": 1795273325602,
+            "updatedAt": 1795273325602,
+            "trackNumFromMeta": null,
+            "discNumFromMeta": null,
+            "trackNumFromFilename": 1,
+            "discNumFromFilename": null,
+            "manuallyVerified": false,
+            "exclude": false,
+            "error": null,
+            "format": "QuickTime / MOV",
+            "duration": 90,
+            "bitRate": 64262,
+            "language": "und",
+            "codec": "aac",
+            "timeBase": "1/44100",
+            "channels": 1,
+            "channelLayout": "mono",
+            "chapters": [],
+            "embeddedCoverArt": null,
+            "metaTags": {
+              "tagEncoder": "Lavf63.1.102"
+            },
+            "mimeType": "audio/mp4"
+          },
+          {
+            "index": 2,
+            "ino": "1051824",
+            "metadata": {
+              "filename": "02-track-b.m4a",
+              "ext": ".m4a",
+              "path": "/audiobooks/Fixture Author/Boundary Book/02-track-b.m4a",
+              "relPath": "02-track-b.m4a",
+              "size": 986994,
+              "mtimeMs": 1795273304000,
+              "ctimeMs": 1795273325273,
+              "birthtimeMs": 1795273325192
+            },
+            "addedAt": 1795273325602,
+            "updatedAt": 1795273325602,
+            "trackNumFromMeta": null,
+            "discNumFromMeta": null,
+            "trackNumFromFilename": 2,
+            "discNumFromFilename": null,
+            "manuallyVerified": false,
+            "exclude": false,
+            "error": null,
+            "format": "QuickTime / MOV",
+            "duration": 120,
+            "bitRate": 64355,
+            "language": "und",
+            "codec": "aac",
+            "timeBase": "1/44100",
+            "channels": 1,
+            "channelLayout": "mono",
+            "chapters": [],
+            "embeddedCoverArt": null,
+            "metaTags": {
+              "tagEncoder": "Lavf63.1.102"
+            },
+            "mimeType": "audio/mp4"
+          }
+        ],
+        "chapters": [
+          {
+            "id": 0,
+            "title": "Chapter One",
+            "start": 0,
+            "end": 75
+          },
+          {
+            "id": 1,
+            "title": "Chapter Two",
+            "start": 75,
+            "end": 140
+          },
+          {
+            "id": 2,
+            "title": "Chapter Three",
+            "start": 140,
+            "end": 210
+          }
+        ],
+        "ebookFile": null,
+        "tracks": [
+          {
+            "index": 1,
+            "ino": "1051823",
+            "metadata": {
+              "filename": "01-track-a.m4a",
+              "ext": ".m4a",
+              "path": "/audiobooks/Fixture Author/Boundary Book/01-track-a.m4a",
+              "relPath": "01-track-a.m4a",
+              "size": 739453,
+              "mtimeMs": 1795273303000,
+              "ctimeMs": 1795273325273,
+              "birthtimeMs": 1795273325191
+            },
+            "addedAt": 1795273325602,
+            "updatedAt": 1795273325602,
+            "trackNumFromMeta": null,
+            "discNumFromMeta": null,
+            "trackNumFromFilename": 1,
+            "discNumFromFilename": null,
+            "manuallyVerified": false,
+            "exclude": false,
+            "error": null,
+            "format": "QuickTime / MOV",
+            "duration": 90,
+            "bitRate": 64262,
+            "language": "und",
+            "codec": "aac",
+            "timeBase": "1/44100",
+            "channels": 1,
+            "channelLayout": "mono",
+            "chapters": [],
+            "embeddedCoverArt": null,
+            "metaTags": {
+              "tagEncoder": "Lavf63.1.102"
+            },
+            "mimeType": "audio/mp4",
+            "title": "01-track-a.m4a",
+            "startOffset": 0,
+            "contentUrl": "/api/items/7db9a669-a126-4a22-9319-910d59330990/file/1051823"
+          },
+          {
+            "index": 2,
+            "ino": "1051824",
+            "metadata": {
+              "filename": "02-track-b.m4a",
+              "ext": ".m4a",
+              "path": "/audiobooks/Fixture Author/Boundary Book/02-track-b.m4a",
+              "relPath": "02-track-b.m4a",
+              "size": 986994,
+              "mtimeMs": 1795273304000,
+              "ctimeMs": 1795273325273,
+              "birthtimeMs": 1795273325192
+            },
+            "addedAt": 1795273325602,
+            "updatedAt": 1795273325602,
+            "trackNumFromMeta": null,
+            "discNumFromMeta": null,
+            "trackNumFromFilename": 2,
+            "discNumFromFilename": null,
+            "manuallyVerified": false,
+            "exclude": false,
+            "error": null,
+            "format": "QuickTime / MOV",
+            "duration": 120,
+            "bitRate": 64355,
+            "language": "und",
+            "codec": "aac",
+            "timeBase": "1/44100",
+            "channels": 1,
+            "channelLayout": "mono",
+            "chapters": [],
+            "embeddedCoverArt": null,
+            "metaTags": {
+              "tagEncoder": "Lavf63.1.102"
+            },
+            "mimeType": "audio/mp4",
+            "title": "02-track-b.m4a",
+            "startOffset": 90,
+            "contentUrl": "/api/items/7db9a669-a126-4a22-9319-910d59330990/file/1051824"
+          }
+        ]
+      },
+      "numFiles": 2,
+      "size": 1726447,
+      "lastScan": 1795273325602,
+      "scanVersion": "2.38.0",
+      "libraryFiles": [
+        {
+          "ino": "1051823",
+          "metadata": {
+            "filename": "01-track-a.m4a",
+            "ext": ".m4a",
+            "path": "/audiobooks/Fixture Author/Boundary Book/01-track-a.m4a",
+            "relPath": "01-track-a.m4a",
+            "size": 739453,
+            "mtimeMs": 1795273303000,
+            "ctimeMs": 1795273325273,
+            "birthtimeMs": 1795273325191
+          },
+          "isSupplementary": null,
+          "addedAt": 1795273325387,
+          "updatedAt": 1795273325387,
+          "fileType": "audio"
+        },
+        {
+          "ino": "1051824",
+          "metadata": {
+            "filename": "02-track-b.m4a",
+            "ext": ".m4a",
+            "path": "/audiobooks/Fixture Author/Boundary Book/02-track-b.m4a",
+            "relPath": "02-track-b.m4a",
+            "size": 986994,
+            "mtimeMs": 1795273304000,
+            "ctimeMs": 1795273325273,
+            "birthtimeMs": 1795273325192
+          },
+          "isSupplementary": null,
+          "addedAt": 1795273325387,
+          "updatedAt": 1795273325387,
+          "fileType": "audio"
+        }
+      ]
+    }
+  }
+}

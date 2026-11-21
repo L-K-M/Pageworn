@@ -1,0 +1,27 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "http://server.example/api/items/24ce6539-29bf-4b23-b239-22a38a406464/cover?width=200&format=webp&ts=1795273325727",
+    "path": "/api/items/24ce6539-29bf-4b23-b239-22a38a406464/cover?width=200&format=webp&ts=1795273325727",
+    "headers": {
+      "host": "server.example",
+      "user-agent": "pageworn-contract-capture"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-security-policy": "frame-ancestors 'self'",
+      "referrer-policy": "no-referrer",
+      "cache-control": "private, max-age=86400",
+      "content-type": "image/webp",
+      "date": "Sat, 21 Nov 2026 15:02:07 GMT",
+      "connection": "close",
+      "transfer-encoding": "chunked"
+    },
+    "body": {
+      "bodyBytes": 7886,
+      "sha256": "fd62c28d897a7059f707ad4822e8329211c55486e54c8315855c909d01d73653"
+    }
+  }
+}

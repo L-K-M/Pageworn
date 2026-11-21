@@ -1,0 +1,295 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "http://server.example/api/items/6cb224c6-78dd-4a2e-9c54-eaddba8dde67?expanded=1",
+    "path": "/api/items/6cb224c6-78dd-4a2e-9c54-eaddba8dde67?expanded=1",
+    "headers": {
+      "authorization": "Bearer <access-token>",
+      "host": "server.example",
+      "user-agent": "pageworn-contract-capture"
+    },
+    "authenticatedAs": "listener"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-security-policy": "frame-ancestors 'self'",
+      "referrer-policy": "no-referrer",
+      "content-type": "application/json; charset=utf-8",
+      "content-length": "5165",
+      "etag": "W/\"142d-Nd2lq2CDJE+WJdo0J3/Zim/IGYA\"",
+      "date": "Sat, 21 Nov 2026 15:02:07 GMT",
+      "connection": "close"
+    },
+    "body": {
+      "id": "6cb224c6-78dd-4a2e-9c54-eaddba8dde67",
+      "ino": "1051843",
+      "oldLibraryItemId": null,
+      "libraryId": "d2e90e27-d9b9-48df-aba5-a997fe396361",
+      "folderId": "d31479b9-dcc8-4f60-b6f4-6b98c466edd1",
+      "path": "/second/Second Author/Second Book B",
+      "relPath": "Second Author/Second Book B",
+      "isFile": false,
+      "mtimeMs": 1795273325000,
+      "ctimeMs": 1795273325273,
+      "birthtimeMs": 1795273325231,
+      "addedAt": 1795273325411,
+      "updatedAt": 1795273325411,
+      "isMissing": false,
+      "isInvalid": false,
+      "mediaType": "book",
+      "media": {
+        "id": "f39dc516-677f-452c-a546-2a31a0565c34",
+        "metadata": {
+          "title": "Second Book B",
+          "subtitle": null,
+          "authors": [
+            {
+              "id": "642d273f-2432-4aa3-b180-34c3a6d0000f",
+              "name": "Second Author"
+            }
+          ],
+          "narrators": [],
+          "series": [],
+          "genres": [],
+          "publishedYear": null,
+          "publishedDate": null,
+          "publisher": null,
+          "description": null,
+          "isbn": null,
+          "asin": null,
+          "language": null,
+          "explicit": false,
+          "abridged": false,
+          "titleIgnorePrefix": "Second Book B",
+          "authorName": "Second Author",
+          "authorNameLF": "Author, Second",
+          "narratorName": "",
+          "seriesName": "",
+          "descriptionPlain": null
+        },
+        "coverPath": null,
+        "tags": [],
+        "numTracks": 2,
+        "numAudioFiles": 2,
+        "numChapters": 2,
+        "duration": 210,
+        "size": 1726447,
+        "libraryItemId": "6cb224c6-78dd-4a2e-9c54-eaddba8dde67",
+        "audioFiles": [
+          {
+            "index": 1,
+            "ino": "1051844",
+            "metadata": {
+              "filename": "01-track-a.m4a",
+              "ext": ".m4a",
+              "path": "/second/Second Author/Second Book B/01-track-a.m4a",
+              "relPath": "01-track-a.m4a",
+              "size": 739453,
+              "mtimeMs": 1795273303000,
+              "ctimeMs": 1795273325273,
+              "birthtimeMs": 1795273325231
+            },
+            "addedAt": 1795273325409,
+            "updatedAt": 1795273325409,
+            "trackNumFromMeta": null,
+            "discNumFromMeta": null,
+            "trackNumFromFilename": 1,
+            "discNumFromFilename": null,
+            "manuallyVerified": false,
+            "exclude": false,
+            "error": null,
+            "format": "QuickTime / MOV",
+            "duration": 90,
+            "bitRate": 64262,
+            "language": "und",
+            "codec": "aac",
+            "timeBase": "1/44100",
+            "channels": 1,
+            "channelLayout": "mono",
+            "chapters": [],
+            "embeddedCoverArt": null,
+            "metaTags": {
+              "tagEncoder": "Lavf63.1.102"
+            },
+            "mimeType": "audio/mp4"
+          },
+          {
+            "index": 2,
+            "ino": "1051845",
+            "metadata": {
+              "filename": "02-track-b.m4a",
+              "ext": ".m4a",
+              "path": "/second/Second Author/Second Book B/02-track-b.m4a",
+              "relPath": "02-track-b.m4a",
+              "size": 986994,
+              "mtimeMs": 1795273304000,
+              "ctimeMs": 1795273325273,
+              "birthtimeMs": 1795273325233
+            },
+            "addedAt": 1795273325409,
+            "updatedAt": 1795273325409,
+            "trackNumFromMeta": null,
+            "discNumFromMeta": null,
+            "trackNumFromFilename": 2,
+            "discNumFromFilename": null,
+            "manuallyVerified": false,
+            "exclude": false,
+            "error": null,
+            "format": "QuickTime / MOV",
+            "duration": 120,
+            "bitRate": 64355,
+            "language": "und",
+            "codec": "aac",
+            "timeBase": "1/44100",
+            "channels": 1,
+            "channelLayout": "mono",
+            "chapters": [],
+            "embeddedCoverArt": null,
+            "metaTags": {
+              "tagEncoder": "Lavf63.1.102"
+            },
+            "mimeType": "audio/mp4"
+          }
+        ],
+        "chapters": [
+          {
+            "id": 0,
+            "start": 0,
+            "end": 90,
+            "title": "01-track-a"
+          },
+          {
+            "id": 1,
+            "start": 90,
+            "end": 210,
+            "title": "02-track-b"
+          }
+        ],
+        "ebookFile": null,
+        "tracks": [
+          {
+            "index": 1,
+            "ino": "1051844",
+            "metadata": {
+              "filename": "01-track-a.m4a",
+              "ext": ".m4a",
+              "path": "/second/Second Author/Second Book B/01-track-a.m4a",
+              "relPath": "01-track-a.m4a",
+              "size": 739453,
+              "mtimeMs": 1795273303000,
+              "ctimeMs": 1795273325273,
+              "birthtimeMs": 1795273325231
+            },
+            "addedAt": 1795273325409,
+            "updatedAt": 1795273325409,
+            "trackNumFromMeta": null,
+            "discNumFromMeta": null,
+            "trackNumFromFilename": 1,
+            "discNumFromFilename": null,
+            "manuallyVerified": false,
+            "exclude": false,
+            "error": null,
+            "format": "QuickTime / MOV",
+            "duration": 90,
+            "bitRate": 64262,
+            "language": "und",
+            "codec": "aac",
+            "timeBase": "1/44100",
+            "channels": 1,
+            "channelLayout": "mono",
+            "chapters": [],
+            "embeddedCoverArt": null,
+            "metaTags": {
+              "tagEncoder": "Lavf63.1.102"
+            },
+            "mimeType": "audio/mp4",
+            "title": "01-track-a.m4a",
+            "startOffset": 0,
+            "contentUrl": "/api/items/6cb224c6-78dd-4a2e-9c54-eaddba8dde67/file/1051844"
+          },
+          {
+            "index": 2,
+            "ino": "1051845",
+            "metadata": {
+              "filename": "02-track-b.m4a",
+              "ext": ".m4a",
+              "path": "/second/Second Author/Second Book B/02-track-b.m4a",
+              "relPath": "02-track-b.m4a",
+              "size": 986994,
+              "mtimeMs": 1795273304000,
+              "ctimeMs": 1795273325273,
+              "birthtimeMs": 1795273325233
+            },
+            "addedAt": 1795273325409,
+            "updatedAt": 1795273325409,
+            "trackNumFromMeta": null,
+            "discNumFromMeta": null,
+            "trackNumFromFilename": 2,
+            "discNumFromFilename": null,
+            "manuallyVerified": false,
+            "exclude": false,
+            "error": null,
+            "format": "QuickTime / MOV",
+            "duration": 120,
+            "bitRate": 64355,
+            "language": "und",
+            "codec": "aac",
+            "timeBase": "1/44100",
+            "channels": 1,
+            "channelLayout": "mono",
+            "chapters": [],
+            "embeddedCoverArt": null,
+            "metaTags": {
+              "tagEncoder": "Lavf63.1.102"
+            },
+            "mimeType": "audio/mp4",
+            "title": "02-track-b.m4a",
+            "startOffset": 90,
+            "contentUrl": "/api/items/6cb224c6-78dd-4a2e-9c54-eaddba8dde67/file/1051845"
+          }
+        ]
+      },
+      "numFiles": 2,
+      "size": 1726447,
+      "lastScan": 1795273325410,
+      "scanVersion": "2.38.0",
+      "libraryFiles": [
+        {
+          "ino": "1051844",
+          "metadata": {
+            "filename": "01-track-a.m4a",
+            "ext": ".m4a",
+            "path": "/second/Second Author/Second Book B/01-track-a.m4a",
+            "relPath": "01-track-a.m4a",
+            "size": 739453,
+            "mtimeMs": 1795273303000,
+            "ctimeMs": 1795273325273,
+            "birthtimeMs": 1795273325231
+          },
+          "isSupplementary": null,
+          "addedAt": 1795273325379,
+          "updatedAt": 1795273325379,
+          "fileType": "audio"
+        },
+        {
+          "ino": "1051845",
+          "metadata": {
+            "filename": "02-track-b.m4a",
+            "ext": ".m4a",
+            "path": "/second/Second Author/Second Book B/02-track-b.m4a",
+            "relPath": "02-track-b.m4a",
+            "size": 986994,
+            "mtimeMs": 1795273304000,
+            "ctimeMs": 1795273325273,
+            "birthtimeMs": 1795273325233
+          },
+          "isSupplementary": null,
+          "addedAt": 1795273325379,
+          "updatedAt": 1795273325379,
+          "fileType": "audio"
+        }
+      ]
+    }
+  }
+}

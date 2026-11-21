@@ -1,0 +1,188 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "http://server.example/api/items/5c54daae-5c5a-4ca3-a6a0-d0885cac9e63?expanded=1",
+    "path": "/api/items/5c54daae-5c5a-4ca3-a6a0-d0885cac9e63?expanded=1",
+    "headers": {
+      "authorization": "Bearer <access-token>",
+      "host": "server.example",
+      "user-agent": "pageworn-contract-capture"
+    },
+    "authenticatedAs": "listener"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-security-policy": "frame-ancestors 'self'",
+      "referrer-policy": "no-referrer",
+      "content-type": "application/json; charset=utf-8",
+      "content-length": "3141",
+      "etag": "W/\"c45-VtlWGK495ti+A53qPHxwNf8Zaiw\"",
+      "date": "Sat, 21 Nov 2026 15:02:07 GMT",
+      "connection": "close"
+    },
+    "body": {
+      "id": "5c54daae-5c5a-4ca3-a6a0-d0885cac9e63",
+      "ino": "1051834",
+      "oldLibraryItemId": null,
+      "libraryId": "560a911a-be0e-4039-b397-811a9face6e8",
+      "folderId": "9685d242-eb03-485c-a8e4-6641951b52e1",
+      "path": "/audiobooks/Mara Ellis/Same Title",
+      "relPath": "Mara Ellis/Same Title",
+      "isFile": false,
+      "mtimeMs": 1795273325000,
+      "ctimeMs": 1795273325273,
+      "birthtimeMs": 1795273325205,
+      "addedAt": 1795273325454,
+      "updatedAt": 1795273325454,
+      "isMissing": false,
+      "isInvalid": false,
+      "mediaType": "book",
+      "media": {
+        "id": "886888df-2a65-4e91-8f02-8c6f41bbdd01",
+        "metadata": {
+          "title": "Same Title",
+          "subtitle": null,
+          "authors": [
+            {
+              "id": "9229e7ef-6852-4e70-a06d-fb34fc0b9ee5",
+              "name": "Mara Ellis"
+            }
+          ],
+          "narrators": [],
+          "series": [],
+          "genres": [],
+          "publishedYear": null,
+          "publishedDate": null,
+          "publisher": null,
+          "description": null,
+          "isbn": null,
+          "asin": null,
+          "language": null,
+          "explicit": false,
+          "abridged": false,
+          "titleIgnorePrefix": "Same Title",
+          "authorName": "Mara Ellis",
+          "authorNameLF": "Ellis, Mara",
+          "narratorName": "",
+          "seriesName": "",
+          "descriptionPlain": null
+        },
+        "coverPath": null,
+        "tags": [],
+        "numTracks": 1,
+        "numAudioFiles": 1,
+        "numChapters": 0,
+        "duration": 150,
+        "size": 1800925,
+        "libraryItemId": "5c54daae-5c5a-4ca3-a6a0-d0885cac9e63",
+        "audioFiles": [
+          {
+            "index": 1,
+            "ino": "1051835",
+            "metadata": {
+              "filename": "book.mp3",
+              "ext": ".mp3",
+              "path": "/audiobooks/Mara Ellis/Same Title/book.mp3",
+              "relPath": "book.mp3",
+              "size": 1800925,
+              "mtimeMs": 1795273306000,
+              "ctimeMs": 1795273325273,
+              "birthtimeMs": 1795273325205
+            },
+            "addedAt": 1795273325454,
+            "updatedAt": 1795273325454,
+            "trackNumFromMeta": null,
+            "discNumFromMeta": null,
+            "trackNumFromFilename": null,
+            "discNumFromFilename": null,
+            "manuallyVerified": false,
+            "exclude": false,
+            "error": null,
+            "format": "MP2/3 (MPEG audio layer 2/3)",
+            "duration": 150,
+            "bitRate": 96000,
+            "language": null,
+            "codec": "mp3",
+            "timeBase": "1/14112000",
+            "channels": 1,
+            "channelLayout": "mono",
+            "chapters": [],
+            "embeddedCoverArt": null,
+            "metaTags": {
+              "tagEncoder": "Lavf63.1.102"
+            },
+            "mimeType": "audio/mpeg"
+          }
+        ],
+        "chapters": [],
+        "ebookFile": null,
+        "tracks": [
+          {
+            "index": 1,
+            "ino": "1051835",
+            "metadata": {
+              "filename": "book.mp3",
+              "ext": ".mp3",
+              "path": "/audiobooks/Mara Ellis/Same Title/book.mp3",
+              "relPath": "book.mp3",
+              "size": 1800925,
+              "mtimeMs": 1795273306000,
+              "ctimeMs": 1795273325273,
+              "birthtimeMs": 1795273325205
+            },
+            "addedAt": 1795273325454,
+            "updatedAt": 1795273325454,
+            "trackNumFromMeta": null,
+            "discNumFromMeta": null,
+            "trackNumFromFilename": null,
+            "discNumFromFilename": null,
+            "manuallyVerified": false,
+            "exclude": false,
+            "error": null,
+            "format": "MP2/3 (MPEG audio layer 2/3)",
+            "duration": 150,
+            "bitRate": 96000,
+            "language": null,
+            "codec": "mp3",
+            "timeBase": "1/14112000",
+            "channels": 1,
+            "channelLayout": "mono",
+            "chapters": [],
+            "embeddedCoverArt": null,
+            "metaTags": {
+              "tagEncoder": "Lavf63.1.102"
+            },
+            "mimeType": "audio/mpeg",
+            "title": "book.mp3",
+            "startOffset": 0,
+            "contentUrl": "/api/items/5c54daae-5c5a-4ca3-a6a0-d0885cac9e63/file/1051835"
+          }
+        ]
+      },
+      "numFiles": 1,
+      "size": 1800925,
+      "lastScan": 1795273325454,
+      "scanVersion": "2.38.0",
+      "libraryFiles": [
+        {
+          "ino": "1051835",
+          "metadata": {
+            "filename": "book.mp3",
+            "ext": ".mp3",
+            "path": "/audiobooks/Mara Ellis/Same Title/book.mp3",
+            "relPath": "book.mp3",
+            "size": 1800925,
+            "mtimeMs": 1795273306000,
+            "ctimeMs": 1795273325273,
+            "birthtimeMs": 1795273325205
+          },
+          "isSupplementary": null,
+          "addedAt": 1795273325387,
+          "updatedAt": 1795273325387,
+          "fileType": "audio"
+        }
+      ]
+    }
+  }
+}

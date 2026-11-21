@@ -1,0 +1,53 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "http://server.example/api/me",
+    "path": "/api/me",
+    "headers": {
+      "authorization": "Bearer <access-token>",
+      "host": "server.example",
+      "user-agent": "pageworn-contract-capture"
+    },
+    "authenticatedAs": "listener"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-security-policy": "frame-ancestors 'self'",
+      "referrer-policy": "no-referrer",
+      "content-type": "application/json; charset=utf-8",
+      "content-length": "729",
+      "etag": "W/\"2d9-+E3jxTULBNM0GSRhkEIO27MG1yc\"",
+      "date": "Sat, 21 Nov 2026 15:02:07 GMT",
+      "connection": "close"
+    },
+    "body": {
+      "id": "94e9c644-9550-40be-b886-11a1b4bc20ed",
+      "username": "listener",
+      "email": null,
+      "type": "user",
+      "token": "<access-token>",
+      "mediaProgress": [],
+      "seriesHideFromContinueListening": [],
+      "bookmarks": [],
+      "isActive": true,
+      "isLocked": false,
+      "lastSeen": null,
+      "createdAt": 1795273325318,
+      "permissions": {
+        "download": true,
+        "update": false,
+        "delete": false,
+        "upload": false,
+        "createEreader": false,
+        "accessAllLibraries": true,
+        "accessAllTags": true,
+        "accessExplicitContent": false,
+        "selectedTagsNotAccessible": false
+      },
+      "librariesAccessible": [],
+      "itemTagsSelected": [],
+      "hasOpenIDLink": false
+    }
+  }
+}

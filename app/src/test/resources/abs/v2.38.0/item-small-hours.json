@@ -1,0 +1,188 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "http://server.example/api/items/abafc158-61ea-4d28-b3aa-9d19587dcbc7?expanded=1",
+    "path": "/api/items/abafc158-61ea-4d28-b3aa-9d19587dcbc7?expanded=1",
+    "headers": {
+      "authorization": "Bearer <access-token>",
+      "host": "server.example",
+      "user-agent": "pageworn-contract-capture"
+    },
+    "authenticatedAs": "listener"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-security-policy": "frame-ancestors 'self'",
+      "referrer-policy": "no-referrer",
+      "content-type": "application/json; charset=utf-8",
+      "content-length": "3148",
+      "etag": "W/\"c4c-TOLUCFWAMWTNfr2aU6MoI5Erp2M\"",
+      "date": "Sat, 21 Nov 2026 15:02:07 GMT",
+      "connection": "close"
+    },
+    "body": {
+      "id": "abafc158-61ea-4d28-b3aa-9d19587dcbc7",
+      "ino": "1051831",
+      "oldLibraryItemId": null,
+      "libraryId": "560a911a-be0e-4039-b397-811a9face6e8",
+      "folderId": "9685d242-eb03-485c-a8e4-6641951b52e1",
+      "path": "/audiobooks/Kit Mercer/Small Hours",
+      "relPath": "Kit Mercer/Small Hours",
+      "isFile": false,
+      "mtimeMs": 1795273325000,
+      "ctimeMs": 1795273325273,
+      "birthtimeMs": 1795273325200,
+      "addedAt": 1795273325499,
+      "updatedAt": 1795273325499,
+      "isMissing": false,
+      "isInvalid": false,
+      "mediaType": "book",
+      "media": {
+        "id": "6cc438ef-bf8d-4445-ae28-7a1b6c929b48",
+        "metadata": {
+          "title": "Small Hours",
+          "subtitle": null,
+          "authors": [
+            {
+              "id": "fe1d0288-b91e-41a7-8fed-60a1f4f07cd3",
+              "name": "Kit Mercer"
+            }
+          ],
+          "narrators": [],
+          "series": [],
+          "genres": [],
+          "publishedYear": null,
+          "publishedDate": null,
+          "publisher": null,
+          "description": null,
+          "isbn": null,
+          "asin": null,
+          "language": null,
+          "explicit": false,
+          "abridged": false,
+          "titleIgnorePrefix": "Small Hours",
+          "authorName": "Kit Mercer",
+          "authorNameLF": "Mercer, Kit",
+          "narratorName": "",
+          "seriesName": "",
+          "descriptionPlain": null
+        },
+        "coverPath": null,
+        "tags": [],
+        "numTracks": 1,
+        "numAudioFiles": 1,
+        "numChapters": 0,
+        "duration": 150,
+        "size": 1800925,
+        "libraryItemId": "abafc158-61ea-4d28-b3aa-9d19587dcbc7",
+        "audioFiles": [
+          {
+            "index": 1,
+            "ino": "1051832",
+            "metadata": {
+              "filename": "book.mp3",
+              "ext": ".mp3",
+              "path": "/audiobooks/Kit Mercer/Small Hours/book.mp3",
+              "relPath": "book.mp3",
+              "size": 1800925,
+              "mtimeMs": 1795273306000,
+              "ctimeMs": 1795273325273,
+              "birthtimeMs": 1795273325200
+            },
+            "addedAt": 1795273325498,
+            "updatedAt": 1795273325498,
+            "trackNumFromMeta": null,
+            "discNumFromMeta": null,
+            "trackNumFromFilename": null,
+            "discNumFromFilename": null,
+            "manuallyVerified": false,
+            "exclude": false,
+            "error": null,
+            "format": "MP2/3 (MPEG audio layer 2/3)",
+            "duration": 150,
+            "bitRate": 96000,
+            "language": null,
+            "codec": "mp3",
+            "timeBase": "1/14112000",
+            "channels": 1,
+            "channelLayout": "mono",
+            "chapters": [],
+            "embeddedCoverArt": null,
+            "metaTags": {
+              "tagEncoder": "Lavf63.1.102"
+            },
+            "mimeType": "audio/mpeg"
+          }
+        ],
+        "chapters": [],
+        "ebookFile": null,
+        "tracks": [
+          {
+            "index": 1,
+            "ino": "1051832",
+            "metadata": {
+              "filename": "book.mp3",
+              "ext": ".mp3",
+              "path": "/audiobooks/Kit Mercer/Small Hours/book.mp3",
+              "relPath": "book.mp3",
+              "size": 1800925,
+              "mtimeMs": 1795273306000,
+              "ctimeMs": 1795273325273,
+              "birthtimeMs": 1795273325200
+            },
+            "addedAt": 1795273325498,
+            "updatedAt": 1795273325498,
+            "trackNumFromMeta": null,
+            "discNumFromMeta": null,
+            "trackNumFromFilename": null,
+            "discNumFromFilename": null,
+            "manuallyVerified": false,
+            "exclude": false,
+            "error": null,
+            "format": "MP2/3 (MPEG audio layer 2/3)",
+            "duration": 150,
+            "bitRate": 96000,
+            "language": null,
+            "codec": "mp3",
+            "timeBase": "1/14112000",
+            "channels": 1,
+            "channelLayout": "mono",
+            "chapters": [],
+            "embeddedCoverArt": null,
+            "metaTags": {
+              "tagEncoder": "Lavf63.1.102"
+            },
+            "mimeType": "audio/mpeg",
+            "title": "book.mp3",
+            "startOffset": 0,
+            "contentUrl": "/api/items/abafc158-61ea-4d28-b3aa-9d19587dcbc7/file/1051832"
+          }
+        ]
+      },
+      "numFiles": 1,
+      "size": 1800925,
+      "lastScan": 1795273325498,
+      "scanVersion": "2.38.0",
+      "libraryFiles": [
+        {
+          "ino": "1051832",
+          "metadata": {
+            "filename": "book.mp3",
+            "ext": ".mp3",
+            "path": "/audiobooks/Kit Mercer/Small Hours/book.mp3",
+            "relPath": "book.mp3",
+            "size": 1800925,
+            "mtimeMs": 1795273306000,
+            "ctimeMs": 1795273325273,
+            "birthtimeMs": 1795273325200
+          },
+          "isSupplementary": null,
+          "addedAt": 1795273325387,
+          "updatedAt": 1795273325387,
+          "fileType": "audio"
+        }
+      ]
+    }
+  }
+}

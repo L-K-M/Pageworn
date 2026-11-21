@@ -1,0 +1,29 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "http://server.example/logout",
+    "path": "/logout",
+    "headers": {
+      "host": "server.example",
+      "user-agent": "pageworn-contract-capture",
+      "x-refresh-token": "<refresh-token>"
+    },
+    "authenticatedAs": "listener"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-security-policy": "frame-ancestors 'self'",
+      "referrer-policy": "no-referrer",
+      "set-cookie": "<dropped>, <dropped>, <dropped>",
+      "content-type": "application/json; charset=utf-8",
+      "content-length": "21",
+      "etag": "W/\"15-ZGRRUDEltx2aB15ZPLLkP2swTWE\"",
+      "date": "Sat, 21 Nov 2026 15:02:07 GMT",
+      "connection": "close"
+    },
+    "body": {
+      "redirect_url": null
+    }
+  }
+}

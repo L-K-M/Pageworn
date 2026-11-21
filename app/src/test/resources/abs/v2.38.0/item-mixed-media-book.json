@@ -1,0 +1,223 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "http://server.example/api/items/51ee0314-a5eb-4231-b387-2b4d84000a00?expanded=1",
+    "path": "/api/items/51ee0314-a5eb-4231-b387-2b4d84000a00?expanded=1",
+    "headers": {
+      "authorization": "Bearer <access-token>",
+      "host": "server.example",
+      "user-agent": "pageworn-contract-capture"
+    },
+    "authenticatedAs": "listener"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-security-policy": "frame-ancestors 'self'",
+      "referrer-policy": "no-referrer",
+      "content-type": "application/json; charset=utf-8",
+      "content-length": "3919",
+      "etag": "W/\"f4f-31HyHJiOYWJoWnOlATbhHCbx3FY\"",
+      "date": "Sat, 21 Nov 2026 15:02:07 GMT",
+      "connection": "close"
+    },
+    "body": {
+      "id": "51ee0314-a5eb-4231-b387-2b4d84000a00",
+      "ino": "1051837",
+      "oldLibraryItemId": null,
+      "libraryId": "560a911a-be0e-4039-b397-811a9face6e8",
+      "folderId": "9685d242-eb03-485c-a8e4-6641951b52e1",
+      "path": "/audiobooks/Mixed Author/Mixed Media Book",
+      "relPath": "Mixed Author/Mixed Media Book",
+      "isFile": false,
+      "mtimeMs": 1795273325000,
+      "ctimeMs": 1795273325273,
+      "birthtimeMs": 1795273325210,
+      "addedAt": 1795273325420,
+      "updatedAt": 1795273325420,
+      "isMissing": false,
+      "isInvalid": false,
+      "mediaType": "book",
+      "media": {
+        "id": "f2918638-38e7-4747-8488-26b5c7c6cc2a",
+        "metadata": {
+          "title": "Mixed Media Book",
+          "subtitle": null,
+          "authors": [
+            {
+              "id": "b550e14c-05dd-4b3f-a9fe-5406b75644d7",
+              "name": "Mixed Author"
+            }
+          ],
+          "narrators": [],
+          "series": [],
+          "genres": [],
+          "publishedYear": null,
+          "publishedDate": null,
+          "publisher": null,
+          "description": null,
+          "isbn": null,
+          "asin": null,
+          "language": null,
+          "explicit": false,
+          "abridged": false,
+          "titleIgnorePrefix": "Mixed Media Book",
+          "authorName": "Mixed Author",
+          "authorNameLF": "Author, Mixed",
+          "narratorName": "",
+          "seriesName": "",
+          "descriptionPlain": null
+        },
+        "coverPath": null,
+        "tags": [],
+        "numTracks": 1,
+        "numAudioFiles": 1,
+        "numChapters": 0,
+        "duration": 90,
+        "size": 740796,
+        "ebookFormat": "epub",
+        "libraryItemId": "51ee0314-a5eb-4231-b387-2b4d84000a00",
+        "audioFiles": [
+          {
+            "index": 1,
+            "ino": "1051838",
+            "metadata": {
+              "filename": "01-track-a.m4a",
+              "ext": ".m4a",
+              "path": "/audiobooks/Mixed Author/Mixed Media Book/01-track-a.m4a",
+              "relPath": "01-track-a.m4a",
+              "size": 739453,
+              "mtimeMs": 1795273303000,
+              "ctimeMs": 1795273325273,
+              "birthtimeMs": 1795273325210
+            },
+            "addedAt": 1795273325412,
+            "updatedAt": 1795273325412,
+            "trackNumFromMeta": null,
+            "discNumFromMeta": null,
+            "trackNumFromFilename": 1,
+            "discNumFromFilename": null,
+            "manuallyVerified": false,
+            "exclude": false,
+            "error": null,
+            "format": "QuickTime / MOV",
+            "duration": 90,
+            "bitRate": 64262,
+            "language": "und",
+            "codec": "aac",
+            "timeBase": "1/44100",
+            "channels": 1,
+            "channelLayout": "mono",
+            "chapters": [],
+            "embeddedCoverArt": null,
+            "metaTags": {
+              "tagEncoder": "Lavf63.1.102"
+            },
+            "mimeType": "audio/mp4"
+          }
+        ],
+        "chapters": [],
+        "ebookFile": {
+          "ino": "1051839",
+          "metadata": {
+            "filename": "bonus.epub",
+            "ext": ".epub",
+            "path": "/audiobooks/Mixed Author/Mixed Media Book/bonus.epub",
+            "relPath": "bonus.epub",
+            "size": 1343,
+            "mtimeMs": 1795273325000,
+            "ctimeMs": 1795273325273,
+            "birthtimeMs": 1795273325211
+          },
+          "isSupplementary": null,
+          "addedAt": 1795273325386,
+          "updatedAt": 1795273325386,
+          "fileType": "ebook",
+          "ebookFormat": "epub"
+        },
+        "tracks": [
+          {
+            "index": 1,
+            "ino": "1051838",
+            "metadata": {
+              "filename": "01-track-a.m4a",
+              "ext": ".m4a",
+              "path": "/audiobooks/Mixed Author/Mixed Media Book/01-track-a.m4a",
+              "relPath": "01-track-a.m4a",
+              "size": 739453,
+              "mtimeMs": 1795273303000,
+              "ctimeMs": 1795273325273,
+              "birthtimeMs": 1795273325210
+            },
+            "addedAt": 1795273325412,
+            "updatedAt": 1795273325412,
+            "trackNumFromMeta": null,
+            "discNumFromMeta": null,
+            "trackNumFromFilename": 1,
+            "discNumFromFilename": null,
+            "manuallyVerified": false,
+            "exclude": false,
+            "error": null,
+            "format": "QuickTime / MOV",
+            "duration": 90,
+            "bitRate": 64262,
+            "language": "und",
+            "codec": "aac",
+            "timeBase": "1/44100",
+            "channels": 1,
+            "channelLayout": "mono",
+            "chapters": [],
+            "embeddedCoverArt": null,
+            "metaTags": {
+              "tagEncoder": "Lavf63.1.102"
+            },
+            "mimeType": "audio/mp4",
+            "title": "01-track-a.m4a",
+            "startOffset": 0,
+            "contentUrl": "/api/items/51ee0314-a5eb-4231-b387-2b4d84000a00/file/1051838"
+          }
+        ]
+      },
+      "numFiles": 2,
+      "size": 740796,
+      "lastScan": 1795273325419,
+      "scanVersion": "2.38.0",
+      "libraryFiles": [
+        {
+          "ino": "1051838",
+          "metadata": {
+            "filename": "01-track-a.m4a",
+            "ext": ".m4a",
+            "path": "/audiobooks/Mixed Author/Mixed Media Book/01-track-a.m4a",
+            "relPath": "01-track-a.m4a",
+            "size": 739453,
+            "mtimeMs": 1795273303000,
+            "ctimeMs": 1795273325273,
+            "birthtimeMs": 1795273325210
+          },
+          "isSupplementary": null,
+          "addedAt": 1795273325386,
+          "updatedAt": 1795273325386,
+          "fileType": "audio"
+        },
+        {
+          "ino": "1051839",
+          "metadata": {
+            "filename": "bonus.epub",
+            "ext": ".epub",
+            "path": "/audiobooks/Mixed Author/Mixed Media Book/bonus.epub",
+            "relPath": "bonus.epub",
+            "size": 1343,
+            "mtimeMs": 1795273325000,
+            "ctimeMs": 1795273325273,
+            "birthtimeMs": 1795273325211
+          },
+          "isSupplementary": false,
+          "addedAt": 1795273325386,
+          "updatedAt": 1795273325386,
+          "fileType": "ebook"
+        }
+      ]
+    }
+  }
+}

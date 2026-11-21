@@ -1,0 +1,35 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "http://server.example/status",
+    "path": "/status",
+    "headers": {
+      "host": "server.example",
+      "user-agent": "pageworn-contract-capture"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-security-policy": "frame-ancestors 'self'",
+      "referrer-policy": "no-referrer",
+      "content-type": "application/json; charset=utf-8",
+      "content-length": "151",
+      "etag": "W/\"97-2y+mMEQlEi0R3E2k1B/oDMgrRjw\"",
+      "date": "Sat, 21 Nov 2026 15:02:07 GMT",
+      "connection": "close"
+    },
+    "body": {
+      "app": "audiobookshelf",
+      "serverVersion": "2.38.0",
+      "isInit": true,
+      "language": "en-us",
+      "authMethods": [
+        "local"
+      ],
+      "authFormData": {
+        "authLoginCustomMessage": ""
+      }
+    }
+  }
+}
