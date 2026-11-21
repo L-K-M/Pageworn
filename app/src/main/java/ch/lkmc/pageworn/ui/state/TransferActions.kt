@@ -26,6 +26,7 @@ class TransferActions(private val container: AppContainer) {
         _refusal.value = null
         container.appScope.launch {
             val start = container.transfers.download(key)
+            if (start is DownloadStart.Enqueued) container.onDownloadEnqueued()
             when (val reason = (start as? DownloadStart.Refused)?.reason) {
                 is Refusal.NoRoute -> container.accounts.reportUnavailable(reason.reason)
                 is Refusal.Server -> if (reason.error != ServerError.Forbidden) container.accounts.reportFailure(reason.error)

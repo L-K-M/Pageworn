@@ -98,6 +98,7 @@ class TransferCoordinator(
     private val clock: Clock,
     private val usableSpace: () -> Long = files::usableSpace,
     private val newId: () -> String = { UUID.randomUUID().toString() },
+    private val onPublished: (title: String) -> Unit = {},
 ) {
     /** Set by the app after construction: the platform job that runs [runQueue]. */
     @Volatile var scheduler: TransferScheduler = TransferScheduler { false }
@@ -547,7 +548,10 @@ class TransferCoordinator(
             return rest(job, TransferState.FAILED, FailureCategory.VERIFICATION)
         }
         when (outcome) {
-            is EditionStore.PublishOutcome.Published -> editions.sweep(activeWriters())
+            is EditionStore.PublishOutcome.Published -> {
+                onPublished(edition.title)
+                editions.sweep(activeWriters())
+            }
             is EditionStore.PublishOutcome.Rejected -> {
                 job = transfers.get(job.jobId) ?: return
                 if (job.state == TransferState.CANCELLED) reclaim(job) else rest(job, TransferState.FAILED, FailureCategory.VERIFICATION)

@@ -1,19 +1,30 @@
 package ch.lkmc.pageworn.transfer
 
+import android.Manifest
+import android.app.Notification
+import android.app.NotificationManager
 import android.os.Bundle
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.lifecycle.Lifecycle
 import androidx.media3.common.MediaItem
 import androidx.media3.session.MediaController
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
+import androidx.test.runner.lifecycle.Stage
 import ch.lkmc.pageworn.MainActivity
 import ch.lkmc.pageworn.account.CheckedAddress
 import ch.lkmc.pageworn.account.Outcome
@@ -35,6 +46,7 @@ import ch.lkmc.pageworn.testing.connectController
 import ch.lkmc.pageworn.testing.onMain
 import ch.lkmc.pageworn.ui.model.Copy
 import ch.lkmc.pageworn.ui.state.DownloadRefusal
+import ch.lkmc.pageworn.ui.state.TransferActions
 import ch.lkmc.pageworn.ui.state.refusalOf
 import com.google.common.collect.Range
 import com.google.common.truth.Truth.assertThat
@@ -93,10 +105,12 @@ class RepairIntegrationTest {
         return profile!!.profileId
     }
 
-    private suspend fun boundary(): BookKey {
+    private suspend fun boundary(): BookKey = book(BOUNDARY)
+
+    private suspend fun book(title: String): BookKey {
         val profile = profileId()
         val library = db.libraries().forProfile(profile).single { it.name == LIBRARY }
-        val row = container.catalog.observeListing(profile, library.libraryId, "").first().rows.single { it.title == BOUNDARY }
+        val row = container.catalog.observeListing(profile, library.libraryId, "").first().rows.single { it.title == title }
         return BookKey(profile, row.itemId)
     }
 
@@ -153,6 +167,8 @@ class RepairIntegrationTest {
     private fun observe(text: String) = InstrumentationRegistry.getInstrumentation().sendStatus(0, Bundle().apply { putString("observation", text) })
 
     private fun awaitText(text: String) = composeRule.waitUntil(10_000) { composeRule.onAllNodes(hasText(text)).fetchSemanticsNodes().isNotEmpty() }
+
+    private fun tab(label: String) = hasText(label) and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)
 
     /** Opens the player for the Boundary Book from the mini-player and checks its failure state. */
     private fun assertPlayerDisabledWith(message: String) {
@@ -331,6 +347,96 @@ class RepairIntegrationTest {
         assertThat(playedTo).isGreaterThan(B_START_MS + 1_500)
         assertThat(runBlocking { edition(key).state }).isEqualTo(EditionState.READY)
         RestartMarker.clear()
+    }
+
+    @Test
+    fun a16bDownloadsAndPlaybackWorkWithNotificationsDenied() {
+        val username = arg("absListener")
+        val password = arg("absListenerPassword")
+        assumeTrue("the host installs fresh and leaves notifications denied", !TransferNotifications.enabled(context))
+        val manager = context.getSystemService(NotificationManager::class.java)
+        val actions = TransferActions(container)
+        val boundary = runBlocking {
+            signIn(username, password)
+            boundary()
+        }
+        home.rules(FaultProxy.throttle(FaultProxy.DOWNLOAD_PATH, 200_000))
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            actions.download(boundary)
+            runBlocking {
+                await(15_000, "the notification permission notice") {
+                    container.notices.downloadedStatus.value != null
+                }
+            }
+            assertThat(runBlocking { db.editions().edition(boundary.profileId, boundary.itemId) }).isNull()
+            scenario.moveToState(Lifecycle.State.CREATED)
+            runBlocking {
+                await(READY_TIMEOUT_MS, "the download finished while backgrounded") {
+                    db.editions().edition(boundary.profileId, boundary.itemId)?.state == EditionState.READY
+                }
+            }
+            assertThat(manager.activeNotifications.map { it.id }).doesNotContain(TransferNotifications.COMPLETION_ID)
+        }
+        home.rules()
+
+        val openDownloaded = ActivityScenario.launch(MainActivity::class.java).use {
+            awaitText(Copy.NOTIFICATIONS_DISABLED)
+            composeRule.onNodeWithText(Copy.ENABLE_NOTIFICATIONS).assertIsDisplayed()
+            composeRule.onNode(tab("Library")).performClick()
+            composeRule.onNode(tab("Downloaded")).performClick()
+            composeRule.onNodeWithText(Copy.NOTIFICATIONS_DISABLED).assertDoesNotExist()
+
+            composeRule.onNodeWithContentDescription("Play $BOUNDARY").performClick()
+            runBlocking { withTimeout(10_000) { container.playbackHub.state.first { it.isPlaying } } }
+            onMain {
+                val c = connectController(context)
+                try {
+                    c.pause()
+                    c.awaitUntil(description = "paused") { !playWhenReady }
+                } finally {
+                    c.release()
+                }
+            }
+            val small = runBlocking { book("Small Hours") }
+            actions.download(small)
+            runBlocking {
+                await(READY_TIMEOUT_MS, "the second book is ready") {
+                    db.editions().edition(small.profileId, small.itemId)?.state == EditionState.READY
+                }
+            }
+            composeRule.onNodeWithText(Copy.NOTIFICATIONS_DISABLED).assertDoesNotExist()
+
+            val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
+            automation.grantRuntimePermission(context.packageName, Manifest.permission.POST_NOTIFICATIONS)
+            assertThat(TransferNotifications.enabled(context)).isTrue()
+            val orchard = runBlocking { book("The Night Orchard") }
+            actions.download(orchard)
+            runBlocking {
+                await(READY_TIMEOUT_MS, "the permitted completion notification") {
+                    manager.activeNotifications.any {
+                        it.id == TransferNotifications.COMPLETION_ID &&
+                            it.notification.extras.getCharSequence(Notification.EXTRA_TITLE) == "The Night Orchard"
+                    }
+                }
+                assertThat(edition(orchard).state).isEqualTo(EditionState.READY)
+            }
+            composeRule.onNode(tab("Library")).performClick()
+            manager.activeNotifications.single { it.id == TransferNotifications.COMPLETION_ID }
+                .notification.contentIntent
+        }
+        try {
+            openDownloaded.send()
+            composeRule.waitUntil(10_000) {
+                composeRule.onAllNodes(tab("Downloaded") and isSelected()).fetchSemanticsNodes().isNotEmpty()
+            }
+            composeRule.onNode(tab("Downloaded")).assertIsSelected()
+        } finally {
+            manager.cancel(TransferNotifications.COMPLETION_ID)
+            onMain {
+                ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(Stage.RESUMED)
+                    .filterIsInstance<MainActivity>().forEach { it.finish() }
+            }
+        }
     }
 
     private companion object {

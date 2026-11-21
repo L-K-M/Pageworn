@@ -20,10 +20,19 @@ class SettingsStore(context: Context) {
         get() = prefs.getString(DESTINATION, null)
         set(value) = prefs.edit().putString(DESTINATION, value).apply()
 
-    /** The notifications-disabled notice has been shown once and must not return. */
-    var notificationsNoticeConsumed: Boolean
+    val notificationsNoticeConsumed: Boolean
         get() = prefs.getBoolean(NOTIFICATIONS_NOTICE, false)
-        set(value) = prefs.edit().putBoolean(NOTIFICATIONS_NOTICE, value).apply()
+
+    val notificationsNoticePending: Boolean
+        get() = prefs.getBoolean(NOTIFICATIONS_NOTICE_PENDING, false)
+
+    fun showNotificationsNotice() {
+        prefs.edit().putBoolean(NOTIFICATIONS_NOTICE, true).putBoolean(NOTIFICATIONS_NOTICE_PENDING, true).apply()
+    }
+
+    fun dismissNotificationsNotice() {
+        prefs.edit().remove(NOTIFICATIONS_NOTICE_PENDING).apply()
+    }
 
     /** The local-network permission was requested at least once (so a denial can open settings). */
     var localNetworkAsked: Boolean
@@ -52,6 +61,7 @@ class SettingsStore(context: Context) {
         private const val SPEED = "speed"
         private const val DESTINATION = "last_destination"
         private const val NOTIFICATIONS_NOTICE = "notifications_notice_consumed"
+        private const val NOTIFICATIONS_NOTICE_PENDING = "notifications_notice_pending"
         private const val LOCAL_NETWORK_ASKED = "local_network_asked"
         private const val PINNED_ADDRESS = "pinned_address"
         val SPEEDS = listOf(0.75f, 1f, 1.25f, 1.5f, 1.75f, 2f)

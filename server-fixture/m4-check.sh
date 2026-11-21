@@ -7,12 +7,16 @@
 #               opened and sent to the background, its process killed with `am kill` (never
 #               force-stop), then a media-key Play. The host reads the outcome from dumpsys,
 #               because a new instrumentation run would restart the process it checks.
+#   restart     A10, A10b and A29: separate instrumentation runs verify that saved places
+#               survive a process restart and that the ordinary rewind still applies.
 #
 #   repair      A20 and A10c through the local reference instance (RepairIntegrationTest), behind
 #               the "Home" fault proxy: a browse-only account, a shortened track, a failed and a
 #               successful repair, a zeroed track met during playback, and the relaunch and
 #               repair after it. Each phase is its own instrumentation run, so the last one runs
 #               in a new process.
+#   notifications  A16b: clears the disposable emulator app data, downloads with notifications
+#               denied, then grants permission and verifies a completion notification opens Downloaded.
 #
 #   server-fixture/m4-check.sh <emulator-serial>
 #
@@ -51,11 +55,17 @@ FAILED=0
 report() { # raw method
   local raw="$1" method="$2"
   echo "$raw" | grep -E "observation=" | sed 's/^.*observation=/  observation: /' || true
-  if echo "$raw" | grep -q "INSTRUMENTATION_STATUS_CODE: -2\|INSTRUMENTATION_STATUS_CODE: -1\|shortMsg=Process crashed"; then
-    echo "FAIL $method"; echo "$raw" | grep -A12 "stack=" | head -30; FAILED=1; return 1
+  if [[ "$raw" == *"INSTRUMENTATION_STATUS_CODE: -4"* ]]; then
+    echo "SKIPPED $method"
+  elif [[ "$raw" == *"OK (1 test)"* && "$raw" == *"INSTRUMENTATION_CODE: -1"* ]]; then
+    echo "ok   $method"
+    return 0
+  else
+    echo "FAIL $method"
+    echo "$raw" | grep -A12 -E "stack=|shortMsg=|INSTRUMENTATION_FAILED" | head -30 || true
   fi
-  if echo "$raw" | grep -q "INSTRUMENTATION_STATUS_CODE: -4"; then echo "SKIPPED $method"; FAILED=1; return 1; fi
-  echo "ok   $method"
+  FAILED=1
+  return 1
 }
 
 instrument() { # class#method [extra arguments...]
@@ -139,8 +149,18 @@ if selected a16e-kill; then
   check "started at its place, 115 s without a rewind (paused at ${position:-none} ms, at most $latest ms)" between "$position" 114700 "$latest"
 fi
 
+# --- A10, A10b and A29, progress after a process restart -------------------------------------------
+if selected restart; then
+  adb_shell run-as "$PACKAGE" rm -f files/restart-marker.json
+  for method in a10Part1PauseALateThenListenToB a10Part2BothPlacesSurviveTheRestart \
+      a10bPart1HeldSampleAfterSeekBack a10bPart2RestoresThenDiesBeforeACheckpoint \
+      a10bPart3LossIsAtMostFiveSeconds a29Part1PauseAt115 a29Part2HeadsetPlayAfterTenMinutes; do
+    report "$(instrument "playback.RestartTest#$method")" "$method" || break
+  done
+fi
+
 # --- A20 and A10c, repair through the server --------------------------------------------------------
-if selected repair; then
+if selected repair || selected notifications; then
   account() { python3 -c "import json,sys; print(json.load(open('$STATE/accounts.json'))[sys.argv[1]][sys.argv[2]])" "$1" "$2"; }
   python3 "$ROOT/server-fixture/fault_proxy.py" --listen 13380 --backend 13378 --control 13390 >/dev/null 2>&1 &
   PIDS+=($!)
@@ -154,12 +174,30 @@ if selected repair; then
     echo "  waiting ${reset}s for the server's sign-in limit ($remaining left)"
     sleep "$(( ${reset:-600} + 2 ))"
   fi
-  for method in repair1BrowseOnlyAccountStartsNoTransfer repair2AShortTrackIsADamagedCopyAndOnlyASuccessfulRepairReplacesIt \
-      repair3AZeroedTrackFailsWhenPlaybackReachesIt repair4AfterARelaunchTheRepairRestoresPlaybackFromThePlace; do
+fi
+
+server_test() {
+  local method="$1"
     report "$(instrument "transfer.RepairIntegrationTest#$method" \
       -e absListener "$(account listener username)" -e absListenerPassword "$(account listener password)" \
       -e absBrowser "$(account browser username)" -e absBrowserPassword "$(account browser password)")" "$method" || true
+}
+
+if selected repair; then
+  for method in repair1BrowseOnlyAccountStartsNoTransfer repair2AShortTrackIsADamagedCopyAndOnlyASuccessfulRepairReplacesIt \
+      repair3AZeroedTrackFailsWhenPlaybackReachesIt repair4AfterARelaunchTheRepairRestoresPlaybackFromThePlace; do
+    server_test "$method"
   done
+fi
+
+if selected notifications; then
+  adb_shell pm clear "$PACKAGE" >/dev/null
+  if [ "$API" -ge 37 ]; then
+    adb_shell pm grant "$PACKAGE" android.permission.ACCESS_LOCAL_NETWORK
+  fi
+  adb_shell pm revoke "$PACKAGE" android.permission.POST_NOTIFICATIONS
+  server_test a16bDownloadsAndPlaybackWorkWithNotificationsDenied
+  adb_shell pm grant "$PACKAGE" android.permission.POST_NOTIFICATIONS
 fi
 
 exit "$FAILED"

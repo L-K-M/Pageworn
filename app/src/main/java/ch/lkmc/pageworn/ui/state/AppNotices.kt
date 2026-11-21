@@ -15,21 +15,26 @@ import kotlinx.coroutines.flow.asStateFlow
  * action or goes from Downloaded to another screen, and never returns.
  */
 class AppNotices(private val settings: SettingsStore) {
-    private val _downloadedStatus = MutableStateFlow<StatusLine?>(null)
+    private val denied = StatusLine(Copy.NOTIFICATIONS_DISABLED, UiAction.NOTIFICATION_SETTINGS, Copy.ENABLE_NOTIFICATIONS)
+    private val _downloadedStatus = MutableStateFlow(denied.takeIf { settings.notificationsNoticePending })
     val downloadedStatus: StateFlow<StatusLine?> = _downloadedStatus.asStateFlow()
 
+    @Synchronized
     fun onDownloadEnqueued(notificationsDenied: Boolean) {
         if (!notificationsDenied || settings.notificationsNoticeConsumed) return
-        settings.notificationsNoticeConsumed = true
-        _downloadedStatus.value = StatusLine(Copy.NOTIFICATIONS_DISABLED, UiAction.NOTIFICATION_SETTINGS, Copy.ENABLE_NOTIFICATIONS)
+        settings.showNotificationsNotice()
+        _downloadedStatus.value = denied
     }
 
     fun leftDownloaded(from: Destination, to: Destination) {
-        if (from == Destination.DOWNLOADED && to != Destination.DOWNLOADED) _downloadedStatus.value = null
+        if (from == Destination.DOWNLOADED && to != Destination.DOWNLOADED) dismiss()
     }
 
     /** The listener went from Downloaded to a screen outside the two sections, or used the action. */
+    @Synchronized
     fun dismiss() {
+        if (_downloadedStatus.value == null) return
+        settings.dismissNotificationsNotice()
         _downloadedStatus.value = null
     }
 }

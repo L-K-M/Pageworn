@@ -1,5 +1,6 @@
 package ch.lkmc.pageworn.transfer
 
+import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -11,6 +12,7 @@ import android.app.job.JobService
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import ch.lkmc.pageworn.MainActivity
 import ch.lkmc.pageworn.PagewornApp
 import ch.lkmc.pageworn.R
@@ -87,6 +89,7 @@ class JobSchedulerTransfers(private val context: Context) : TransferScheduler {
 /** The transfer notification. A denied permission hides it; the transfer runs all the same. */
 object TransferNotifications {
     const val ID = 4_202
+    internal const val COMPLETION_ID = 4_203
     private const val CHANNEL = "transfers"
 
     fun ensureChannel(context: Context) {
@@ -97,6 +100,35 @@ object TransferNotifications {
                 description = context.getString(R.string.notification_channel_transfers_description)
             },
         )
+    }
+
+    fun enabled(context: Context): Boolean =
+        context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED &&
+            context.getSystemService(NotificationManager::class.java)?.areNotificationsEnabled() == true
+
+    fun postCompletion(context: Context, title: String) {
+        val manager = context.getSystemService(NotificationManager::class.java) ?: return
+        if (!enabled(context)) return
+        ensureChannel(context)
+        val open = PendingIntent.getActivity(
+            context, COMPLETION_ID,
+            Intent(context, MainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                .putExtra(MainActivity.EXTRA_OPEN_DOWNLOADED, true),
+            PendingIntent.FLAG_IMMUTABLE,
+        )
+        val notification = Notification.Builder(context, CHANNEL)
+            .setSmallIcon(R.drawable.ic_stat_pageworn)
+            .setContentTitle(title)
+            .setContentText(context.getString(R.string.transfer_complete))
+            .setContentIntent(open)
+            .setAutoCancel(true)
+            .build()
+        try {
+            manager.notify(COMPLETION_ID, notification)
+        } catch (_: SecurityException) {
+            // Permission can be revoked between the check and the post.
+        }
     }
 
     fun build(context: Context, job: TransferEntity?): Notification {

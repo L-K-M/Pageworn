@@ -35,6 +35,7 @@ import ch.lkmc.pageworn.server.TokenVault
 import ch.lkmc.pageworn.transfer.JobSchedulerTransfers
 import ch.lkmc.pageworn.transfer.ProbeTrackVerifier
 import ch.lkmc.pageworn.transfer.TransferCoordinator
+import ch.lkmc.pageworn.transfer.TransferNotifications
 import ch.lkmc.pageworn.ui.state.AppNotices
 import java.io.File
 import java.security.KeyStore
@@ -125,7 +126,12 @@ class AppContainer(private val app: PagewornApp) {
         TransferCoordinator(
             database, editionFiles, editionStore, AccountTransferRoutes(database, serverAccess),
             ProbeTrackVerifier(MediaProbe(app)), FormatSupport(), liveClock,
+            onPublished = { title -> TransferNotifications.postCompletion(app, title) },
         ).also { it.scheduler = JobSchedulerTransfers(app) }
+    }
+
+    fun onDownloadEnqueued() {
+        notices.onDownloadEnqueued(notificationsDenied = !TransferNotifications.enabled(app))
     }
 
     val accounts: AccountService by lazy {

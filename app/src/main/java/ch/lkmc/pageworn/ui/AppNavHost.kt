@@ -57,7 +57,7 @@ object Routes {
 }
 
 @Composable
-fun AppNavHost(container: AppContainer, openPlayer: Boolean, navController: NavHostController = rememberNavController()) {
+fun AppNavHost(container: AppContainer, openPlayer: Boolean, openDownloaded: Int, navController: NavHostController = rememberNavController()) {
     val main: MainViewModel = viewModel { MainViewModel(container) }
     val player: PlayerViewModel = viewModel { PlayerViewModel(container) }
     val context = LocalContext.current
@@ -87,6 +87,14 @@ fun AppNavHost(container: AppContainer, openPlayer: Boolean, navController: NavH
 
     LaunchedEffect(openPlayer) {
         if (openPlayer) navController.navigate(Routes.PLAYER) { launchSingleTop = true }
+    }
+
+    val decided by main.decided.collectAsStateWithLifecycle()
+    LaunchedEffect(openDownloaded, decided) {
+        if (openDownloaded > 0 && decided) {
+            navController.popBackStack(Routes.MAIN, inclusive = false)
+            main.select(Destination.DOWNLOADED)
+        }
     }
 
     NavHost(navController, startDestination = Routes.MAIN) {

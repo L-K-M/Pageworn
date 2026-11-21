@@ -5,4 +5,5 @@
     <string name="notification_channel_transfers_description">Progress and completion of book downloads</string>
     <string name="transfer_preparing">Preparing downloads</string>
     <string name="transfer_percent">%1$d%% downloaded</string>
+    <string name="transfer_complete">Ready to listen</string>
 </resources>
