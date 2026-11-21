@@ -9,18 +9,24 @@ data class RawChapter(val startMs: Long, val endMs: Long?, val title: String?)
  *
  * 1. Book-level server chapters first, validated against the verified duration.
  * 2. Embedded markers only when the validated server list is empty.
- * 3. Missing ends use the next valid start or the book end; uncovered audio becomes a generated
- *    Opening or Interlude segment, never merged into a neighbour.
+ * 3. Missing ends use the next valid start or the book end; uncovered audio of a second or more
+ *    becomes a generated Opening or Interlude segment, never merged into a neighbour.
  * 4. No markers at all: an empty map, so the edition is divided by track or is one whole-book segment.
  * 5. A server list with one chapter per track that matches the track bounds is the list Audiobookshelf
  *    builds from the files of a book without markers: no chapters, and its titles become track titles.
  */
 object ChapterMapBuilder {
-    /**
-     * Gaps or overlaps up to this size are rounding noise from second-to-millisecond conversion and
-     * are closed by moving the earlier chapter's end, never turned into an Interlude.
-     */
+    /** Chapter bounds this close to a track's bounds are rounding noise from second-to-millisecond conversion. */
     const val ROUNDING_TOLERANCE_MS = 5L
+
+    /**
+     * Uncovered audio shorter than this, between neighbouring chapters, before the first or after
+     * the last, is noise rather than a segment anyone could use, and is closed by moving the earlier
+     * chapter's end (or the first start to zero). Besides rounding, it is the encoder padding that
+     * the player counts and the markers do not: Media3 1.11.1 reports the MP3 fixture as 60 029 ms
+     * while its ID3 chapter frames end at 60 000 ms, at the end of every file of a book.
+     */
+    const val MIN_SEGMENT_MS = 1_000L
 
     /**
      * [trackTitles] is set when the server list only restates the files ([isFileList]); the edition
@@ -55,16 +61,21 @@ object ChapterMapBuilder {
     /**
      * Audiobookshelf 2.38 fills the chapter list of a multi-file book without markers with one chapter
      * per audio file (AudioFileScanner.getBookChaptersFromAudioFiles). Such a list has exactly one
-     * chapter per track, each within [ROUNDING_TOLERANCE_MS] of its track's start and end.
+     * contiguous chapter per track, starting at zero, each as long as its track within
+     * [MIN_SEGMENT_MS]. The lengths are compared rather than the starts because the server measures
+     * the files with ffprobe and the player counts their encoder padding, so the starts drift
+     * apart by each file's padding.
      */
     fun isFileList(durationMs: Long, serverChapters: List<RawChapter>, trackStartsMs: List<Long>): Boolean {
         if (trackStartsMs.size < 2 || serverChapters.size != trackStartsMs.size) return false
         val sorted = serverChapters.sortedBy { it.startMs }
         return sorted.indices.all { i ->
-            val trackEnd = trackStartsMs.getOrElse(i + 1) { durationMs }
             val c = sorted[i]
-            kotlin.math.abs(c.startMs - trackStartsMs[i]) <= ROUNDING_TOLERANCE_MS &&
-                (c.endMs == null || kotlin.math.abs(c.endMs - trackEnd) <= ROUNDING_TOLERANCE_MS)
+            val end = c.endMs ?: sorted.getOrNull(i + 1)?.startMs ?: durationMs
+            val trackLength = trackStartsMs.getOrElse(i + 1) { durationMs } - trackStartsMs[i]
+            val previousEnd = if (i == 0) 0L else sorted[i - 1].endMs ?: c.startMs
+            kotlin.math.abs(c.startMs - previousEnd) <= ROUNDING_TOLERANCE_MS &&
+                kotlin.math.abs((end - c.startMs) - trackLength) < MIN_SEGMENT_MS
         }
     }
 
@@ -90,11 +101,11 @@ object ChapterMapBuilder {
             if (c.end == Long.MAX_VALUE || c.end > nextStart) c.end = nextStart
             if (c.end > durationMs) c.end = durationMs
         }
-        // Close rounding noise between neighbours and at the book edges.
+        // Close noise between neighbours and at the end of the book.
         for (i in candidates.indices) {
             val c = candidates[i]
             val nextStart = candidates.getOrNull(i + 1)?.start ?: durationMs
-            if (nextStart - c.end in 1..ROUNDING_TOLERANCE_MS) c.end = nextStart
+            if (nextStart - c.end in 1 until MIN_SEGMENT_MS) c.end = nextStart
         }
         return candidates
             .filter { it.end > it.start }
@@ -110,7 +121,7 @@ object ChapterMapBuilder {
         var cursor = 0L
         var number = 0
         for ((range, title) in intervals) {
-            val start = if (out.isEmpty() && range.first in 1..ROUNDING_TOLERANCE_MS) 0L else range.first
+            val start = if (out.isEmpty() && range.first in 1 until MIN_SEGMENT_MS) 0L else range.first
             if (start > cursor) {
                 val kind = if (out.isEmpty()) ChapterOrigin.GENERATED_OPENING else ChapterOrigin.GENERATED_INTERLUDE
                 out += ChapterSpan(cursor, start, if (kind == ChapterOrigin.GENERATED_OPENING) OPENING else INTERLUDE, kind)

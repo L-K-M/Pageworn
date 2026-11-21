@@ -98,6 +98,34 @@ class ChapterMapBuilderTest {
     }
 
     @Test
+    fun encoderPaddingAtTheEndOfEachFileIsNotAChapter() {
+        // Media3 reports each MP3 file 29 ms longer than its ID3 chapter frames reach (the encoder
+        // padding the decoder counts), so every file ends with audio no marker covers.
+        val perFile = listOf(RawChapter(0, 30_000, "Start"), RawChapter(30_000, 60_000, "Middle"))
+        val result = ChapterMapBuilder.build(120_058, emptyList(), listOf(perFile, perFile), trackStartsMs = listOf(0L, 60_029L))
+        assertThat(result.chapters.map { it.startMs to it.endMs })
+            .containsExactly(0L to 30_000L, 30_000L to 60_029L, 60_029L to 90_029L, 90_029L to 120_058L).inOrder()
+        assertThat(result.chapters.none { it.origin.generated }).isTrue()
+    }
+
+    @Test
+    fun aGapOfASecondIsStillANavigableSegment() {
+        val result = ChapterMapBuilder.build(210_000, listOf(RawChapter(0, 74_000, "One"), RawChapter(75_000, 209_001, "Two")))
+        assertThat(result.chapters.map { it.title }).containsExactly("One", "Interlude", "Two").inOrder()
+        assertThat(result.chapters.last().endMs).isEqualTo(210_000L)
+    }
+
+    @Test
+    fun aFileListOfMp3FilesIsRecognisedDespiteTheirPadding() {
+        // Audiobookshelf builds the list from ffprobe's durations (60 000 ms per file); the player's
+        // track starts include each file's 29 ms of padding, so the absolute starts drift apart.
+        val serverList = listOf(RawChapter(0, 60_000, "01"), RawChapter(60_000, 120_000, "02"), RawChapter(120_000, 180_000, "03"))
+        val result = ChapterMapBuilder.build(180_087, serverList, trackStartsMs = listOf(0L, 60_029L, 120_058L))
+        assertThat(result.chapters).isEmpty()
+        assertThat(result.trackTitles).containsExactly("01", "02", "03").inOrder()
+    }
+
+    @Test
     fun noMarkersGivesAnEmptyMap() {
         val result = ChapterMapBuilder.build(210_000, emptyList(), listOf(emptyList(), emptyList()), listOf(0L, 90_000L))
         assertThat(result.chapters).isEmpty()
