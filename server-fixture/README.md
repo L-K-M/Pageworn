@@ -54,6 +54,23 @@ server-fixture/tls_proxy.py --cert first     # unrecognized certificate
 server-fixture/tls_proxy.py --cert second    # the certificate changed
 ```
 
+## Transfer faults
+
+`fault_proxy.py` forwards plain HTTP to the instance one request per
+connection and injects the transfer faults the download checks need: a body
+dropped after N bytes, an ignored `Range`, a throttled body, an error status,
+or a connection closed without an answer. A JSON control port sets the rules
+and reads a log of the requests (method, target, `Range`, `If-Range`, the
+fault applied, status and body bytes so far; never other headers or
+bodies). `fault_proxy_selftest.py` checks it against a local stand-in server.
+
+```sh
+server-fixture/fault_proxy.py --listen 13380 --backend 13378 --control 13390
+curl -X POST --data '[{"mode":"drop","bytes":100000}]' http://127.0.0.1:13390/rules
+curl http://127.0.0.1:13390/log
+server-fixture/fault_proxy_selftest.py
+```
+
 ## Why named volumes instead of bind mounts
 
 Docker on macOS often runs inside a Colima VM whose bind mounts of host
