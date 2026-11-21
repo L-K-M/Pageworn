@@ -235,6 +235,13 @@ interface TransferDao {
 
     @Query("DELETE FROM transfer_file WHERE jobId = :jobId")
     suspend fun deleteFiles(jobId: String)
+
+    /** Display journal only: never overwrites a file's validator or state. */
+    @Query("UPDATE transfer_file SET bytesJournal = :bytes WHERE jobId = :jobId AND ordinal = :ordinal")
+    suspend fun journalFile(jobId: String, ordinal: Int, bytes: Long)
+
+    @Query("UPDATE transfer SET bytesDone = :bytes, updatedAt = :now WHERE jobId = :jobId AND state = 'TRANSFERRING'")
+    suspend fun journalJob(jobId: String, bytes: Long, now: Long)
 }
 
 @Dao
