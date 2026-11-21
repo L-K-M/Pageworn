@@ -4,6 +4,8 @@ import ch.lkmc.pageworn.server.ResumeRequest
 import ch.lkmc.pageworn.server.ServerResult
 import com.google.common.truth.Truth.assertThat
 import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -224,6 +226,39 @@ class FileTransferTest {
         assertThat(result.bytesOnDisk).isEqualTo(file.length())
         assertThat(file.length()).isGreaterThan(0L)
         assertThat(file.length()).isLessThan(size.toLong())
+    }
+
+    @Test fun aFullDiskIsAStorageFailureThatKeepsTheWrittenPrefix() {
+        // The disk refuses a write partway through a full 200: the failure is the phone's
+        // storage, not the connection, and the bytes already written can be continued.
+        val size = 1024 * 1024
+        val limit = 256L * 1024
+        val file = file("")
+        server.enqueue(MockResponse().setResponseCode(200).setBody(Buffer().write(ByteArray(size) { 7 })).addHeader("ETag", strongTag))
+        val result = runBlocking {
+            FileTransfer(file, size.toLong(), null, false, null, url,
+                request = { ServerResult.Ok(client.newCall(Request.Builder().url(server.url("/download")).build()).execute()) },
+                progress = {},
+                openOutput = { target -> FullDisk(target, limit) }).transfer()
+        }
+        assertThat(result).isInstanceOf(FileTransferResult.StorageFailed::class.java)
+        result as FileTransferResult.StorageFailed
+        assertThat(result.validator).isEqualTo(strongTag)
+        assertThat(result.urlFingerprint).isEqualTo(fingerprint)
+        assertThat(result.bytesOnDisk).isEqualTo(file.length())
+        assertThat(file.length()).isGreaterThan(0L)
+        assertThat(file.length()).isAtMost(limit)
+    }
+
+    /** A file stream that fails as a full disk does once [limit] bytes are on disk. */
+    private class FullDisk(file: File, private val limit: Long) : FileOutputStream(file, true) {
+        private var onDisk = file.length()
+
+        override fun write(b: ByteArray, off: Int, len: Int) {
+            if (onDisk + len > limit) throw IOException("No space left on device")
+            super.write(b, off, len)
+            onDisk += len
+        }
     }
 
     @Test fun a05dWeakTagUsesOldEnoughLastModified() {

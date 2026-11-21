@@ -30,6 +30,12 @@ sealed interface FileTransferResult {
      * the validator and URL fingerprint they came under, so the next attempt can continue them.
      */
     data class Interrupted(val validator: String?, val isDate: Boolean, val urlFingerprint: String, val bytesOnDisk: Long, val detail: String) : FileTransferResult
+
+    /**
+     * The phone's storage refused a write, for example because it is full. The bytes already on
+     * disk stay continuable, as after [Interrupted]; the cause is storage, not the network.
+     */
+    data class StorageFailed(val validator: String?, val isDate: Boolean, val urlFingerprint: String, val bytesOnDisk: Long, val detail: String) : FileTransferResult
     data class Mismatch(val detail: String) : FileTransferResult
     data class Unexpected(val detail: String) : FileTransferResult
 }
@@ -49,6 +55,14 @@ class FileTransfer(
     private val downloadUrl: String,
     private val request: suspend (ResumeRequest?) -> ServerResult<Response>,
     private val progress: (Long) -> Unit,
+    /**
+     * A full response was accepted and the file emptied for it: the caller persists the validator
+     * and URL fingerprint before any body byte is written, so a pause, a cancel or a process death
+     * during the copy leaves a prefix that can be continued.
+     */
+    private val accepted: suspend (validator: String?, isDate: Boolean, urlFingerprint: String) -> Unit = { _, _, _ -> },
+    /** Opens [file] for appending; tests substitute a stream that fails like a full disk. */
+    private val openOutput: (File) -> FileOutputStream = { FileOutputStream(it, true) },
 ) {
     suspend fun transfer(): FileTransferResult = withContext(Dispatchers.IO) { transferOnIo(coroutineContext.job) }
 
@@ -82,7 +96,14 @@ class FileTransfer(
         }
     }
 
-    private fun handle(response: Response, prefix: Long, fingerprint: String, job: Job): FileTransferResult {
+    private suspend fun handle(response: Response, prefix: Long, fingerprint: String, job: Job): FileTransferResult {
+        // The client maps these before a response reaches here; a channel that passes them on
+        // still gets the same outcome.
+        when (response.code) {
+            401 -> return FileTransferResult.SessionExpired
+            403 -> return FileTransferResult.Forbidden
+            404 -> return FileTransferResult.NotFound
+        }
         if (response.header("X-Accel-Redirect") != null || response.code == 204) return FileTransferResult.NoAudio
         if (response.code == 416) {
             if (file.length() == expectedSize && expectedSize > 0) {
@@ -130,7 +151,7 @@ class FileTransfer(
         return response.header("ETag") == savedValidator
     }
 
-    private fun writeBody(
+    private suspend fun writeBody(
         response: Response,
         startLength: Long,
         range: ByteRange?,
@@ -153,9 +174,11 @@ class FileTransfer(
                 }
                 if (firstCount == 0) return FileTransferResult.NoAudio
                 if (looksLikeHtml(buffer, firstCount)) return FileTransferResult.Unexpected("HTML download response")
-                if (range == null) truncate(0)
-                file.parentFile?.mkdirs()
-                FileOutputStream(file, true).use { output ->
+                if (range == null) {
+                    onDisk { truncate(0) }
+                    accepted(validator?.value, validator?.isDate ?: false, fingerprint)
+                }
+                onDisk { file.parentFile?.mkdirs(); openOutput(file) }.use { output ->
                     var pending = firstCount
                     try {
                         while (true) {
@@ -168,23 +191,25 @@ class FileTransfer(
                                 truncate(startLength)
                                 return FileTransferResult.Mismatch("Range body exceeds Content-Range")
                             }
-                            output.write(buffer, 0, count)
+                            onDisk { output.write(buffer, 0, count) }
                             written += count
-                            val onDisk = startLength + written
-                            if (onDisk - lastSync >= SYNC_BYTES) {
-                                output.fd.sync()
-                                lastSync = onDisk
+                            val length = startLength + written
+                            if (length - lastSync >= SYNC_BYTES) {
+                                onDisk { output.fd.sync() }
+                                lastSync = length
                             }
-                            if (onDisk - lastProgress >= PROGRESS_BYTES) {
-                                progress(onDisk)
-                                lastProgress = onDisk
+                            if (length - lastProgress >= PROGRESS_BYTES) {
+                                progress(length)
+                                lastProgress = length
                             }
                         }
                     } finally {
-                        output.fd.sync()
+                        onDisk { output.fd.sync() }
                     }
                 }
             }
+        } catch (error: DiskWriteFailed) {
+            return FileTransferResult.StorageFailed(validator?.value, validator?.isDate ?: false, fingerprint, file.length(), error.message ?: "Could not write the download")
         } catch (error: IOException) {
             return FileTransferResult.Interrupted(validator?.value, validator?.isDate ?: false, fingerprint, file.length(), error.message ?: "Download interrupted")
         }
@@ -219,6 +244,15 @@ class FileTransfer(
         ServerError.SessionExpired -> FileTransferResult.SessionExpired
         is ServerError.Unexpected -> FileTransferResult.Unexpected(error.detail)
         else -> FileTransferResult.Transient(error.toString())
+    }
+
+    /** Marks a failed local write, so it is not taken for a broken connection. */
+    private class DiskWriteFailed(cause: IOException) : IOException(cause.message, cause)
+
+    private inline fun <T> onDisk(write: () -> T): T = try {
+        write()
+    } catch (error: IOException) {
+        throw DiskWriteFailed(error)
     }
 
     private fun truncate(length: Long) {
