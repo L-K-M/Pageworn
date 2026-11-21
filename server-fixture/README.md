@@ -71,6 +71,15 @@ curl http://127.0.0.1:13390/log
 server-fixture/fault_proxy_selftest.py
 ```
 
+`m3-check.sh <emulator-serial>` runs the M3 exit check
+(`DownloadIntegrationTest`): it starts two proxies, "Home" on 13380 and
+"Remote" on 13381 (control ports 13390 and 13391), and between phases turns
+airplane mode on and off and kills the app's process mid-transfer. Phase 6
+fills the emulator's data volume with a preallocated file in the app's
+files directory, grows it again whenever the platform purges cached data to
+make room, and deletes it at the end. `ONLY="phase6 phase8"` runs only the
+named phases.
+
 ## Why named volumes instead of bind mounts
 
 Docker on macOS often runs inside a Colima VM whose bind mounts of host
