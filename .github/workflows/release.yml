@@ -103,6 +103,7 @@ jobs:
         with:
           generate_release_notes: true
           fail_on_unmatched_files: true
+          overwrite_files: false
           files: artifacts/pageworn-${{ github.ref_name }}.apk
           body: |
             Install the signed APK attached to this release. Android Auto lists
