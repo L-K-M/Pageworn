@@ -29,6 +29,8 @@ class AddressHttp(
     val policy: AddressPolicy,
     platformTrust: X509TrustManager,
     connectTimeoutMs: Long = 1_500,
+    private val diagnostics: NetworkDiagnostics? = null,
+    private val addressLabel: String = "",
 ) {
     private val trust = AddressTrustManager(platformTrust, policy.confirmedCertSha256)
     private val client: OkHttpClient
@@ -68,7 +70,22 @@ class AddressHttp(
             .build()
     }
 
-    suspend fun execute(request: Request): ServerResult<Response> = try {
+    /**
+     * Runs one approved request and records a redacted entry under [operation]. The entry keeps
+     * the outcome category only; the URL, its query, credentials and any error message stay out.
+     */
+    suspend fun execute(request: Request, operation: DiagnosticOperation = DiagnosticOperation.REQUEST): ServerResult<Response> {
+        val startedAtMillis = diagnostics?.nowMillis() ?: 0L
+        val result = sendOnce(request)
+        val status = when (result) {
+            is ServerResult.Ok -> NetworkDiagnostics.statusOf(result.value.code)
+            is ServerResult.Failed -> NetworkDiagnostics.statusOf(result.error)
+        }
+        diagnostics?.record(addressLabel, operation, status, startedAtMillis, policy.baseUrl.resolve("").host)
+        return result
+    }
+
+    private suspend fun sendOnce(request: Request): ServerResult<Response> = try {
         val response = client.newCall(request).await()
         if (request.url.isHttps && policy.confirmedCertSha256 == null) passedNormalValidation = true
         ServerResult.Ok(response)
@@ -88,10 +105,10 @@ class AddressHttp(
         ServerResult.Failed(ServerError.Unreachable(error.message ?: error.javaClass.simpleName))
     }
 
-    suspend fun executeFollowingRedirects(request: Request): ServerResult<Response> {
+    suspend fun executeFollowingRedirects(request: Request, operation: DiagnosticOperation = DiagnosticOperation.REQUEST): ServerResult<Response> {
         var current = request
         repeat(4) { redirects ->
-            when (val result = execute(current)) {
+            when (val result = execute(current, operation)) {
                 is ServerResult.Failed -> return result
                 is ServerResult.Ok -> {
                     val response = result.value
@@ -122,6 +139,7 @@ class AddressHttp(
             }
         })
     }
+
 
     private fun allCauses(error: Throwable): List<Throwable> {
         val seen = mutableSetOf<Throwable>()

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lint>
+    <!-- The player and its tests use the pinned Media3 extractor, renderer and session APIs. -->
+    <issue id="UnsafeOptInUsageError">
+        <option name="opt-in" value="androidx.media3.common.util.UnstableApi" />
+    </issue>
+    <!-- Pageworn's Android Auto surface browses downloaded books and has no voice search. -->
+    <issue id="MissingIntentFilterForMediaSearch" severity="ignore" />
+</lint>

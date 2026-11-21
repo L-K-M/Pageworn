@@ -4,6 +4,8 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.net.ConnectivityManager
+import android.net.Uri
+import android.os.Build
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.FileDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
@@ -30,6 +32,7 @@ import ch.lkmc.pageworn.playback.PlayerConnection
 import ch.lkmc.pageworn.playback.ProgressWriter
 import ch.lkmc.pageworn.server.KeystoreTokenVault
 import ch.lkmc.pageworn.server.LocalNetworkAccess
+import ch.lkmc.pageworn.server.NetworkDiagnostics
 import ch.lkmc.pageworn.server.RouteMode
 import ch.lkmc.pageworn.server.TokenVault
 import ch.lkmc.pageworn.transfer.JobSchedulerTransfers
@@ -38,12 +41,14 @@ import ch.lkmc.pageworn.transfer.TransferCoordinator
 import ch.lkmc.pageworn.transfer.TransferNotifications
 import ch.lkmc.pageworn.ui.state.AppNotices
 import java.io.File
+import java.io.IOException
 import java.security.KeyStore
 import javax.net.ssl.TrustManagerFactory
 import javax.net.ssl.X509TrustManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 
 /**
@@ -86,6 +91,23 @@ class AppContainer(private val app: PagewornApp) {
 
     val tokenVault: TokenVault by lazy { KeystoreTokenVault(app) }
     val localNetwork: LocalNetworkAccess by lazy { LocalNetworkAccess(app) }
+    internal val networkDiagnostics = NetworkDiagnostics(nowMs = { liveClock.wallMillis() })
+
+    suspend fun exportDiagnostics(destination: Uri): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val output = app.contentResolver.openOutputStream(destination) ?: return@withContext false
+            output.bufferedWriter(Charsets.UTF_8).use { writer ->
+                writer.appendLine("Pageworn ${BuildConfig.VERSION_NAME}")
+                writer.appendLine("Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
+                writer.append(networkDiagnostics.render())
+            }
+            true
+        } catch (_: IOException) {
+            false
+        } catch (_: SecurityException) {
+            false
+        }
+    }
 
     /** One HTTP client whose pool and dispatcher every address shares; each address adds its own TLS policy. */
     private val sharedHttp: OkHttpClient by lazy { OkHttpClient() }
@@ -108,6 +130,7 @@ class AppContainer(private val app: PagewornApp) {
             nowMs = { liveClock.wallMillis() },
             currentNetwork = { connectivity.activeNetwork },
             routeMode = { settings.pinnedAddressId.let { if (it == null) RouteMode.AUTOMATIC to null else RouteMode.MANUAL to it } },
+            diagnostics = networkDiagnostics,
         )
     }
 

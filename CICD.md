@@ -59,3 +59,9 @@ export the other three signing inputs, then run
 `scripts/build.sh --release 1.2.3`. The resulting release APK is a test
 fixture. The install and playback smoke check is
 [A31](docs/06-delivery-and-tests.md#acceptance-matrix).
+
+The Android build generates the dependency notices from each variant’s runtime
+classpath. To inspect the release notices without building a signed APK, run
+`./gradlew :app:prepareLibraryDefinitionsRelease` and open
+`app/build/generated/aboutLibraries/release/res/raw/aboutlibraries.json`.
+Settings also includes the Spectral licence from the bundled font resources.

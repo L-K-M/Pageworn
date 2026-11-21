@@ -1,5 +1,6 @@
 package ch.lkmc.pageworn.debug
 
+import android.annotation.SuppressLint
 import android.content.Context
 import androidx.annotation.DrawableRes
 import ch.lkmc.pageworn.AppContainer
@@ -89,6 +90,7 @@ object DemoLibrary {
         )
     }
 
+    @SuppressLint("ResourceType") // The fixture drawables are PNG files copied byte for byte.
     private fun coverFile(context: Context, @DrawableRes res: Int, name: String): File {
         val out = File(context.cacheDir, "demo-covers/$name.png")
         out.parentFile?.mkdirs()

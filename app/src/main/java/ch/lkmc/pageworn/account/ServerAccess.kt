@@ -11,6 +11,8 @@ import ch.lkmc.pageworn.server.AddressPolicy
 import ch.lkmc.pageworn.server.AddressSession
 import ch.lkmc.pageworn.server.BaseUrl
 import ch.lkmc.pageworn.server.LocalNetworkAccess
+import ch.lkmc.pageworn.server.DiagnosticOperation
+import ch.lkmc.pageworn.server.NetworkDiagnostics
 import ch.lkmc.pageworn.server.NoRoute
 import ch.lkmc.pageworn.server.RouteCandidate
 import ch.lkmc.pageworn.server.RouteDecision
@@ -52,6 +54,7 @@ class ServerAccess(
     private val nowMs: () -> Long,
     private val currentNetwork: () -> Any?,
     private val routeMode: () -> Pair<RouteMode, String?>,
+    private val diagnostics: NetworkDiagnostics? = null,
 ) {
     private val connections = ConcurrentHashMap<String, AddressConnection>()
 
@@ -71,8 +74,11 @@ class ServerAccess(
     /** The client objects for [address]; reused while its policy is unchanged. */
     fun connection(address: AddressEntity): AddressConnection {
         val policy = policyOf(address)
-        connections[address.addressId]?.let { if (it.http.policy == policy) return it }
-        val http = AddressHttp(sharedHttp, policy, platformTrust)
+        connections[address.addressId]?.let { if (it.http.policy == policy && it.address.label == address.label) return it }
+        val http = AddressHttp(
+            sharedHttp, policy, platformTrust,
+            diagnostics = diagnostics, addressLabel = address.label,
+        )
         val client = AbsClient(http)
         val connection = AddressConnection(address, http, client, AddressSession(address.addressId, client, vault, nowMs))
         connections[address.addressId] = connection
@@ -80,10 +86,10 @@ class ServerAccess(
     }
 
     /** A connection for an address that is not stored yet (connection setup and pairing). */
-    fun transient(policy: AddressPolicy, addressId: String): AddressConnection {
-        val http = AddressHttp(sharedHttp, policy, platformTrust)
+    fun transient(policy: AddressPolicy, addressId: String, label: String = ""): AddressConnection {
+        val http = AddressHttp(sharedHttp, policy, platformTrust, diagnostics = diagnostics, addressLabel = label)
         val client = AbsClient(http)
-        val placeholder = AddressEntity(addressId = addressId, profileId = "", baseUrl = policy.baseUrl.value, label = "", priority = 0)
+        val placeholder = AddressEntity(addressId = addressId, profileId = "", baseUrl = policy.baseUrl.value, label = label, priority = 0)
         return AddressConnection(placeholder, http, client, AddressSession(addressId, client, vault, nowMs))
     }
 
@@ -99,10 +105,20 @@ class ServerAccess(
     suspend fun <T> route(work: suspend (AddressConnection) -> ServerResult<T>): Routed<T> {
         val (mode, pinned) = routeMode()
         val tried = mutableSetOf<String>()
+        val startedAtMillis = diagnostics?.nowMillis() ?: 0L
         while (true) {
             val decision = selector.select(currentNetwork(), mode, pinned)
             val addressId = when (decision) {
-                is RouteDecision.None -> return Routed.Unavailable(decision.reason)
+                is RouteDecision.None -> {
+                    diagnostics?.let { log ->
+                        val label = routeLabel(decision.reason)
+                        val address = db.profiles().current()?.let { db.addresses().forProfile(it.profileId) }
+                            ?.singleOrNull { it.label == label }
+                        log.record(address?.label.orEmpty(), DiagnosticOperation.ROUTE, NetworkDiagnostics.statusOf(decision.reason),
+                            startedAtMillis, address?.let { BaseUrl(it.baseUrl).resolve("").host })
+                    }
+                    return Routed.Unavailable(decision.reason)
+                }
                 is RouteDecision.Use -> decision.addressId
             }
             // Each address gets one attempt per request, so a flapping address cannot loop.
@@ -117,6 +133,10 @@ class ServerAccess(
                 is ServerResult.Failed -> {
                     record(address, result.error)
                     if (!movesOn(result.error)) return Routed.Failed(result.error, addressId)
+                    // The attempt through this address already reached the log; this entry records
+                    // that routing abandoned it and moved on.
+                    diagnostics?.record(address.label, DiagnosticOperation.ROUTE, NetworkDiagnostics.statusOf(result.error),
+                        startedAtMillis, connection.http.policy.baseUrl.resolve("").host)
                     selector.invalidate(addressId)
                 }
             }
@@ -126,6 +146,15 @@ class ServerAccess(
     /** Forgets the cached route, after an address was added, changed or removed. */
     suspend fun invalidateRoutes() {
         db.profiles().current()?.let { profile -> db.addresses().forProfile(profile.profileId).forEach { selector.invalidate(it.addressId) } }
+    }
+
+    /** The label a routing failure names, when it names one address. */
+    private fun routeLabel(reason: NoRoute): String? = when (reason) {
+        is NoRoute.CertificateChanged -> reason.label
+        is NoRoute.CertificateUnrecognized -> reason.label
+        is NoRoute.LocalNetworkDenied -> reason.label
+        is NoRoute.Unreachable -> reason.label
+        NoRoute.SignedOut -> null
     }
 
     private fun movesOn(error: ServerError): Boolean = when (error) {
@@ -174,6 +203,7 @@ class ServerAccess(
     }
 
     companion object {
+
         fun policyOf(address: AddressEntity) = AddressPolicy(
             baseUrl = BaseUrl(address.baseUrl),
             cleartextOptIn = address.cleartextOptIn,

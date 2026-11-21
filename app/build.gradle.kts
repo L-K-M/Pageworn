@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.aboutlibraries)
 }
 
 // Release identity comes from the version tag (see .github/workflows/release.yml).
@@ -91,6 +92,17 @@ android {
 kotlin {
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_17)
+    }
+}
+
+// The notices list the release variant's runtime dependencies. Platform/BOM entries
+// carry no shipped code, so they stay out of the list.
+aboutLibraries {
+    collect {
+        includePlatform = false
+    }
+    export {
+        prettyPrint = true
     }
 }
 

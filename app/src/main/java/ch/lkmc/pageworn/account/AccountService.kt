@@ -123,7 +123,7 @@ class AccountService(
         val host = baseUrl.resolve("").host
         if (localNetwork.blocks(host)) return Outcome.Err(AddressProblem.LocalNetworkPermission(host, denied = false))
         val policy = AddressPolicy(baseUrl, cleartextOptIn = baseUrl.isCleartext, confirmedCertSha256 = trustedSha256, passedNormalValidation = false)
-        val connection = access.transient(policy, newId())
+        val connection = access.transient(policy, newId(), label)
         val status = when (val result = connection.client.status()) {
             is ServerResult.Failed -> return Outcome.Err(addressProblem(result.error))
             is ServerResult.Ok -> result.value
@@ -140,7 +140,7 @@ class AccountService(
      */
     suspend fun signIn(address: CheckedAddress, username: String, password: String): SignInResult {
         val policy = AddressPolicy(address.baseUrl, address.cleartextOptIn, address.trustedSha256, address.passedNormalValidation)
-        val connection = access.transient(policy, newId())
+        val connection = access.transient(policy, newId(), address.label)
         val account = when (val result = connection.client.login(username, password)) {
             is ServerResult.Failed -> return signInFailure(result.error)
             is ServerResult.Ok -> result.value
@@ -181,7 +181,7 @@ class AccountService(
     /** Discards a pairing the listener declined, revoking its fresh session. */
     suspend fun declinePairing(pairing: PendingPairing) {
         val policy = AddressPolicy(pairing.address.baseUrl, pairing.address.cleartextOptIn, pairing.address.trustedSha256, pairing.address.passedNormalValidation)
-        access.transient(policy, newId()).client.logout(pairing.account.tokens.refreshToken)
+        access.transient(policy, newId(), pairing.address.label).client.logout(pairing.account.tokens.refreshToken)
     }
 
     private suspend fun createProfile(address: CheckedAddress, account: Account, libraries: List<RemoteLibrary>): SignInResult {

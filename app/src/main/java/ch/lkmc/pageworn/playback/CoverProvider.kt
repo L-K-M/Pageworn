@@ -1,5 +1,6 @@
 package ch.lkmc.pageworn.playback
 
+import android.annotation.SuppressLint
 import android.content.ContentProvider
 import android.content.ContentValues
 import android.content.Context
@@ -37,7 +38,10 @@ class CoverProvider : ContentProvider() {
             val pfd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
             return AssetFileDescriptor(pfd, 0, AssetFileDescriptor.UNKNOWN_LENGTH)
         }
-        return context.resources.openRawResourceFd(R.drawable.pw_cover_cloth)
+        // The packaged PNG is also available as a file for clients of the provider.
+        @SuppressLint("ResourceType")
+        val fallback = context.resources.openRawResourceFd(R.drawable.pw_cover_cloth)
+        return fallback
     }
 
     override fun query(uri: Uri, projection: Array<out String>?, selection: String?, selectionArgs: Array<out String>?, sortOrder: String?): Cursor? = null

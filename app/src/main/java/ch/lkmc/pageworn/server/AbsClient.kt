@@ -58,7 +58,7 @@ private operator fun List<Int>.compareTo(other: List<Int>): Int {
 }
 
 class AbsClient(private val http: AddressHttp, private val json: Json = Json { ignoreUnknownKeys = true }) {
-    suspend fun status(): ServerResult<ServerStatus> = get("status") { body ->
+    suspend fun status(): ServerResult<ServerStatus> = get("status", operation = DiagnosticOperation.STATUS) { body ->
         val obj = body.jsonObject
         ServerStatus(obj.string("serverVersion"), obj.required("isInit").jsonPrimitive.boolean,
             obj.required("authMethods").jsonArray.map { it.jsonPrimitive.content })
@@ -72,28 +72,30 @@ class AbsClient(private val http: AddressHttp, private val json: Json = Json { i
             })
         val request = request("login").header("x-return-tokens", "true")
             .post(body.toRequestBody("application/json".toMediaType())).build()
-        return send(request, authorized = false, login = true) { account(it) }
+        return send(request, authorized = false, login = true, operation = DiagnosticOperation.SIGN_IN) { account(it) }
     }
 
     suspend fun refresh(refreshToken: String): ServerResult<Account> = send(
         request("auth/refresh").header("x-refresh-token", refreshToken).post(emptyBody()).build(),
-        authorized = false, refresh = true,
+        authorized = false, refresh = true, operation = DiagnosticOperation.TOKEN_REFRESH,
     ) { account(it) }
 
     suspend fun logout(refreshToken: String): ServerResult<Unit> = send(
         request("logout").header("x-refresh-token", refreshToken).post(emptyBody()).build(),
+        operation = DiagnosticOperation.SIGN_OUT,
     ) { }
 
-    suspend fun me(access: String): ServerResult<AccountDetails> = get("api/me", access) { body ->
+    suspend fun me(access: String): ServerResult<AccountDetails> = get("api/me", access, operation = DiagnosticOperation.ACCOUNT) { body ->
         details(body.jsonObject)
     }
 
-    suspend fun libraries(access: String): ServerResult<List<RemoteLibrary>> = get("api/libraries", access) { body ->
-        body.jsonObject.required("libraries").jsonArray.map { it.jsonObject }
-            .filter { it.string("mediaType") == "book" }
-            .map { RemoteLibrary(it.string("id"), it.string("name"), it.required("displayOrder").jsonPrimitive.int) }
-            .sortedBy(RemoteLibrary::displayOrder)
-    }
+    suspend fun libraries(access: String): ServerResult<List<RemoteLibrary>> =
+        get("api/libraries", access, operation = DiagnosticOperation.LIBRARIES) { body ->
+            body.jsonObject.required("libraries").jsonArray.map { it.jsonObject }
+                .filter { it.string("mediaType") == "book" }
+                .map { RemoteLibrary(it.string("id"), it.string("name"), it.required("displayOrder").jsonPrimitive.int) }
+                .sortedBy(RemoteLibrary::displayOrder)
+        }
 
     suspend fun itemsPage(access: String, libraryId: String, page: Int, limit: Int): ServerResult<CatalogPage> {
         require(page >= 0)
@@ -109,7 +111,7 @@ class AbsClient(private val http: AddressHttp, private val json: Json = Json { i
         val url = http.policy.baseUrl.resolve("api/items/").newBuilder()
             .addPathSegment(itemId).addQueryParameter("expanded", "1").build()
         return send(Request.Builder().url(url).header("Authorization", "Bearer $access").get().build(),
-            authorized = true) { parseItem(it.jsonObject) }
+            authorized = true, operation = DiagnosticOperation.ITEM_DETAILS) { parseItem(it.jsonObject) }
     }
 
     /**
@@ -127,7 +129,7 @@ class AbsClient(private val http: AddressHttp, private val json: Json = Json { i
             builder.header("Range", "bytes=${resume.from}-")
             builder.header("If-Range", resume.validator)
         }
-        return when (val result = http.executeFollowingRedirects(builder.build())) {
+        return when (val result = http.executeFollowingRedirects(builder.build(), DiagnosticOperation.DOWNLOAD)) {
             is ServerResult.Failed -> result
             is ServerResult.Ok -> when (result.value.code) {
                 401 -> result.value.close().let { ServerResult.Failed(ServerError.SessionExpired) }
@@ -166,7 +168,7 @@ class AbsClient(private val http: AddressHttp, private val json: Json = Json { i
             .addPathSegment(itemId).addPathSegment("cover")
             .apply(query)
             .build()
-        val result = http.executeFollowingRedirects(Request.Builder().url(url).get().build())
+        val result = http.executeFollowingRedirects(Request.Builder().url(url).get().build(), DiagnosticOperation.COVER)
         if (result is ServerResult.Failed) return result
         val response = (result as ServerResult.Ok).value
         return withContext(Dispatchers.IO) { response.use { readCover(it, maxBytes) } }
@@ -237,7 +239,8 @@ class AbsClient(private val http: AddressHttp, private val json: Json = Json { i
             .addQueryParameter("limit", limit.toString())
             .addQueryParameter("sort", "media.metadata.title")
             .addQueryParameter("minified", "1").build()
-        return send(Request.Builder().url(url).header("Authorization", "Bearer $access").get().build(), authorized = true) { body ->
+        return send(Request.Builder().url(url).header("Authorization", "Bearer $access").get().build(),
+            authorized = true, operation = DiagnosticOperation.CATALOG) { body ->
             val obj = body.jsonObject
             // Every entry is returned, playable or not: the refresh counts all of them against
             // `total` before it skips the ones without audio tracks.
@@ -256,17 +259,20 @@ class AbsClient(private val http: AddressHttp, private val json: Json = Json { i
 
     private fun request(path: String): Request.Builder = Request.Builder().url(http.policy.baseUrl.resolve(path))
 
-    private suspend fun <T> get(path: String, access: String? = null, decode: (JsonElement) -> T): ServerResult<T> {
+    private suspend fun <T> get(
+        path: String, access: String? = null, operation: DiagnosticOperation,
+        decode: (JsonElement) -> T,
+    ): ServerResult<T> {
         val builder = request(path).get()
         if (access != null) builder.header("Authorization", "Bearer $access")
-        return send(builder.build(), authorized = access != null, decode = decode)
+        return send(builder.build(), authorized = access != null, decode = decode, operation = operation)
     }
 
     private suspend fun <T> send(
         request: Request, authorized: Boolean = false, login: Boolean = false, refresh: Boolean = false,
-        decode: (JsonElement) -> T,
+        operation: DiagnosticOperation, decode: (JsonElement) -> T,
     ): ServerResult<T> {
-        val result = http.executeFollowingRedirects(request)
+        val result = http.executeFollowingRedirects(request, operation)
         if (result is ServerResult.Failed) return result
         val response = (result as ServerResult.Ok).value
         // The body streams from the socket, which Android refuses on the main thread.

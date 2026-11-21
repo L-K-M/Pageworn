@@ -18,7 +18,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import ch.lkmc.pageworn.ui.components.TextAction
@@ -28,7 +30,7 @@ import ch.lkmc.pageworn.ui.model.SettingsUiState
 import ch.lkmc.pageworn.ui.theme.PagewornTheme
 
 @Composable
-fun SettingsScreen(state: SettingsUiState, onBack: () -> Unit, onOpenAddresses: () -> Unit, onSignOut: () -> Unit, onConfirmSignOut: () -> Unit, onDismissSignOut: () -> Unit, onSignIn: () -> Unit, onExportDiagnostics: () -> Unit, onOpenLicences: () -> Unit) {
+fun SettingsScreen(state: SettingsUiState, onBack: () -> Unit, onOpenAddresses: () -> Unit, onSignOut: () -> Unit, onConfirmSignOut: () -> Unit, onDismissSignOut: () -> Unit, onSignIn: () -> Unit, onExportDiagnostics: () -> Unit, onOpenLicences: () -> Unit, exportFailed: Boolean = false) {
     Column(Modifier.fillMaxSize().paperBackground().statusBarsPadding().navigationBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) { TextAction("Back", onClick = onBack) }
         Text("Settings", Modifier.padding(bottom = 24.dp).semantics { heading() }, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.heading)
@@ -37,6 +39,12 @@ fun SettingsScreen(state: SettingsUiState, onBack: () -> Unit, onOpenAddresses: 
         state.accountName?.let { Text(it, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.metadata) }
         TextAction(if (state.signedIn) Copy.SIGN_OUT else Copy.SIGN_IN, onClick = if (state.signedIn) onSignOut else onSignIn)
         SettingsRow("Export diagnostics", onExportDiagnostics)
+        if (exportFailed) Text(
+            "Couldn’t export diagnostics. Try another location.",
+            Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+            color = PagewornTheme.colors.secondaryInk,
+            style = PagewornTheme.type.status,
+        )
         SettingsRow("Open-source licences", onOpenLicences)
         Text(state.versionText, Modifier.padding(vertical = 24.dp), color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.metadata)
     }

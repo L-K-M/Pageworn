@@ -22,6 +22,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import ch.lkmc.pageworn.AppContainer
 import ch.lkmc.pageworn.core.BookKey
+import ch.lkmc.pageworn.licences.LicenceNotices
 import ch.lkmc.pageworn.server.LocalNetworkAccess
 import ch.lkmc.pageworn.ui.components.MainScaffold
 import ch.lkmc.pageworn.ui.connect.ConnectScreen
@@ -32,6 +33,7 @@ import ch.lkmc.pageworn.ui.model.Destination
 import ch.lkmc.pageworn.ui.model.UiAction
 import ch.lkmc.pageworn.ui.player.PlayerScreen
 import ch.lkmc.pageworn.ui.settings.AddressesScreen
+import ch.lkmc.pageworn.ui.settings.LicencesScreen
 import ch.lkmc.pageworn.ui.settings.SettingsScreen
 import ch.lkmc.pageworn.ui.state.AddressesViewModel
 import ch.lkmc.pageworn.ui.state.ConnectMode
@@ -48,6 +50,7 @@ object Routes {
     const val MAIN = "main"
     const val PLAYER = "player"
     const val SETTINGS = "settings"
+    const val LICENCES = "licences"
     const val ADDRESSES = "addresses"
     const val CONNECT = "connect/{mode}/{addressId}"
     fun connect(mode: ConnectMode, addressId: String? = null) = "connect/${mode.name}/${addressId ?: "none"}"
@@ -151,6 +154,10 @@ fun AppNavHost(container: AppContainer, openPlayer: Boolean, openDownloaded: Int
         composable(Routes.SETTINGS) {
             val settings: SettingsViewModel = viewModel { SettingsViewModel(container) }
             val state by settings.state.collectAsStateWithLifecycle()
+            val exportFailed by settings.exportFailed.collectAsStateWithLifecycle()
+            val createDiagnostics = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
+                if (uri != null) settings.exportDiagnostics(uri)
+            }
             SettingsScreen(
                 state = state,
                 onBack = { navController.popBackStack() },
@@ -159,9 +166,14 @@ fun AppNavHost(container: AppContainer, openPlayer: Boolean, openDownloaded: Int
                 onConfirmSignOut = { settings.signOut(); navController.popBackStack() },
                 onDismissSignOut = settings::dismissSignOut,
                 onSignIn = { navController.navigate(Routes.connect(ConnectMode.SIGN_IN)) },
-                onExportDiagnostics = {},
-                onOpenLicences = {},
+                onExportDiagnostics = { createDiagnostics.launch("pageworn-diagnostics.txt") },
+                onOpenLicences = { navController.navigate(Routes.LICENCES) },
+                exportFailed = exportFailed,
             )
+        }
+        composable(Routes.LICENCES) {
+            val entries = remember(context) { LicenceNotices.entries(context) }
+            LicencesScreen(entries, onBack = { navController.popBackStack() })
         }
         composable(Routes.ADDRESSES) {
             val addresses: AddressesViewModel = viewModel { AddressesViewModel(container) }

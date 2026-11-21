@@ -1,5 +1,6 @@
 package ch.lkmc.pageworn.ui.state
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ch.lkmc.pageworn.AppContainer
@@ -19,6 +20,7 @@ import java.util.Date
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -28,6 +30,8 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     private val confirming = MutableStateFlow(false)
+    private val _exportFailed = MutableStateFlow(false)
+    val exportFailed = _exportFailed.asStateFlow()
     val state = container.database.profiles().observe().flatMapLatest { profile ->
         if (profile == null) flowOf(null to emptyList())
         else container.database.addresses().observe(profile.profileId).flatMapLatest { addresses -> flowOf(profile to addresses) }
@@ -37,6 +41,10 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
 
     fun askSignOut() { confirming.value = true }
     fun dismissSignOut() { confirming.value = false }
+    fun exportDiagnostics(destination: Uri) {
+        viewModelScope.launch { _exportFailed.value = !container.exportDiagnostics(destination) }
+    }
+
     fun signOut() {
         confirming.value = false
         container.appScope.launch { container.accounts.signOut() }
