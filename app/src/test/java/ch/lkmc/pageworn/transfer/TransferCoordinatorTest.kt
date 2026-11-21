@@ -5,6 +5,8 @@ import androidx.test.core.app.ApplicationProvider
 import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.core.FakeClock
 import ch.lkmc.pageworn.core.progress.StopKind
+import ch.lkmc.pageworn.core.timeline.ChapterOrigin
+import ch.lkmc.pageworn.core.timeline.RawChapter
 import ch.lkmc.pageworn.data.EditionAssembler
 import ch.lkmc.pageworn.data.EditionFiles
 import ch.lkmc.pageworn.data.EditionStore
@@ -53,6 +55,9 @@ class TransferCoordinatorTest {
     private var freeBytes = 100_000_000_000L
     private val unsupported = mutableSetOf<String>()
 
+    /** Markers the probe finds, by staged file name. */
+    private val probedChapters = mutableMapOf<String, List<RawChapter>>()
+
     @Before fun setUp() = runBlocking {
         db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), PagewornDatabase::class.java).build()
         files = EditionFiles(folder.newFolder("media"))
@@ -68,7 +73,7 @@ class TransferCoordinatorTest {
     private fun freshCoordinator() = TransferCoordinator(db, files, editions, routes,
         TrackVerifier { file, _ ->
             if (file.name in unsupported) TrackCheck.Unsupported("fixture unsupported")
-            else TrackCheck.Playable(90_000, "aac")
+            else TrackCheck.Playable(90_000, "aac", probedChapters[file.name].orEmpty())
         }, FormatSupport(DecoderAvailability { true }), clock, { freeBytes }, { "id-${++sequence}" })
 
     private fun address(id: String, priority: Int) = AddressEntity(id, PROFILE, "https://$id.example/", id, priority)
@@ -114,6 +119,31 @@ class TransferCoordinatorTest {
         clock.wall, StopKind.ORDINARY, clock.wall, 1, 1)
     private suspend fun disable(vararg ids: String) {
         ids.forEach { id -> db.addresses().get(id)?.let { db.addresses().upsert(it.copy(enabled = false)) } }
+    }
+
+    @Test fun a28_probedMarkersBecomeTheChaptersOnlyWithoutAUsableServerList() = runBlocking<Unit> {
+        val key = book("a28", "A" to source(1), "B" to source(2))
+        probedChapters["000.m4a"] = listOf(RawChapter(0, null, "The Gate"))
+        probedChapters["001.m4a"] = listOf(RawChapter(0, 40_000, " "), RawChapter(40_000, null, "The Tree"))
+        val id = enqueue(key)
+        drive(id)
+        ready(key)
+        val generation = checkNotNull(db.editions().edition(PROFILE, "a28")).generationId
+        // Each file's markers move to book time by the file's start; a blank title is numbered.
+        assertThat(db.editions().chapters(generation).map { Triple(it.startMs, it.endMs, it.title) }).containsExactly(
+            Triple(0L, 90_000L, "The Gate"),
+            Triple(90_000L, 130_000L, "Chapter 2"),
+            Triple(130_000L, 180_000L, "The Tree"),
+        ).inOrder()
+        assertThat(db.editions().chapters(generation).map { it.origin }.distinct()).containsExactly(ChapterOrigin.EMBEDDED)
+
+        // A usable server list wins, and the markers are not mixed into it.
+        editions.remove(key)
+        routes.manifests["a28"] = routes.manifests.getValue("a28").copy(chapters = listOf(RawChapter(0, 180_000, "Whole")))
+        val again = enqueue(key)
+        drive(again)
+        val replaced = checkNotNull(db.editions().edition(PROFILE, "a28")).generationId
+        assertThat(db.editions().chapters(replaced).map { it.title to it.origin }).containsExactly("Whole" to ChapterOrigin.SERVER)
     }
 
     @Test fun a04_duplicateTapRouteSwitchRestartsPartialButReusesComplete() = runBlocking {

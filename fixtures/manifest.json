@@ -621,6 +621,129 @@
       "status": "generated"
     },
     {
+      "command": "ffmpeg -hide_banner -loglevel error -y -i .work/fmt-mp3-chapters.wav -i .work/fmt-mp3-chapters-metadata.txt -map 0:a -map_metadata 1 -c:a libmp3lame -b:a 128k -write_xing 1 -id3v2_version 4 -fflags +bitexact -flags:a +bitexact assets/fixtures/fmt-mp3-chapters/sample.mp3",
+      "cues": [
+        {
+          "at_ms": 5250,
+          "freq_hz": 700
+        },
+        {
+          "at_ms": 54250,
+          "freq_hz": 900
+        }
+      ],
+      "embedded_chapters": [
+        {
+          "end": 30,
+          "start": 0,
+          "title": "Start"
+        },
+        {
+          "end": 60,
+          "start": 30,
+          "title": "Middle"
+        }
+      ],
+      "files": [
+        {
+          "codec": "mp3",
+          "container": "mp3",
+          "duration_ms": 60000,
+          "extension": "mp3",
+          "name": "sample.mp3",
+          "sample_rate": 44100,
+          "sha256": "b3d603ce70e5c1de0659463d3d603ef480ccf1d6c8144a3171bbb630da6b36ff",
+          "size_bytes": 961026
+        }
+      ],
+      "id": "fmt-mp3-chapters",
+      "nominal_duration_ms": 60000,
+      "server_release_admitting_extension": "v2.38.0",
+      "status": "generated"
+    },
+    {
+      "command": "ffmpeg -hide_banner -loglevel error -y -i .work/fmt-opus-chapters.wav -i .work/fmt-opus-chapters-metadata.txt -map 0:a -map_metadata 1 -c:a libopus -f opus -fflags +bitexact -flags:a +bitexact assets/fixtures/fmt-opus-chapters/sample.opus",
+      "cues": [
+        {
+          "at_ms": 5250,
+          "freq_hz": 700
+        },
+        {
+          "at_ms": 54250,
+          "freq_hz": 900
+        }
+      ],
+      "embedded_chapters": [
+        {
+          "end": 30,
+          "start": 0,
+          "title": "Start"
+        },
+        {
+          "end": 60,
+          "start": 30,
+          "title": "Middle"
+        }
+      ],
+      "files": [
+        {
+          "codec": "opus",
+          "container": "ogg",
+          "duration_ms": 60006,
+          "extension": "opus",
+          "name": "sample.opus",
+          "sample_rate": 48000,
+          "sha256": "c64a732e66b37a8f79e078cc76f3c13286bb8908b13f7066d20d671fd58d5da6",
+          "size_bytes": 662833
+        }
+      ],
+      "id": "fmt-opus-chapters",
+      "nominal_duration_ms": 60000,
+      "server_release_admitting_extension": "v2.38.0",
+      "status": "generated"
+    },
+    {
+      "command": "ffmpeg -hide_banner -loglevel error -y -i .work/fmt-ogg-vorbis-chapters.wav -af 'pan=stereo|c0=c0|c1=c0' -metadata CHAPTER001=00:00:00.000 -metadata CHAPTER001NAME=Start -metadata CHAPTER002=00:00:30.000 -metadata CHAPTER002NAME=Middle -c:a vorbis -strict -2 -f ogg -fflags +bitexact -flags:a +bitexact assets/fixtures/fmt-ogg-vorbis-chapters/sample.ogg",
+      "cues": [
+        {
+          "at_ms": 5250,
+          "freq_hz": 700
+        },
+        {
+          "at_ms": 54250,
+          "freq_hz": 900
+        }
+      ],
+      "embedded_chapters": [
+        {
+          "end": 30,
+          "start": 0,
+          "title": "Start"
+        },
+        {
+          "end": 60,
+          "start": 30,
+          "title": "Middle"
+        }
+      ],
+      "files": [
+        {
+          "codec": "vorbis",
+          "container": "ogg",
+          "duration_ms": 60000,
+          "extension": "ogg",
+          "name": "sample.ogg",
+          "sample_rate": 44100,
+          "sha256": "bcf6aa6d3d76e49fedbd4da392c00e36ba9f11c20434ffc9184e0d71e91a3531",
+          "size_bytes": 231158
+        }
+      ],
+      "id": "fmt-ogg-vorbis-chapters",
+      "nominal_duration_ms": 60000,
+      "server_release_admitting_extension": "v2.38.0",
+      "status": "generated"
+    },
+    {
       "command": "ffmpeg -hide_banner -loglevel error -y -i .work/fmt-wav-pcm.wav -c:a pcm_s16le -f wav -fflags +bitexact -flags:a +bitexact assets/fixtures/fmt-wav-pcm/sample.wav",
       "cues": [
         {

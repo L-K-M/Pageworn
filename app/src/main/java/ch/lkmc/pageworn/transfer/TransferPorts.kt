@@ -1,5 +1,6 @@
 package ch.lkmc.pageworn.transfer
 
+import ch.lkmc.pageworn.core.timeline.RawChapter
 import ch.lkmc.pageworn.account.Routed
 import ch.lkmc.pageworn.server.ItemManifest
 import ch.lkmc.pageworn.server.ResumeRequest
@@ -38,7 +39,8 @@ fun interface TrackVerifier {
 }
 
 sealed interface TrackCheck {
-    data class Playable(val durationMs: Long, val codec: String?) : TrackCheck
+    /** [chapters] are the file's embedded markers, relative to its start. */
+    data class Playable(val durationMs: Long, val codec: String?, val chapters: List<RawChapter> = emptyList()) : TrackCheck
 
     /** The player cannot open the file, or the matrix records its format as unsupported. */
     data class Unsupported(val detail: String) : TrackCheck

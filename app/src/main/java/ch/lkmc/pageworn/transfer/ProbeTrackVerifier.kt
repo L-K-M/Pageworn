@@ -15,7 +15,8 @@ class ProbeTrackVerifier(private val probe: MediaProbe) : TrackVerifier {
         val result = probe.probe(file)
         val duration = result.durationMs
         if (!result.playable || duration == null) return TrackCheck.Unsupported(result.error ?: "not playable")
-        // The server's codec name stays on the track; the probe only proves the file opens.
-        return TrackCheck.Playable(duration, codec = null)
+        // The server's codec name stays on the track; the probe proves the file opens and reads the
+        // markers it carries, which the chapter map uses when the server's list is unusable.
+        return TrackCheck.Playable(duration, codec = null, chapters = result.chapters)
     }
 }

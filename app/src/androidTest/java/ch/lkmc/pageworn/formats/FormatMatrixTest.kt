@@ -128,6 +128,7 @@ class FormatMatrixTest {
         val required = setOf(
             "fmt-m4b-aac", "fmt-m4a-aac", "fmt-mp4-aac", "fmt-mp3-cbr", "fmt-mp3-vbr", "fmt-mp3-vbr-long",
             "fmt-flac-flac", "fmt-opus-opus", "fmt-ogg-opus", "fmt-ogg-vorbis", "fmt-oga-vorbis",
+            "fmt-mp3-chapters", "fmt-opus-chapters", "fmt-ogg-vorbis-chapters",
         )
         outcomes.filter { it.id in required }.forEach { o ->
             assertWithMessage("${o.id} must be playable on API ${Build.VERSION.SDK_INT}: $o").that(o.playable).isTrue()

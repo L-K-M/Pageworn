@@ -4,6 +4,7 @@ import androidx.room.withTransaction
 import ch.lkmc.pageworn.account.Routed
 import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.core.Clock
+import ch.lkmc.pageworn.core.timeline.RawChapter
 import ch.lkmc.pageworn.data.EditionAssembler
 import ch.lkmc.pageworn.data.EditionFiles
 import ch.lkmc.pageworn.data.EditionStore
@@ -516,6 +517,7 @@ class TransferCoordinator(
         var job = save(start) { it.copy(state = TransferState.VERIFYING) }
         val dir = files.staging(job.stagingGenerationId)
         val rows = transfers.files(job.jobId)
+        val embeddedChapters = ArrayList<List<RawChapter>>(rows.size)
         val staged = rows.map { row ->
             val file = File(dir, row.localFilename)
             if (!file.isFile || file.length() != row.sizeBytes) {
@@ -526,7 +528,7 @@ class TransferCoordinator(
                 is TrackCheck.Unsupported -> return rest(job, TransferState.FAILED, FailureCategory.UNSUPPORTED_FORMAT)
                 is TrackCheck.Playable -> EditionAssembler.StagedTrack(
                     row.localFilename, row.sourceFileId, row.mtimeMs ?: 0, file.length(), check.durationMs, row.title, row.extension, check.codec ?: row.codec,
-                )
+                ).also { embeddedChapters += check.chapters }
             }
         }
         val cover = if (manifest.coverPresent) storeCover(dir, channel.cover(job.itemId)) else null
@@ -534,7 +536,7 @@ class TransferCoordinator(
             EditionAssembler.assemble(
                 job.stagingGenerationId, job.jobId, job.key,
                 EditionAssembler.Metadata(manifest.title, manifest.authors, manifest.narrators, manifest.description),
-                staged, manifest.chapters, embeddedChapters = emptyList(), coverFile = cover,
+                staged, manifest.chapters, embeddedChapters, coverFile = cover,
             )
         } catch (invalid: IllegalArgumentException) {
             return rest(job, TransferState.FAILED, FailureCategory.VERIFICATION)

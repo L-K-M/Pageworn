@@ -478,7 +478,20 @@ FORMAT_SPECS = [
     {"id": "fmt-ogg-opus", "name": "sample.ogg", "sr": 48000,
      "args": ["-c:a", "libopus", "-f", "ogg"]},
     {"id": "fmt-flac-flac", "name": "sample.flac", "sr": 44100,
-     "args": ["-c:a", "flac"], "flac_chapters": True},
+     "args": ["-c:a", "flac"], "comment_chapters": True},
+    # Embedded markers in the listener's other families: ID3v2 CHAP frames in
+    # MP3, and CHAPTERxxx comments in Opus and Ogg Vorbis.
+    {"id": "fmt-mp3-chapters", "name": "sample.mp3", "sr": 44100,
+     "args": ["-c:a", "libmp3lame", "-b:a", "128k", "-write_xing", "1", "-id3v2_version", "4"],
+     "chapters": [("Start", 0, 30), ("Middle", 30, 60)], "require_chapters": True},
+    {"id": "fmt-opus-chapters", "name": "sample.opus", "sr": 48000,
+     "args": ["-c:a", "libopus", "-f", "opus"],
+     "chapters": [("Start", 0, 30), ("Middle", 30, 60)], "require_chapters": True},
+    # ffmpeg's Ogg muxer writes no chapters for its native Vorbis encoder, so
+    # this one carries them as comment tags, as the FLAC sample does.
+    {"id": "fmt-ogg-vorbis-chapters", "name": "sample.ogg", "sr": 44100,
+     "args": ["-c:a", "vorbis", "-strict", "-2", "-f", "ogg"], "vorbis": True,
+     "comment_chapters": True, "require_chapters": True},
     {"id": "fmt-wav-pcm", "name": "sample.wav", "sr": 44100,
      "args": ["-c:a", "pcm_s16le", "-f", "wav"]},
     {"id": "fmt-aiff-pcm", "name": "sample.aiff", "sr": 44100,
@@ -519,32 +532,37 @@ def build_format_sample(spec: dict, cmds: list[str]) -> dict:
 
     if spec.get("awb"):
         run_docker_awb(wav, out, cmds)
-    elif spec.get("flac_chapters"):
+    elif spec.get("comment_chapters"):
         args = ["-i", rel(wav)]
+        if spec.get("vorbis"):
+            args += ["-af", "pan=stereo|c0=c0|c1=c0"]
         args += ["-metadata", "CHAPTER001=00:00:00.000", "-metadata", "CHAPTER001NAME=Start"]
         args += ["-metadata", "CHAPTER002=00:00:30.000", "-metadata", "CHAPTER002NAME=Middle"]
         args += spec["args"]
         args.append(rel(out))
         ffmpeg_cmd(args, cmds)
+        if spec.get("require_chapters") and not has_chapters(out):
+            raise RuntimeError("ffmpeg did not write the requested chapters")
         if not has_chapters(out):
             # ffmpeg could not write the chapter tags; fall back to plain audio.
             ffmpeg_cmd(["-i", rel(wav), *spec["args"], rel(out)], cmds)
     else:
         args = ["-i", rel(wav)]
-        if spec.get("vorbis"):
-            args += ["-af", "pan=stereo|c0=c0|c1=c0"]
         if spec.get("chapters"):
             meta = WORK_DIR / f"{fid}-metadata.txt"
             write_metadata(meta, {}, spec["chapters"])
             args += ["-i", rel(meta), "-map", "0:a", "-map_metadata", "1"]
+        # Output options follow every input.
+        if spec.get("vorbis"):
+            args += ["-af", "pan=stereo|c0=c0|c1=c0"]
         args += spec["args"]
         args.append(rel(out))
         ffmpeg_cmd(args, cmds)
         if spec.get("require_chapters") and not has_chapters(out):
-            raise RuntimeError("ffmpeg did not write the requested MP4 chapters")
+            raise RuntimeError("ffmpeg did not write the requested chapters")
 
     extra = {"server_release_admitting_extension": SERVER_RELEASE}
-    if spec.get("flac_chapters") and has_chapters(out):
+    if spec.get("comment_chapters") and has_chapters(out):
         extra["embedded_chapters"] = [
             {"start": 0, "end": 30, "title": "Start"},
             {"start": 30, "end": 60, "title": "Middle"},

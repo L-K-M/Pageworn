@@ -9,6 +9,7 @@ import androidx.media3.common.Player
 import androidx.media3.datasource.FileDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
+import ch.lkmc.pageworn.core.timeline.RawChapter
 import ch.lkmc.pageworn.playback.BookMediaSourceFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -18,8 +19,8 @@ import java.io.File
 
 /**
  * Opens a local track with the same extractors and decoders as the player, without playing it,
- * to learn its actual container, codec and duration before an edition is published. A track the
- * player cannot open is reported as unplayable, whatever its file name says.
+ * to learn its actual container, codec, duration and embedded chapter markers before an edition is
+ * published. A track the player cannot open is reported as unplayable, whatever its file name says.
  */
 class MediaProbe(private val context: Context) {
 
@@ -29,6 +30,8 @@ class MediaProbe(private val context: Context) {
         val sampleMimeType: String?,
         val codecs: String?,
         val error: String?,
+        /** Markers embedded in the file, relative to its start ([EmbeddedChapters]). */
+        val chapters: List<RawChapter> = emptyList(),
     )
 
     suspend fun probe(file: File, timeoutMs: Long = 20_000): Result = withContext(Dispatchers.Main) {
@@ -50,7 +53,11 @@ class MediaProbe(private val context: Context) {
             val format = player.currentTracks.groups.firstOrNull { it.type == C.TRACK_TYPE_AUDIO && it.length > 0 }?.getTrackFormat(0)
             val duration = player.duration.takeIf { it != C.TIME_UNSET && it > 0 }
             if (format == null) return@withContext Result(false, duration, null, null, "no audio track")
-            Result(duration != null, duration, format.sampleMimeType, format.codecs, if (duration == null) "unknown duration" else null)
+            Result(
+                duration != null, duration, format.sampleMimeType, format.codecs,
+                if (duration == null) "unknown duration" else null,
+                EmbeddedChapters.from(format.metadata),
+            )
         } finally {
             player.release()
         }
