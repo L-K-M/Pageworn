@@ -2,35 +2,20 @@
 
 Pageworn is an Android audiobook player for one listener with an [Audiobookshelf](https://www.audiobookshelf.org/) server. The plan, the interface specification and the art live in [`docs/`](docs/README.md); start there.
 
-## Build requirements
+## Build, test and release
 
-| Requirement | Version |
-|---|---|
-| JDK | 21 to run Gradle (the app compiles to Java 17 bytecode). Temurin 21 is what CI and the reference machine use. |
-| Android SDK | Platform `android-37.0` (compile and target SDK 37), build tools 37.0.0. Minimum SDK is 34 (Android 14). |
-| Gradle | 9.8.2 through the checked-in wrapper; do not install Gradle separately. |
-| Android Gradle Plugin, Kotlin | Pinned in [`gradle/libs.versions.toml`](gradle/libs.versions.toml) together with every library version. |
-| Fixture generation (optional) | Python 3 and ffmpeg 9.x, see [`fixtures/README.md`](fixtures/README.md). |
-| Reference server (optional) | Docker, for the local Audiobookshelf v2.38.0 instance described in [`server-fixture/README.md`](server-fixture/README.md). |
+[CI/CD](CICD.md) lists the toolchain (JDK 21, Android SDK platform `android-37.0`, build tools 37.0.0) and the build, review and signed-release commands. `scripts/build.sh` builds the debug APK and runs the JVM tests, as CI does on every push. Gradle runs through the checked-in 9.8.2 wrapper; [`gradle/libs.versions.toml`](gradle/libs.versions.toml) pins the Android Gradle Plugin, Kotlin and every library. The Compose BOM stays at 2026.09.00 (Compose 1.12) because Compose 1.13 requires compile SDK 37.1, and the plan fixes compile SDK 37.
 
-Point Gradle at the SDK with `ANDROID_HOME` or a `local.properties` file containing `sdk.dir=/path/to/sdk`.
+## Instrumented tests
 
-The Compose BOM is pinned to 2026.09.00 (Compose 1.12). Compose 1.13 requires compile SDK 37.1, and the plan fixes compile SDK 37.
-
-## Commands
+The instrumented tests play generated audio fixtures from the test APK's assets, so generate them first. That needs Python 3 and ffmpeg 9.x, as [`fixtures/README.md`](fixtures/README.md) describes. A test that needs a missing fixture fails and names it.
 
 ```sh
-./gradlew :app:assembleDebug            # debug APK in app/build/outputs/apk/debug/
-./gradlew :app:testDebugUnitTest        # JVM tests (CI runs these and the debug build on every push)
-./gradlew :app:installDebug             # install on the connected emulator or device
-python3 fixtures/generate.py            # generate the audio fixtures that instrumented tests use
-./gradlew :app:connectedDebugAndroidTest   # instrumented tests on every connected device
-ANDROID_SERIAL=emulator-5580 ./gradlew :app:connectedDebugAndroidTest   # on one emulator
+python3 fixtures/generate.py
+ANDROID_SERIAL=emulator-5554 ./gradlew :app:connectedDebugAndroidTest
 ```
 
-The instrumented tests read the generated fixtures from the test APK's assets. Generate them before running the tests; a test that needs a missing fixture fails and names it.
-
-Release builds are described in [`docs/06-delivery-and-tests.md`](docs/06-delivery-and-tests.md#build-ci-and-release) and in [`.github/workflows/release.yml`](.github/workflows/release.yml).
+Set `ANDROID_SERIAL` to run on one emulator; without it Gradle runs the tests on every connected device. The local Audiobookshelf v2.38.0 reference instance for server contract checks runs in Docker, as [`server-fixture/README.md`](server-fixture/README.md) describes.
 
 ## Licence
 

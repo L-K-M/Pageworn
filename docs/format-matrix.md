@@ -36,7 +36,7 @@ This is the format coverage record that [media format acceptance](05-playback-an
 | `fmt-wma-wmav2` | wma | asf | wmav2 | none | unsupported | unsupported | No Media3 extractor reads ASF, and no WMA decoder. |
 | `fmt-awb-amrwb` | awb | amr | amr_wb | none | playable, +0 / +0 ms | playable, +0 / +0 ms |  |
 | `fmt-caf-alac` | caf | caf | alac | none | unsupported | unsupported | No Media3 extractor reads CAF. |
-| `fmt-caf-aac` | caf | — | — | none | unsupported | unsupported | No fixture: ffmpeg 9.0.2 cannot mux AAC into CAF. CAF itself has no Media3 extractor (see fmt-caf-alac), so every CAF file is refused. |
+| `fmt-caf-aac` | caf | none | none | none | unsupported | unsupported | No fixture: ffmpeg 9.0.2 cannot mux AAC into CAF. CAF itself has no Media3 extractor (see fmt-caf-alac), so every CAF file is refused. |
 | `fmt-mpg-mp2` | mpg | mpeg | mp2 | none | unsupported | unsupported | MPEG-PS is extracted, but there is no MPEG audio layer II decoder. |
 | `fmt-mpeg-mp2` | mpeg | mpeg | mp2 | none | unsupported | unsupported | MPEG-PS is extracted, but there is no MPEG audio layer II decoder. |
 | `fmt-mp3-vbr-long` | mp3 | mp3 | mp3 | none | playable, +7 / +12 ms | playable, +7 / +12 ms |  |

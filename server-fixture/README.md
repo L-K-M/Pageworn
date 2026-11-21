@@ -1,4 +1,4 @@
-# server-fixture — local Audiobookshelf reference instance
+# server-fixture: local Audiobookshelf reference instance
 
 A reproducible local Audiobookshelf **v2.38.0** server with disposable
 accounts, used to pin the server contract that the Pageworn Android client
@@ -85,13 +85,13 @@ container with `docker cp`, then `chmod -R a+rX` inside the container.
 - The excluded file is **absent from `media.tracks`** (tracks re-indexed
   1..n) but **still present in `media.audioFiles`** with `index: -1` and
   `exclude: true` (`numTracks: 2` vs `numAudioFiles: 3`). Set via
-  `PATCH /api/items/{id}/tracks` with `{orderedFileData: [{ino, exclude}]}`
-  — `ino` echoed back with the JSON type the server returned (string).
+  `PATCH /api/items/{id}/tracks` with `{orderedFileData: [{ino, exclude}]}`,
+  echoing `ino` with the JSON type the server returned (string).
 - `media.chapters` is `[{id, title, start, end}]`. Server-set chapters
   (`POST /api/items/{id}/chapters`, needs update permission) are returned
   verbatim. For the chapterless **multi-file** book the server
   *synthesizes* `media.chapters` per track with cumulative offsets titled
-  by filename (`01-part` 0-90, `02-part` 90-210) — not empty. For the
+  by filename (`01-part` 0-90, `02-part` 90-210), not an empty list. For the
   chapterless **single-file** book `media.chapters` is `[]`.
 - The single-m4b book exposes its **embedded chapters** both in
   `audioFiles[0].chapters` and merged into `media.chapters` (0-100,
@@ -108,7 +108,7 @@ container with `docker cp`, then `chmod -R a+rX` inside the container.
   `If-Range` with either the `Last-Modified` value or the `ETag` value also
   → **206**.
 - `browser` (download=false) gets **403** `Forbidden` on `/download`, but
-  **200** on the plain stream route `GET /api/items/{id}/file/{ino}` — the
+  **200** on the plain stream route `GET /api/items/{id}/file/{ino}`: the
   stream route only checks library access, not the download permission.
 - `GET /api/items/{id}/cover?width=200&format=webp&ts=<updatedAt>` with **no
   token** → 200 `image/webp`.
