@@ -8,12 +8,20 @@
 #               force-stop), then a media-key Play. The host reads the outcome from dumpsys,
 #               because a new instrumentation run would restart the process it checks.
 #
+#   repair      A20 and A10c through the local reference instance (RepairIntegrationTest), behind
+#               the "Home" fault proxy: a browse-only account, a shortened track, a failed and a
+#               successful repair, a zeroed track met during playback, and the relaunch and
+#               repair after it. Each phase is its own instrumentation run, so the last one runs
+#               in a new process.
+#
 #   server-fixture/m4-check.sh <emulator-serial>
 #
 # Needs the debug and androidTest APKs built (./gradlew :app:assembleDebug
-# :app:assembleDebugAndroidTest) and an emulator image that allows `adb root` (Google APIs, not
-# Google Play). Refuses any serial that is not an emulator. ONLY="a16e" runs only the phases
-# whose names start with those words.
+# :app:assembleDebugAndroidTest), an emulator image that allows `adb root` (Google APIs, not
+# Google Play), and for the repair phases server-fixture/abs.sh up and seeded (accounts in
+# .state/accounts.json). Refuses any serial that is not an emulator. ONLY="a16e" runs only the
+# phases whose names start with those words. The credentials are the disposable fixture
+# accounts' and only travel as instrumentation arguments.
 
 set -euo pipefail
 SERIAL="${1:?emulator serial}"
@@ -26,8 +34,11 @@ RUNNER="$PACKAGE.test/androidx.test.runner.AndroidJUnitRunner"
 adb_() { "$ADB" -s "$SERIAL" "$@"; }
 adb_shell() { adb_ shell "$@"; }
 
+STATE="$ROOT/server-fixture/.state"
+PIDS=()
 WAS_ROOT=0
 cleanup() {
+  for p in "${PIDS[@]:-}"; do [ -n "$p" ] && kill "$p" 2>/dev/null || true; done
   adb_shell cmd media_session dispatch pause >/dev/null 2>&1 || true
   adb_shell run-as "$PACKAGE" rm -f files/restart-marker.json >/dev/null 2>&1 || true
   if [ "$WAS_ROOT" = 0 ]; then adb_ unroot >/dev/null 2>&1 || true; fi
@@ -126,6 +137,29 @@ if selected a16e-kill; then
   # Started at 115 s, so paused no later than 115 s plus the time it can have played at 1.5x.
   latest=$(( 115000 + (paused_at - played_at) * 3 / 2 + 500 ))
   check "started at its place, 115 s without a rewind (paused at ${position:-none} ms, at most $latest ms)" between "$position" 114700 "$latest"
+fi
+
+# --- A20 and A10c, repair through the server --------------------------------------------------------
+if selected repair; then
+  account() { python3 -c "import json,sys; print(json.load(open('$STATE/accounts.json'))[sys.argv[1]][sys.argv[2]])" "$1" "$2"; }
+  python3 "$ROOT/server-fixture/fault_proxy.py" --listen 13380 --backend 13378 --control 13390 >/dev/null 2>&1 &
+  PIDS+=($!)
+  sleep 1
+  # Each phase that signs in spends the server's auth budget (40 per 10 minutes from one client).
+  header() { tr -d '\r' | awk -F': ' -v name="$1" 'tolower($1) == name { print $2 }'; }
+  headers="$(curl -s -D - -o /dev/null -X POST http://127.0.0.1:13378/auth/refresh)"
+  remaining="$(echo "$headers" | header ratelimit-remaining)"
+  reset="$(echo "$headers" | header ratelimit-reset)"
+  if [ -n "$remaining" ] && [ "$remaining" -lt 6 ]; then
+    echo "  waiting ${reset}s for the server's sign-in limit ($remaining left)"
+    sleep "$(( ${reset:-600} + 2 ))"
+  fi
+  for method in repair1BrowseOnlyAccountStartsNoTransfer repair2AShortTrackIsADamagedCopyAndOnlyASuccessfulRepairReplacesIt \
+      repair3AZeroedTrackFailsWhenPlaybackReachesIt repair4AfterARelaunchTheRepairRestoresPlaybackFromThePlace; do
+    report "$(instrument "transfer.RepairIntegrationTest#$method" \
+      -e absListener "$(account listener username)" -e absListenerPassword "$(account listener password)" \
+      -e absBrowser "$(account browser username)" -e absBrowserPassword "$(account browser password)")" "$method" || true
+  done
 fi
 
 exit "$FAILED"
