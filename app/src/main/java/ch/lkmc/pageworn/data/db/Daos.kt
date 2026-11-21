@@ -58,6 +58,9 @@ interface LibraryDao {
     @Query("SELECT * FROM library WHERE profileId = :profileId AND libraryId = :libraryId")
     suspend fun get(profileId: String, libraryId: String): LibraryEntity?
 
+    @Query("SELECT * FROM library WHERE profileId = :profileId AND libraryId = :libraryId")
+    fun observeOne(profileId: String, libraryId: String): Flow<LibraryEntity?>
+
     @Upsert
     suspend fun upsertAll(libraries: List<LibraryEntity>)
 
