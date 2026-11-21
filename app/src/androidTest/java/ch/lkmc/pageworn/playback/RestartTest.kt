@@ -1,10 +1,16 @@
 package ch.lkmc.pageworn.playback
 
+import android.os.Bundle
+import android.os.ParcelFileDescriptor
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
+import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionResult
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
+import androidx.test.runner.lifecycle.Stage
 import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.core.FakeClock
 import ch.lkmc.pageworn.core.progress.StopKind
@@ -17,6 +23,7 @@ import ch.lkmc.pageworn.testing.onMain
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.runBlocking
 import org.junit.FixMethodOrder
 import org.junit.Test
@@ -260,6 +267,78 @@ class RestartTest {
         TestApp.reset()
     }
 
+    // --- A16e, resumption after process death ------------------------------------------------
+
+    /** Pause the boundary book at 115 s at 1.5x with a timed sleep armed; then the process dies. */
+    @Test
+    fun a16ePart1PauseAt115At1_5xWithATimer() {
+        TestApp.reset()
+        RestartMarker.clear()
+        val clock = FakeClock()
+        container.clock = clock
+        val a = TestApp.publishBoundaryBook()
+        val stopped = onMain {
+            val c = connectController(context)
+            c.setPlaybackSpeed(A16E_SPEED)
+            c.setMediaItem(item(a), 115_000)
+            c.prepare()
+            c.awaitUntil(description = "ready") { playbackState == Player.STATE_READY }
+            val sleep = Bundle().apply {
+                putString(PagewornCommands.ARG_SLEEP_MODE, PagewornCommands.SLEEP_TIMED)
+                putInt(PagewornCommands.ARG_SLEEP_MINUTES, 15)
+            }
+            val armed = c.sendCustomCommand(SessionCommand(PagewornCommands.SET_SLEEP, Bundle.EMPTY), sleep).await()
+            assertThat(armed.resultCode).isEqualTo(SessionResult.RESULT_SUCCESS)
+            c.play()
+            c.awaitUntil(description = "playing") { isPlaying }
+            c.pauseAndSettle()
+            assertThat(container.playbackHub.state.value.sleep).isInstanceOf(SleepState.Timed::class.java)
+            c.release()
+            runBlocking { container.progressStore.read(a)!! }
+        }
+        RestartMarker.write("a16e", mapOf("position" to stopped.positionMs, "wall" to clock.wall))
+    }
+
+    /**
+     * In a new process, a media-key Play resumes the book at its place and speed without a timer
+     * and without opening the activity, through the service started in the foreground. A press on
+     * Bluetooth headphones and the resumption control after a phone restart are owner checks.
+     */
+    @Test
+    fun a16ePart2MediaPlayResumesAtThePlaceAndSpeedWithoutATimer() {
+        val marker = RestartMarker.readAfterRestart("a16e")
+        val a = TestApp.key("boundary-book")
+        container.clock = FakeClock(wall = marker.getValue("wall") + 60_000L)
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        instrumentation.uiAutomation.executeShellCommand("cmd media_session dispatch play").close()
+        val resumed = onMain {
+            awaitService()
+            val c = connectController(context)
+            c.awaitUntil(15_000, "resumed by the media key") { isPlaying && currentMediaItem?.mediaId == a.mediaId }
+            val state = container.playbackHub.state.value
+            val resumedActivities = ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(Stage.RESUMED)
+            val service = shell("dumpsys activity services ${context.packageName}/.playback.PlaybackService")
+            val resumed = Resumed(state.positionMs, c.playbackParameters.speed, state.sleep, resumedActivities.size, service.contains("isForeground=true"))
+            c.pause()
+            c.release()
+            resumed
+        }
+        val place = marker.getValue("position")
+        assertThat(resumed.positionMs).isIn(com.google.common.collect.Range.closed(place - 300, place + 1_500))
+        assertThat(resumed.speed).isEqualTo(A16E_SPEED)
+        assertThat(resumed.sleep).isEqualTo(SleepState.Off)
+        assertWithMessage("resumed activities").that(resumed.resumedActivities).isEqualTo(0)
+        assertWithMessage("the service runs in the foreground").that(resumed.foreground).isTrue()
+        RestartMarker.clear()
+        TestApp.reset()
+    }
+
+    private data class Resumed(val positionMs: Long, val speed: Float, val sleep: SleepState, val resumedActivities: Int, val foreground: Boolean)
+
+    private fun shell(command: String): String =
+        ParcelFileDescriptor.AutoCloseInputStream(InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand(command))
+            .bufferedReader().use { it.readText() }
+
     private suspend fun awaitService() {
         repeat(100) {
             if (container.playbackHub.state.value.key != null) return
@@ -270,5 +349,7 @@ class RestartTest {
     companion object {
         /** Largest audible seek error the format matrix measured on the targets (Opus on API 37). */
         const val SEEK_TOLERANCE_MS = 100L
+
+        const val A16E_SPEED = 1.5f
     }
 }

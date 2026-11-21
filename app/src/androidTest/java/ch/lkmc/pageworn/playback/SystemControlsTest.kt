@@ -10,8 +10,10 @@ import android.media.session.MediaSession as PlatformSession
 import android.media.session.PlaybackState
 import android.os.Bundle
 import android.os.ParcelFileDescriptor
+import android.util.Log
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaLibraryInfo
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaController
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
@@ -29,10 +31,12 @@ import com.google.common.collect.Range
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import java.io.File
+import java.util.concurrent.CopyOnWriteArrayList
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.After
+import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -217,6 +221,44 @@ class SystemControlsTest {
         }
     }
 
+    /**
+     * A16, headphone removal. Android protects `AUDIO_BECOMING_NOISY` from apps and from the shell
+     * user, so server-fixture/m4-check.sh sends it from a root shell on the emulator, twice, once
+     * this test logs that it is playing. Pulling real headphones is an owner check.
+     */
+    @Test
+    fun a16HeadphoneRemovalPausesOnceAndEverySurfaceAgrees() {
+        assumeTrue("Run from server-fixture/m4-check.sh, which sends the broadcast", InstrumentationRegistry.getArguments().getString(NOISY_FROM_HOST) == "true")
+        onMain {
+            val c = controller()
+            val playing = CopyOnWriteArrayList<Boolean>()
+            c.addListener(object : Player.Listener {
+                override fun onIsPlayingChanged(isPlaying: Boolean) {
+                    playing += isPlaying
+                }
+            })
+            c.setMediaItem(item(), 100_000)
+            c.prepare()
+            c.play()
+            c.awaitUntil(10_000, "playing") { isPlaying }
+            delay(1_000)
+            playing.clear()
+            Log.i(CHECK_TAG, NOISY_READY)
+            c.awaitUntil(60_000, "paused by the headphone removal") { !isPlaying }
+            val pausedAt = c.currentPosition
+            // The host sends the broadcast a second time meanwhile; nothing may resume or pause again.
+            delay(5_000)
+            assertWithMessage("playing transitions after the removal").that(playing).containsExactly(false)
+            assertThat(c.playWhenReady).isFalse()
+            assertThat(c.currentPosition).isEqualTo(pausedAt)
+            val saved = checkNotNull(container.progressStore.read(book))
+            assertThat(saved.stopKind).isEqualTo(StopKind.ORDINARY)
+            assertThat(saved.positionMs).isIn(Range.closed(pausedAt - 300, pausedAt + 300))
+            assertThat(container.playbackHub.state.value.isPlaying).isFalse()
+            awaitPlatformState(PlaybackState.STATE_PAUSED)
+        }
+    }
+
     @Test
     fun a16eResumptionPlaysTheLastBookAtItsPlaceAndSpeedWithoutASleepTimer() {
         onMain {
@@ -278,6 +320,11 @@ class SystemControlsTest {
 
     private companion object {
         const val COVER_PX = 64
+
+        /** The log tag and line on which server-fixture/m4-check.sh sends the broadcast. */
+        const val CHECK_TAG = "PagewornCheck"
+        const val NOISY_READY = "ready: noisy"
+        const val NOISY_FROM_HOST = "noisyFromHost"
         const val NOTIFICATION_WAIT_MS = 10_000L
         const val COVER_COLOR = 0xFF7A5C3A.toInt()
         val PLATFORM_STATE = Regex("""PlaybackState \{state=(?:[A-Z_]+\()?(\d+)""")
