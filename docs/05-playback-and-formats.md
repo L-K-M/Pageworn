@@ -105,12 +105,12 @@ Android Auto shows what the phone has downloaded and nothing else. It never brow
 
 ## Playback failure handling
 
-A decoder, demuxer or read failure during playback is distinct from a damaged edition found before opening. When a track cannot be initialized, decoded or read:
+A decoder, demuxer or read failure during playback is distinct from a damaged edition found before opening. Before opening a book, and at startup, every track file must be present with the size it was verified at. A missing or resized file makes the edition **Repair needed** as a damaged copy, with “This copy couldn’t be opened.” Damage that keeps a file’s size is found only when playback reaches it. When a track cannot be initialized, decoded or read:
 
 - Pause at the last successfully decoded checkpoint and persist that book position. The loss stays within five seconds of book time at every supported speed, plus the measured seek error when playback resumes. Never skip past the failing audio into a later chapter or track.
 - A track that cannot be opened fails only when playback reaches it. Play the current track to its end and save the boundary itself. Under the half-open rule that position is the failing track at offset zero, and none of its audio has played. If a sleep stop lands on the same boundary, the timer fires first and completes normally, and the failure surfaces on the next play. A seek or resume that lands inside a track which cannot be opened plays nothing from it: a failed seek keeps the position saved before the seek, and a failed resume keeps the saved place.
 - Set the edition to **Repair needed** while leaving its saved place, duration snapshot and finished flag unchanged. Do not mark the book finished.
-- Never fall back to a server stream or hide the item. Surface the “Audio stopped during playback” copy from the [product brief](01-product.md).
+- Never fall back to a server stream or hide the item. Surface the “Audio stopped during playback” copy from the [product brief](01-product.md) while the session that failed holds the book. After a relaunch the edition is still Repair needed, and the player, like the rows, shows the damaged-copy message with Repair download: Room keeps the state, not why it was set.
 - Retry a transient read error once from the same position. If the retry also fails, pause as described above. Unsupported codecs and DRM-protected files keep the existing format rules and preserve the place.
 - After repair or re-download, restore the saved position when the edition fingerprint still matches. Otherwise use the previous-position choice required for materially changed audio.
 - The failure pause cancels any pending auto-resume and leaves an armed sleep timer as it is, as the [sleep table](#sleep-behavior) states.

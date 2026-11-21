@@ -52,9 +52,21 @@ class PlayerFailureStateTest {
     }
 
     @Test
-    fun anEditionMarkedForRepairStaysDisabledWithoutALiveFailure() {
+    fun anEditionMarkedForRepairWithoutALiveFailureIsADamagedCopy() {
+        // After a relaunch, or when the check before opening found a file missing or short, the
+        // player says what the rows say.
         val player = PlayerStates.player(plan("gen-1"), edition("gen-1", EditionState.REPAIR_NEEDED), null, LivePlayback())
-        assertThat(player.failureMessage).isEqualTo(Copy.PLAYBACK_STOPPED)
+        assertThat(player.failureMessage).isEqualTo(Copy.DAMAGED_COPY)
         assertThat(player.transportEnabled).isFalse()
+        val mini = PlayerStates.mini(plan("gen-1"), edition("gen-1", EditionState.REPAIR_NEEDED), null, LivePlayback())
+        assertThat(mini.enabled).isFalse()
+        assertThat(mini.disabledReason).isEqualTo(Copy.DAMAGED_COPY)
+    }
+
+    @Test
+    fun aLiveFailureKeepsItsMessageOnceRepairNeededIsStored() {
+        val live = failedOn("gen-1")
+        val player = PlayerStates.player(plan("gen-1"), edition("gen-1", EditionState.REPAIR_NEEDED), null, live)
+        assertThat(player.failureMessage).isEqualTo(Copy.PLAYBACK_STOPPED)
     }
 }

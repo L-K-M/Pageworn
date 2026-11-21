@@ -145,9 +145,9 @@ class EditionStore(
             }
         }
         sweep(activeWriters)
-        // Missing published files: Repair needed, keeping progress.
+        // Missing or short published files: Repair needed, keeping progress.
         for (edition in db.editions().all()) {
-            if (edition.state == EditionState.READY && !filesPresent(edition)) {
+            if (edition.state == EditionState.READY && !filesIntact(edition)) {
                 db.editions().setState(edition.profileId, edition.itemId, edition.generationId, EditionState.REPAIR_NEEDED)
             }
         }
@@ -161,16 +161,24 @@ class EditionStore(
         }
     }
 
-    private suspend fun filesPresent(edition: LocalEditionEntity): Boolean {
+    /** Every track file is on the disk with the size it was verified at. */
+    private suspend fun filesIntact(edition: LocalEditionEntity): Boolean {
         val dir = files.published(edition.generationId)
-        return db.editions().tracks(edition.generationId).all { File(dir, it.localFilename).isFile }
+        return db.editions().tracks(edition.generationId).all { track ->
+            val file = File(dir, track.localFilename)
+            file.isFile && file.length() == track.sizeBytes
+        }
     }
 
-    /** Before opening a book: a missing file turns the edition into Repair needed. */
+    /**
+     * Before opening a book: a missing file, or one whose size changed since verification, turns
+     * the edition into Repair needed, a damaged copy. Damage that keeps the size surfaces as a
+     * playback failure when playback reaches it.
+     */
     suspend fun checkBeforeOpening(key: BookKey): Boolean {
         val edition = db.editions().edition(key.profileId, key.itemId) ?: return false
         if (edition.state != EditionState.READY) return false
-        if (!filesPresent(edition)) {
+        if (!filesIntact(edition)) {
             db.editions().setState(key.profileId, key.itemId, edition.generationId, EditionState.REPAIR_NEEDED)
             return false
         }

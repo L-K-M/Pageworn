@@ -26,6 +26,7 @@ import ch.lkmc.pageworn.server.ManifestSourceTrack
 import ch.lkmc.pageworn.server.ServerError
 import com.google.common.truth.Truth.assertThat
 import java.io.File
+import java.io.RandomAccessFile
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -731,6 +732,19 @@ class TransferCoordinatorTest {
         assertThat(files.published(previous.generationId).exists()).isFalse()
         assertThat(files.staging(stagedGeneration).exists()).isFalse()
         assertThat(db.progress().get(PROFILE, key.itemId)).isEqualTo(saved)
+    }
+
+    @Test fun a20_aTrackThatLostBytesOnTheDiskIsFoundDamagedBeforeOpening() = runBlocking {
+        val key = book("damaged", "a" to source(1), "b" to source(2))
+        drive(enqueue(key))
+        ready(key)
+        assertThat(editions.checkBeforeOpening(key)).isTrue()
+        val edition = checkNotNull(db.editions().edition(key.profileId, key.itemId))
+        val track = File(files.published(edition.generationId), db.editions().tracks(edition.generationId)[1].localFilename)
+        RandomAccessFile(track, "rw").use { it.setLength(track.length() / 2) }
+        assertThat(editions.checkBeforeOpening(key)).isFalse()
+        assertThat(db.editions().edition(key.profileId, key.itemId)?.state).isEqualTo(EditionState.REPAIR_NEEDED)
+        assertThat(editions.plan(key)).isNull()
     }
 
     @Test fun a07_removeAndRedownloadPreservesSavedPlace() = runBlocking {

@@ -70,6 +70,17 @@ object PlayerStates {
         live.key == plan.key && live.failed && (edition == null || live.plan?.generationId == edition.generationId)
 
     /**
+     * Why the keys are disabled, if they are. Audio that stopped in this session says so; any other
+     * edition that needs repair (after a relaunch, or found damaged before opening) is a damaged
+     * copy, as its rows say.
+     */
+    private fun failureReason(plan: EditionPlan, edition: LocalEditionEntity?, live: LivePlayback): String? = when {
+        liveFailure(plan, edition, live) -> Copy.PLAYBACK_STOPPED
+        edition?.state == EditionState.REPAIR_NEEDED -> Copy.DAMAGED_COPY
+        else -> null
+    }
+
+    /**
      * The player for [plan]. When the live player holds this book its position and state win;
      * otherwise the saved place is shown, as Downloaded and the ribbon show it while the book rests.
      */
@@ -85,7 +96,8 @@ object PlayerStates {
         val position = timeline.clamp(if (isLive) live.positionMs else progress?.positionMs ?: 0L)
         val segment = timeline.segmentAt(position)
         val whole = timeline.division == Division.WHOLE_BOOK
-        val failed = liveFailure(plan, edition, live) || edition?.state == EditionState.REPAIR_NEEDED
+        val failure = failureReason(plan, edition, live)
+        val failed = failure != null
         return PlayerUiState(
             face = face(plan),
             narrator = edition?.narrators,
@@ -98,7 +110,7 @@ object PlayerStates {
             bookLine = if (whole) null else Format.bookLine(position, timeline.durationMs),
             isPlaying = isLive && live.isPlaying,
             transportEnabled = !failed,
-            failureMessage = if (failed) Copy.PLAYBACK_STOPPED else null,
+            failureMessage = failure,
             speed = live.speed,
             sleep = sleep(live, timeline.division),
             segmentsLabel = if (timeline.division == Division.TRACKS) "Tracks" else "Chapters",
@@ -116,11 +128,11 @@ object PlayerStates {
     fun mini(plan: EditionPlan, edition: LocalEditionEntity?, progress: BookProgressEntity?, live: LivePlayback): MiniPlayerUi {
         val isLive = live.key == plan.key
         val position = plan.timeline.clamp(if (isLive) live.positionMs else progress?.positionMs ?: 0L)
-        val failed = liveFailure(plan, edition, live) || edition?.state == EditionState.REPAIR_NEEDED
+        val failure = failureReason(plan, edition, live)
         val subtitle = if (plan.timeline.division == Division.WHOLE_BOOK) plan.author else segmentTitle(plan, plan.timeline.segmentIndexAt(position))
         val finished = progress?.finished == true
         // The same rule as the full player, so both keys name the same next action.
         val hasPlace = !finished && progress != null && (progress.positionMs > 0 || isLive)
-        return MiniPlayerUi(face(plan), subtitle, isLive && live.isPlaying, enabled = !failed, disabledReason = if (failed) Copy.PLAYBACK_STOPPED else null, hasPlace = hasPlace)
+        return MiniPlayerUi(face(plan), subtitle, isLive && live.isPlaying, enabled = failure == null, disabledReason = failure, hasPlace = hasPlace)
     }
 }
