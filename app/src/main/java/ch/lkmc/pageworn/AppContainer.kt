@@ -21,7 +21,19 @@ import ch.lkmc.pageworn.playback.ProgressWriter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import android.net.ConnectivityManager
+import ch.lkmc.pageworn.account.AccountService
+import ch.lkmc.pageworn.account.ServerAccess
+import ch.lkmc.pageworn.catalog.CatalogRefresher
+import ch.lkmc.pageworn.server.KeystoreTokenVault
+import ch.lkmc.pageworn.server.LocalNetworkAccess
+import ch.lkmc.pageworn.server.RouteMode
+import ch.lkmc.pageworn.server.TokenVault
 import java.io.File
+import java.security.KeyStore
+import javax.net.ssl.TrustManagerFactory
+import javax.net.ssl.X509TrustManager
+import okhttp3.OkHttpClient
 
 /**
  * Manual dependency wiring. Tests replace the clock, the progress writer and the playback data
@@ -55,6 +67,39 @@ class AppContainer(private val app: PagewornApp) {
     var playbackDataSourceFactory: DataSource.Factory = FileDataSource.Factory()
 
     val editionSource: EditionSource get() = editionStore
+
+    // --- Server access --------------------------------------------------------------------------
+
+    val tokenVault: TokenVault by lazy { KeystoreTokenVault(app) }
+    val localNetwork: LocalNetworkAccess by lazy { LocalNetworkAccess(app) }
+
+    /** One HTTP client whose pool and dispatcher every address shares; each address adds its own TLS policy. */
+    private val sharedHttp: OkHttpClient by lazy { OkHttpClient() }
+
+    /** The platform's trust manager, which honours the network security configuration (system and user CAs). */
+    private val platformTrust: X509TrustManager by lazy {
+        val factory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
+        factory.init(null as KeyStore?)
+        factory.trustManagers.filterIsInstance<X509TrustManager>().first()
+    }
+
+    val serverAccess: ServerAccess by lazy {
+        val connectivity = app.getSystemService(ConnectivityManager::class.java)
+        ServerAccess(
+            db = database,
+            vault = tokenVault,
+            localNetwork = localNetwork,
+            sharedHttp = sharedHttp,
+            platformTrust = platformTrust,
+            nowMs = { liveClock.wallMillis() },
+            currentNetwork = { connectivity.activeNetwork },
+            routeMode = { settings.pinnedAddressId.let { if (it == null) RouteMode.AUTOMATIC to null else RouteMode.MANUAL to it } },
+        )
+    }
+
+    val accounts: AccountService by lazy {
+        AccountService(database, tokenVault, serverAccess, localNetwork, CatalogRefresher(database, { liveClock.wallMillis() }), { liveClock.wallMillis() })
+    }
 
     suspend fun coverFileFor(key: BookKey): File? = editionStore.anyPlan(key)?.coverFile
 

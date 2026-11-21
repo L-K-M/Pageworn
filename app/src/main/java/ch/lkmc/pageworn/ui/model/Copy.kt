@@ -19,6 +19,7 @@ object Copy {
     const val SESSION_EXPIRED = "Sign in to refresh your library."
     const val SIGN_OUT_CONFIRM = "Sign out? Your downloaded books and saved places stay on this phone."
     fun differentAccount(accountName: String) = "This phone holds books for $accountName. Sign in with that account."
+    const val PAIRING_MISMATCH = "This address leads to a different server."
     const val UNRECOGNIZED_CERTIFICATE = "Your phone doesn’t recognize this address’s certificate."
     fun certificateChanged(label: String) = "The certificate for $label has changed."
     const val DOWNLOAD_DISABLED = "This account can browse this book. Downloads are disabled."

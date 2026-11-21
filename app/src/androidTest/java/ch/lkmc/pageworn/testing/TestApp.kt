@@ -43,6 +43,8 @@ object TestApp {
         container.editionFiles.root.deleteRecursively()
         container.settings.setLastActiveBook(null)
         container.settings.setSpeed(1f)
+        container.settings.pinnedAddressId = null
+        container.tokenVault.deleteAll()
     }
 
     private val probedDurations = HashMap<File, Long>()

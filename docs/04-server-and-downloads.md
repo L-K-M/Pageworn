@@ -47,6 +47,8 @@ These observations come from a local Audiobookshelf v2.38.0 instance (`ghcr.io/a
 - The download route answers 200 with `content-length`, `accept-ranges: bytes`, a weak `ETag`, `Last-Modified` and `content-disposition: attachment`, and the body matches the source file. `Range: bytes=1000-` gives 206 with `content-range: bytes 1000-N/M`. The server also answers 206 to `If-Range` with the weak tag, which the client never sends.
 - An account without download permission gets 403 from the download route and 200 from the stream route `/api/items/{id}/file/{ino}`.
 - The cover route answers without a token. `POST /logout` with `x-refresh-token` answers 200.
+- `POST /logout` ends that session: its refresh token no longer renews, even inside the grace period that applies after a rotation.
+- On the Android 17 emulator (API 37, `CE2A.260420.051.A3`), an app targeting SDK 37 without `ACCESS_LOCAL_NETWORK` cannot open a TCP connection to the host alias `10.0.2.2` (a 10.0.0.0/8 address); with the permission it can. The Android 14 emulator connects without any permission. Whether a Tailscale address on the listener's phone is classed as local stays an [owner check](06-delivery-and-tests.md#owner-checks).
 
 ### Signing out and in again
 

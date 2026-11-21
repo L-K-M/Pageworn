@@ -84,9 +84,13 @@ def main() -> None:
     parser.add_argument("--listen", type=int, default=13443)
     parser.add_argument("--backend", type=int, default=13378)
     parser.add_argument("--cert", default="first")
+    parser.add_argument("--generate-only", action="store_true", help="create the certificate and print its fingerprint")
     args = parser.parse_args()
 
     cert, key = ensure_certificate(args.cert)
+    if args.generate_only:
+        print(fingerprint(cert))
+        return
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     context.load_cert_chain(cert, key)
     print(f"https://127.0.0.1:{args.listen}/ -> 127.0.0.1:{args.backend}, sha256 {fingerprint(cert)}", flush=True)

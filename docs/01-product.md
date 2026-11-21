@@ -56,6 +56,7 @@ Pageworn v1 serves audiobooks. Ebooks, podcasts, streaming, remote playback, cro
 | Session expired or signed out | “Sign in to refresh your library.” | Sign in to the affected address |
 | Signing out | “Sign out? Your downloaded books and saved places stay on this phone.” | Sign out, or Cancel |
 | Different account | “This phone holds books for [account name]. Sign in with that account.” | Sign in again |
+| Mismatched pairing | “This address leads to a different server.” Shown when the account matches but the server lacks the library seen at first sign-in. | Check the address, or use another address |
 | Unrecognized certificate | “Your phone doesn’t recognize this address’s certificate.” Show the certificate’s SHA-256 fingerprint. | Trust this certificate, or use another address |
 | Certificate changed | “The certificate for [address label] has changed.” Connection setup and Server addresses add the new fingerprint. | Server addresses, or use another address. Where the fingerprint shows, Trust the new certificate takes the place of the first. |
 | Download permission missing | “This account can browse this book. Downloads are disabled.” | Back to Library, or Retry a transfer that the denial stopped |
