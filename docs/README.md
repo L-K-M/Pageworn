@@ -42,6 +42,8 @@ The documents use these terms precisely. Server fields keep their Audiobookshelf
 
 ## Starting an implementation session
 
+Use the [build and release guide](../CICD.md) for the toolchain, local checks, and signed APK releases.
+
 Read the product brief, then the first unfinished milestone in the delivery plan. Follow its links for implementation detail. Preserve the host repo’s existing conventions and build configuration where compatible. Where the repository has none yet, M0 sets them up as its [build and test baseline](06-delivery-and-tests.md#m0-build-and-test-baseline) describes. Product behavior takes precedence over example class names. Where Android or server behavior depends on a version, record the version and the observed result alongside the relevant test.
 
 The owner asked for implementation work to be committed directly on `main`, without a working branch or a pull request. Commit in small steps that build, and name in each milestone report the commit that completes it.
