@@ -4,15 +4,17 @@ import android.content.Context
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 
+internal data class BookSource(val edition: EditionPlan, val audioEndMs: Long?)
+
 /** Builds the media items that present a book, never its files, to the player and system surfaces. */
 class BookItems(private val context: Context) {
 
     /** Item handed to the player: carries the resolved edition for [BookMediaSourceFactory]. */
-    fun playable(plan: EditionPlan): MediaItem =
+    fun playable(plan: EditionPlan, audioEndMs: Long? = null): MediaItem =
         MediaItem.Builder()
             .setMediaId(plan.key.mediaId)
             .setUri("pageworn://book/${plan.generationId}")
-            .setTag(plan)
+            .setTag(BookSource(plan, audioEndMs))
             .setMediaMetadata(metadata(plan, SYSTEM_UI))
             .build()
 

@@ -7,7 +7,6 @@ import android.os.ParcelFileDescriptor
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
@@ -17,8 +16,10 @@ import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertContentDescriptionContains
 import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.isHeading
@@ -28,6 +29,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.requestFocus
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
@@ -166,7 +168,7 @@ class VisualChecksTest {
         assertWithMessage("transfer pause role").that(
             transferPause.config.getOrElseNullable(SemanticsProperties.Role) { null }
         ).isEqualTo(Role.Button)
-        assertWithMessage("mini playback key is not the transfer pause node").that(miniPlayPauseNode().id)
+        assertWithMessage("mini playback key is not the transfer pause node").that(miniPlayPause().fetchSemanticsNode().id)
             .isNotEqualTo(transferPause.id)
     }
 
@@ -175,9 +177,9 @@ class VisualChecksTest {
         launchMain()
         openFullPlayer()
 
-        composeRule.onNodeWithContentDescription("Playback speed, 1 times").performClick()
+        composeRule.onNodeWithContentDescription("Playback speed, 1 times").performScrollTo().performClick()
         waitForSheetText("1.5×")
-        composeRule.onNodeWithText("1.5×").performClick()
+        composeRule.onNodeWithText("1.5×").performScrollTo().performClick()
         waitForSheetClosed()
         composeRule.waitUntil(10_000) {
             composeRule.onAllNodes(hasContentDescription("Playback speed, 1.5 times")).fetchSemanticsNodes().isNotEmpty()
@@ -185,23 +187,23 @@ class VisualChecksTest {
         composeRule.onNode(hasContentDescription("Playback speed", substring = true))
             .assertContentDescriptionContains("1.5 times", substring = true)
 
-        composeRule.onNodeWithContentDescription("Playback speed, 1.5 times").performClick()
+        composeRule.onNodeWithContentDescription("Playback speed, 1.5 times").performScrollTo().performClick()
         composeRule.waitUntil(10_000) {
             composeRule.onAllNodes(selectedRadio()).fetchSemanticsNodes().size == 1
         }
         composeRule.onAllNodes(selectedRadio()).assertCountEquals(1)
         dismissSheet()
 
-        composeRule.onNodeWithContentDescription("Chapters").performClick()
+        composeRule.onNodeWithContentDescription("Chapters").performScrollTo().performClick()
         waitForSheetText("Chapter Three")
-        composeRule.onNodeWithText("Chapter Three").performClick()
+        composeRule.onNodeWithText("Chapter Three").performScrollTo().performClick()
         waitForSheetClosed()
         composeRule.waitUntil(10_000) {
             composeRule.onAllNodes(hasText("Chapter Three")).fetchSemanticsNodes().isNotEmpty()
         }
         assertShown(hasText("Chapter Three"))
 
-        composeRule.onNodeWithContentDescription("Sleep, off").performClick()
+        composeRule.onNodeWithContentDescription("Sleep, off").performScrollTo().performClick()
         waitForHeading("Sleep timer")
         composeRule.onAllNodes(selectedRadio()).assertCountEquals(1)
         dismissSheet()
@@ -210,9 +212,9 @@ class VisualChecksTest {
         shell("cmd uimode night yes")
         waitForNight()
         composeRule.waitForIdle()
-        composeRule.onNodeWithContentDescription("Playback speed, 1.5 times").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Chapters").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Sleep, off").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Playback speed, 1.5 times").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Chapters").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Sleep, off").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Speed").assertIsDisplayed()
         composeRule.onNodeWithText("Chapters").assertIsDisplayed()
         composeRule.onNodeWithText("Sleep").assertIsDisplayed()
@@ -241,6 +243,28 @@ class VisualChecksTest {
         clickMiniPlayPause()
         waitForMiniAction("Resume")
         assertMiniAction("Resume")
+    }
+
+    @Test
+    fun v05SleepSheetStaysOpenAndItsLastChoiceIsReachableAfterRotation() {
+        recordSetting("system", "font_scale", "2.0")
+        recordSetting("system", "accelerometer_rotation", "0")
+        recordSetting("system", "user_rotation", "0")
+        launchMain()
+        openFullPlayer()
+        composeRule.onNodeWithContentDescription("Sleep, off").performScrollTo().performClick()
+        waitForHeading("Sleep timer")
+
+        shell("wm user-rotation lock 1")
+        composeRule.waitUntil(10_000) {
+            var landscape = false
+            scenario.onActivity { landscape = it.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE }
+            landscape
+        }
+        waitForHeading("Sleep timer")
+        composeRule.onAllNodes(selectedRadio()).assertCountEquals(1)
+        composeRule.onNodeWithText("End of chapter").performScrollTo().assertIsDisplayed().performClick()
+        waitForSheetClosed()
     }
 
     private suspend fun seedDemoLibrary() {
@@ -304,7 +328,7 @@ class VisualChecksTest {
     }
 
     private fun openSleepSheet() {
-        composeRule.onNodeWithContentDescription("Sleep, off").performClick()
+        composeRule.onNodeWithContentDescription("Sleep, off").performScrollTo().performClick()
         waitForHeading("Sleep timer")
     }
 
@@ -333,25 +357,13 @@ class VisualChecksTest {
     private fun playbackKeyMatcher(): SemanticsMatcher =
         playbackDescriptions().map { hasContentDescription(it) }.reduce { first, second -> first.or(second) }
 
-    /** The mini key sits lowest on screen, just above the bookmarks, below every list row key. */
-    private fun miniPlayPauseNode(): SemanticsNode {
-        val nodes = composeRule.onAllNodes(playbackKeyMatcher()).fetchSemanticsNodes()
-        return checkNotNull(nodes.maxByOrNull { it.boundsInRoot.bottom }) {
-            "No Play, Pause or Resume key for Boundary Book is shown"
-        }
-    }
+    /** Downloaded and Library rows may have the same key. The mini player is outside the list. */
+    private fun miniPlayPause() = composeRule.onNode(playbackKeyMatcher() and !hasAnyAncestor(hasScrollToIndexAction()))
 
-    private fun clickMiniPlayPause() {
-        val matcher = playbackKeyMatcher()
-        val nodes = composeRule.onAllNodes(matcher).fetchSemanticsNodes()
-        val index = checkNotNull(nodes.indices.maxByOrNull { nodes[it].boundsInRoot.bottom }) {
-            "No Play, Pause or Resume key for Boundary Book is shown"
-        }
-        composeRule.onAllNodes(matcher)[index].performClick()
-    }
+    private fun clickMiniPlayPause() = miniPlayPause().performClick()
 
     private fun miniKeyDescription(): String =
-        miniPlayPauseNode().config.getOrElseNullable(SemanticsProperties.ContentDescription) { null }?.first().orEmpty()
+        miniPlayPause().fetchSemanticsNode().config.getOrElseNullable(SemanticsProperties.ContentDescription) { null }?.first().orEmpty()
 
     private fun assertMiniAction(action: String) {
         assertWithMessage("mini player key action").that(miniKeyDescription()).isEqualTo("$action Boundary Book")

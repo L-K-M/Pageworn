@@ -29,12 +29,11 @@ class PlaybackService : MediaLibraryService() {
     override fun onCreate() {
         super.onCreate()
         val container = (application as PagewornApp).container
+        val bookSources = BookMediaSourceFactory(container.playbackDataSourceFactory)
+        // A transient read error is retried once from the same position.
+        bookSources.setLoadErrorHandlingPolicy(DefaultLoadErrorHandlingPolicy(1))
         val exo = ExoPlayer.Builder(this, container.playbackRenderersFactory(this))
-            .setMediaSourceFactory(
-                BookMediaSourceFactory(container.playbackDataSourceFactory)
-                    // A transient read error is retried once from the same position.
-                    .setLoadErrorHandlingPolicy(DefaultLoadErrorHandlingPolicy(1)),
-            )
+            .setMediaSourceFactory(bookSources)
             .setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(C.USAGE_MEDIA)
@@ -60,6 +59,7 @@ class PlaybackService : MediaLibraryService() {
                 container.progressWriter.write(key, token, position, duration, fingerprint, kind, finished, listened)
             },
             items = items,
+            bookSources = bookSources,
             scope = scope,
         )
         controller = playback

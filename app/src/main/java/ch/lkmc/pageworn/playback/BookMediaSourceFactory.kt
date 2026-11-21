@@ -1,13 +1,17 @@
 package ch.lkmc.pageworn.playback
 
 import android.net.Uri
+import androidx.annotation.OptIn
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.util.ExperimentalApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.exoplayer.drm.DrmSessionManagerProvider
+import androidx.media3.exoplayer.source.ClippingMediaSource
 import androidx.media3.exoplayer.source.ConcatenatingMediaSource2
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
+import androidx.media3.exoplayer.source.SilenceMediaSource
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
 import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.extractor.ExtractorsFactory
@@ -37,13 +41,30 @@ class BookMediaSourceFactory(
 
     override fun getSupportedTypes(): IntArray = intArrayOf(C.CONTENT_TYPE_OTHER)
 
+    @OptIn(ExperimentalApi::class)
     override fun createMediaSource(mediaItem: MediaItem): MediaSource {
-        val plan = mediaItem.localConfiguration?.tag as? EditionPlan
+        val book = mediaItem.localConfiguration?.tag as? BookSource
             ?: throw IllegalArgumentException("Media item ${mediaItem.mediaId} has no resolved edition")
+        val plan = book.edition
         val builder = ConcatenatingMediaSource2.Builder().setMediaItem(mediaItem)
         plan.trackFiles.forEachIndexed { i, file ->
-            val child = progressive.createMediaSource(MediaItem.fromUri(Uri.fromFile(file)))
-            builder.add(child, plan.timeline.tracks[i].durationMs)
+            val track = plan.timeline.tracks[i]
+            val audibleMs = (book.audioEndMs?.minus(track.startMs) ?: track.durationMs).coerceIn(0, track.durationMs)
+            if (audibleMs > 0) {
+                val child = progressive.createMediaSource(MediaItem.fromUri(Uri.fromFile(file)))
+                val source = if (audibleMs == track.durationMs) child else ClippingMediaSource.Builder(child)
+                    .setEndPositionMs(audibleMs)
+                    .setAllowUnseekableMedia(true)
+                    .setEnableClippingInMediaPeriod(true)
+                    .build()
+                builder.add(source, audibleMs)
+            }
+            val silentMs = track.durationMs - audibleMs
+            if (silentMs > 0) {
+                // Keep the duration and absolute positions of the rest of the book.
+                val silence = SilenceMediaSource.Factory().setDurationUs(C.msToUs(silentMs)).createMediaSource()
+                builder.add(silence, silentMs)
+            }
         }
         return builder.build()
     }

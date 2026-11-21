@@ -22,6 +22,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,6 +31,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
@@ -70,7 +72,8 @@ val LocalPreviewSleepSheet = staticCompositionLocalOf { false }
 @Composable
 fun PlayerScreen(state: PlayerUiState, onCollapse: () -> Unit, onPlayPause: () -> Unit, onSkipBack: () -> Unit, onSkipForward: () -> Unit, onSeekTo: (Long) -> Unit, onSelectSpeed: (Float) -> Unit, onSelectSegment: (Long) -> Unit, onSelectSleep: (SleepChoice) -> Unit, onRepair: () -> Unit, onUsePreviousPosition: () -> Unit, onStartOver: () -> Unit) {
     val previewSleep = LocalPreviewSleepSheet.current
-    var sheet by remember(state.face.key) { mutableStateOf<PlayerSheet?>(if (previewSleep) PlayerSheet.SLEEP else null) }
+    var sheet by rememberSaveable(state.face.key.mediaId) { mutableStateOf<PlayerSheet?>(if (previewSleep) PlayerSheet.SLEEP else null) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     BoxWithConstraints(Modifier.fillMaxSize().paperBackground().statusBarsPadding().navigationBarsPadding()) {
         val coverSize = if (maxHeight < 700.dp) 160.dp else 208.dp
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -134,9 +137,9 @@ fun PlayerScreen(state: PlayerUiState, onCollapse: () -> Unit, onPlayPause: () -
         }
     }
     when (sheet) {
-        PlayerSheet.SPEED -> ModalBottomSheet(onDismissRequest = { sheet = null }) { SpeedSheet(state.speed) { onSelectSpeed(it); sheet = null } }
-        PlayerSheet.SEGMENTS -> ModalBottomSheet(onDismissRequest = { sheet = null }) { SegmentsSheet(state.segmentsLabel, state.segments) { onSelectSegment(it); sheet = null } }
-        PlayerSheet.SLEEP -> ModalBottomSheet(onDismissRequest = { sheet = null }) { SleepSheet(state.sleep) { onSelectSleep(it); sheet = null } }
+        PlayerSheet.SPEED -> ModalBottomSheet(onDismissRequest = { sheet = null }, sheetState = sheetState) { SpeedSheet(state.speed) { onSelectSpeed(it); sheet = null } }
+        PlayerSheet.SEGMENTS -> ModalBottomSheet(onDismissRequest = { sheet = null }, sheetState = sheetState) { SegmentsSheet(state.segmentsLabel, state.segments) { onSelectSegment(it); sheet = null } }
+        PlayerSheet.SLEEP -> ModalBottomSheet(onDismissRequest = { sheet = null }, sheetState = sheetState) { SleepSheet(state.sleep) { onSelectSleep(it); sheet = null } }
         null -> Unit
     }
 }
@@ -151,7 +154,7 @@ private fun Utility(label: String, description: String, enabled: Boolean = true,
 
 @Composable
 private fun SpeedSheet(selected: Float, onSelect: (Float) -> Unit) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).selectableGroup()) {
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).selectableGroup()) {
         Text("Speed", Modifier.padding(bottom = 12.dp).semantics { heading() }, style = PagewornTheme.type.heading)
         listOf(.75f, 1f, 1.25f, 1.5f, 1.75f, 2f).forEach { speed -> RadioRow(Format.speed(speed), selected == speed, null) { onSelect(speed) } }
     }
@@ -174,7 +177,7 @@ private fun SegmentsSheet(title: String, segments: List<SegmentRow>, onSelect: (
 
 @Composable
 private fun SleepSheet(sleep: SleepUi, onSelect: (SleepChoice) -> Unit) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).selectableGroup()) {
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).selectableGroup()) {
         Text("Sleep timer", Modifier.padding(bottom = 12.dp).semantics { heading() }, style = PagewornTheme.type.heading)
         listOf(
             SleepChoice.OFF to "Off", SleepChoice.MINUTES_15 to "15 minutes", SleepChoice.MINUTES_30 to "30 minutes",

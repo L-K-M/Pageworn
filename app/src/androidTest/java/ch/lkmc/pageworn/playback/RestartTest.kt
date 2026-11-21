@@ -1,5 +1,6 @@
 package ch.lkmc.pageworn.playback
 
+import android.net.ConnectivityManager
 import android.os.Bundle
 import android.os.ParcelFileDescriptor
 import androidx.media3.common.MediaItem
@@ -14,6 +15,8 @@ import androidx.test.runner.lifecycle.Stage
 import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.core.FakeClock
 import ch.lkmc.pageworn.core.progress.StopKind
+import ch.lkmc.pageworn.debug.LocalEditions
+import ch.lkmc.pageworn.testing.Fixtures
 import ch.lkmc.pageworn.testing.HoldingWriter
 import ch.lkmc.pageworn.testing.RestartMarker
 import ch.lkmc.pageworn.testing.TestApp
@@ -23,8 +26,11 @@ import ch.lkmc.pageworn.testing.onMain
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
+import org.junit.Assume.assumeTrue
 import org.junit.FixMethodOrder
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -263,6 +269,99 @@ class RestartTest {
         }
         val expected = marker.getValue("position") - 10_000
         assertThat(start).isIn(com.google.common.collect.Range.closed(expected - 300, expected + 1_000))
+        RestartMarker.clear()
+        TestApp.reset()
+    }
+
+    @Test
+    fun a12bPart1RestAfterATimedStop() {
+        assumeTrue(InstrumentationRegistry.getArguments().getString("sleepRestart") == "true")
+        val clock = FakeClock()
+        TestApp.reset(clock)
+        RestartMarker.clear()
+        val key = TestApp.key("long-vbr")
+        val file = Fixtures.install("fmt-mp3-vbr-long").single()
+        runBlocking {
+            LocalEditions.publish(container, key, "Long VBR", null,
+                listOf(LocalEditions.Track(file, TestApp.probeDuration(file))))
+        }
+        val stopped = onMain {
+            val c = connectController(context)
+            try {
+                c.setMediaItem(item(key), 600_000)
+                c.prepare()
+                c.play()
+                withTimeout(10_000) { container.playbackHub.state.first { it.isPlaying } }
+                val command = SessionCommand(PagewornCommands.SET_SLEEP, Bundle.EMPTY)
+                val args = Bundle().apply {
+                    putString(PagewornCommands.ARG_SLEEP_MODE, PagewornCommands.SLEEP_TIMED)
+                    putInt(PagewornCommands.ARG_SLEEP_MINUTES, 15)
+                }
+                assertThat(c.sendCustomCommand(command, args).await().resultCode).isEqualTo(SessionResult.RESULT_SUCCESS)
+                clock.advance(15 * 60_000L)
+                val progress = withTimeout(10_000) {
+                    container.database.progress().observe(key.profileId, key.itemId)
+                        .first { it?.stopKind == StopKind.TIMED }
+                }
+                checkNotNull(progress)
+            } finally {
+                c.release()
+            }
+        }
+        assertThat(stopped.positionMs in 600_000..601_000).isTrue()
+        RestartMarker.write("a12b", mapOf("position" to stopped.positionMs, "wall" to clock.wall))
+    }
+
+    @Test
+    fun a12bPart2TimedStopRewindsAfterEightHoursAndProcessDeath() {
+        val marker = RestartMarker.readAfterRestart("a12b")
+        val key = TestApp.key("long-vbr")
+        container.clock = FakeClock(wall = marker.getValue("wall") + 8 * 60 * 60_000L)
+        val stop = checkNotNull(runBlocking { container.progressStore.read(key) })
+        assertThat(stop.positionMs).isEqualTo(marker.getValue("position"))
+        assertThat(stop.stopKind).isEqualTo(StopKind.TIMED)
+        onMain {
+            val c = connectController(context)
+            try {
+                c.setMediaItem(item(key))
+                c.prepare()
+                c.play()
+                val start = withTimeout(10_000) { container.playbackHub.state.first { it.isPlaying } }
+                val expected = stop.positionMs - 300_000
+                assertThat(start.positionMs in (expected - 100)..(expected + 350)).isTrue()
+                assertThat(start.sleep).isEqualTo(SleepState.Off)
+                c.pauseAndSettle()
+            } finally {
+                c.release()
+            }
+        }
+        RestartMarker.clear()
+        TestApp.reset()
+    }
+
+    @Test
+    fun a22OfflinePlaybackKeepsItsPlaceAndSpeedAfterProcessDeath() {
+        val marker = RestartMarker.readAfterRestart("offline")
+        val book = TestApp.key("boundary-book")
+        val position = marker.getValue("position")
+        container.clock = FakeClock(wall = marker.getValue("wall"))
+        assertThat(context.getSystemService(ConnectivityManager::class.java).activeNetwork).isNull()
+        assertThat(runBlocking { container.progressStore.read(book)?.positionMs }).isEqualTo(position)
+        onMain {
+            val c = connectController(context)
+            try {
+                c.setMediaItem(item(book))
+                c.prepare()
+                c.awaitUntil(description = "saved offline place after process death") {
+                    playbackState == Player.STATE_READY && currentPosition in (position - 30)..(position + 30)
+                }
+                assertThat(c.playbackParameters.speed).isEqualTo(1.5f)
+                assertThat(container.playbackHub.state.value.sleep).isEqualTo(SleepState.Off)
+            } finally {
+                c.release()
+            }
+        }
+        assertThat(container.networkDiagnostics.entries()).isEmpty()
         RestartMarker.clear()
         TestApp.reset()
     }

@@ -37,6 +37,7 @@ class PlaybackController(
     private val hub: PlaybackHub,
     private val writer: ProgressWriter,
     private val items: BookItems,
+    private val bookSources: BookMediaSourceFactory,
     private val scope: CoroutineScope,
 ) : Player.Listener {
 
@@ -73,6 +74,7 @@ class PlaybackController(
     var sleep: SleepState = SleepState.Off
         private set
     private var sleepMessage: PlayerMessage? = null
+    private var clippedAtMs: Long? = null
     private var failed = false
     private var tickJob: Job? = null
 
@@ -108,10 +110,12 @@ class PlaybackController(
             // Book switch: checkpoint the old book now, release its timer and reader.
             checkpoint(StopKind.ORDINARY, listened = exo.isPlaying)
             clearSleep()
+            clippedAtMs = null
         }
         if (outgoing != null && outgoing.key == key && !failed) {
             val start = explicitStartMs?.let { outgoing.plan.timeline.clamp(it) } ?: exo.currentPosition
             if (explicitStartMs == null) startResolved = false
+            else retargetSleepAfterSeek(start)
             return playableItem(outgoing.plan) to start
         }
         if (!editions.checkBeforeOpening(key)) return null
@@ -141,7 +145,8 @@ class PlaybackController(
         return playableItem(plan) to start
     }
 
-    fun playableItem(plan: EditionPlan): MediaItem = items.playable(plan)
+    fun playableItem(plan: EditionPlan): MediaItem =
+        items.playable(plan, clippedAtMs.takeIf { loaded?.key == plan.key })
 
     // --- Starting playback ---------------------------------------------------------------------
 
@@ -222,6 +227,7 @@ class PlaybackController(
         if (exo.mediaItemCount == 0) {
             // The book was stopped and cleared (before removal): release its reader and timer.
             clearSleep()
+            clippedAtMs = null
             editions.release(book.plan.generationId)
             loaded = null
             failed = false
@@ -282,6 +288,7 @@ class PlaybackController(
             // to just before the end and, while paused, stays ready instead of ending.
             save(book.durationMs, StopKind.EXACT, finished = true, listened = false)
             clearSleep()
+            setAudioEnd(null, book.durationMs)
             return
         }
         save(exo.currentPosition, pendingSeekKind, listened = false)
@@ -289,6 +296,11 @@ class PlaybackController(
 
     private fun onBookEnded() {
         val book = loaded ?: return
+        val clippedEnd = clippedAtMs
+        if (clippedEnd != null) {
+            onSleepBoundary(clippedEnd)
+            return
+        }
         save(book.durationMs, StopKind.EXACT, finished = true, listened = true)
         clearSleep()
         exo.playWhenReady = false
@@ -349,10 +361,15 @@ class PlaybackController(
 
     // --- Sleep ---------------------------------------------------------------------------------
 
-    fun setSleepOff() = clearSleep().also { publish() }
+    fun setSleepOff() {
+        clearSleep()
+        setAudioEnd(null, exo.currentPosition)
+        publish()
+    }
 
     fun setSleepTimed(minutes: Int) {
         clearSleep()
+        setAudioEnd(null, exo.currentPosition)
         sleep = SleepState.Timed(minutes, clock.elapsedRealtimeMillis() + minutes * 60_000L)
         publish()
     }
@@ -369,7 +386,11 @@ class PlaybackController(
         val timeline = book.plan.timeline
         val boundary = timeline.sleepBoundaryFor(positionMs)
         val atEnd = boundary >= timeline.durationMs
+        val insideTrack = !atEnd && timeline.tracks.none { it.startMs == boundary }
         sleep = SleepState.EndOf(timeline.division, boundary, atEnd)
+        // The audio sink may have queued the next chapter before the pause reaches it. Clip
+        // the current file and temporarily replace the remainder with silence so it cannot leak.
+        setAudioEnd(boundary.takeIf { insideTrack }, positionMs)
         if (!atEnd) {
             sleepMessage = exo.createMessage { _, _ -> onSleepBoundary(boundary) }
                 .setLooper(Looper.getMainLooper())
@@ -397,6 +418,7 @@ class PlaybackController(
         if (exo.playWhenReady) {
             exo.pause()
         }
+        setAudioEnd(null, boundaryMs)
         // Chapter, track and book modes commit the exact boundary.
         pauseCause = null
         save(boundaryMs, StopKind.EXACT, listened = true)
@@ -431,12 +453,23 @@ class PlaybackController(
         sleep = SleepState.Off
     }
 
+    private fun setAudioEnd(endMs: Long?, positionMs: Long) {
+        if (clippedAtMs == endMs) return
+        val book = loaded ?: return
+        if (!playerHolds(book)) return
+        clippedAtMs = endMs
+        exo.setMediaSource(bookSources.createMediaSource(playableItem(book.plan)), positionMs)
+        exo.prepare()
+    }
+
     // --- Publishing ----------------------------------------------------------------------------
 
     private fun publish() {
         val book = loaded
         // After a failure the player may rest at a failed seek's target; the place is the saved one.
-        val position = if (book != null && playerHolds(book) && !failed) exo.currentPosition else book?.saved?.positionMs ?: 0L
+        val position = if (book != null && playerHolds(book) && !failed) {
+            book.plan.timeline.clamp(exo.currentPosition)
+        } else book?.saved?.positionMs ?: 0L
         val remaining = when (val s = sleep) {
             is SleepState.Timed -> (s.deadlineElapsedMs - clock.elapsedRealtimeMillis()).coerceAtLeast(0)
             is SleepState.EndOf -> (s.boundaryMs - position).coerceAtLeast(0)
