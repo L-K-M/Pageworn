@@ -379,7 +379,10 @@ class RepairIntegrationTest {
         }
         home.rules()
 
-        val openDownloaded = ActivityScenario.launch(MainActivity::class.java).use {
+        // A notification can start a new task, which ActivityScenario cannot close on Android 17.
+        // Keep the launch activity visible while sending the intent and finish the resulting UI.
+        ActivityScenario.launch(MainActivity::class.java)
+        try {
             awaitText(Copy.NOTIFICATIONS_DISABLED)
             composeRule.onNodeWithText(Copy.ENABLE_NOTIFICATIONS).assertIsDisplayed()
             composeRule.onNode(tab("Library")).performClick()
@@ -422,19 +425,19 @@ class RepairIntegrationTest {
             }
             composeRule.onNode(tab("Library")).performClick()
             manager.activeNotifications.single { it.id == TransferNotifications.COMPLETION_ID }
-                .notification.contentIntent
-        }
-        try {
-            openDownloaded.send()
+                .notification.contentIntent.send()
             composeRule.waitUntil(10_000) {
-                composeRule.onAllNodes(tab("Downloaded") and isSelected()).fetchSemanticsNodes().isNotEmpty()
+                runCatching {
+                    composeRule.onAllNodes(tab("Downloaded") and isSelected()).fetchSemanticsNodes().isNotEmpty()
+                }.getOrDefault(false)
             }
             composeRule.onNode(tab("Downloaded")).assertIsSelected()
         } finally {
             manager.cancel(TransferNotifications.COMPLETION_ID)
             onMain {
-                ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(Stage.RESUMED)
-                    .filterIsInstance<MainActivity>().forEach { it.finish() }
+                val monitor = ActivityLifecycleMonitorRegistry.getInstance()
+                listOf(Stage.RESUMED, Stage.PAUSED, Stage.STOPPED)
+                    .flatMap { monitor.getActivitiesInStage(it) }.filterIsInstance<MainActivity>().forEach { it.finish() }
             }
         }
     }

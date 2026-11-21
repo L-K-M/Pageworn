@@ -24,7 +24,6 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import ch.lkmc.pageworn.MainActivity
 import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.core.FakeClock
-import ch.lkmc.pageworn.core.progress.StopKind
 import ch.lkmc.pageworn.core.timeline.RawChapter
 import ch.lkmc.pageworn.data.db.ProfileEntity
 import ch.lkmc.pageworn.debug.LocalEditions
@@ -125,7 +124,7 @@ class PlayerScreenTest {
     fun a28bTheChaptersListAndEveryWayOfMovingThroughTheBook() {
         // A28b: server chapters at 30–75 s and 100–150 s leave three spans that nothing covers.
         val book = TestApp.publishBoundaryBook(chapters = listOf(RawChapter(30_000, 75_000, null), RawChapter(100_000, 150_000, null)))
-        load(book, 80_000)
+        val controller = load(book, 80_000)
         val plan = checkNotNull(runBlocking { container.editionStore.plan(book) })
         val segments = PlayerStates.player(plan, runBlocking { container.database.editions().edition(book.profileId, book.itemId) }, null, container.playbackHub.state.value).segments
         // The generated segments are drawn in secondary ink, apart from the server's chapters.
@@ -148,18 +147,14 @@ class PlayerScreenTest {
             awaitLive("playing Chapter 2") { it.isPlaying && it.positionMs in 100_000..101_000 }
             composeRule.onNodeWithContentDescription("Pause $BOOK").performClick()
             awaitLive("paused") { !it.playWhenReady }
-            val paused = checkNotNull(runBlocking {
-                withTimeout(5_000) {
-                    container.database.progress().observe(book.profileId, book.itemId)
-                        .first { it?.stopKind == StopKind.ORDINARY }
-                }
-            }).positionMs
+            onMain { controller.seekTo(104_000) }
+            awaitLive("at the skip starting point") { it.positionMs == 104_000L }
 
             // The skip keys.
             composeRule.onNode(hasContentDescription("Forward 30 seconds") and hasClickAction()).performClick()
-            awaitLive("forward 30 s") { it.positionMs in (paused + 29_900)..(paused + 30_100) }
+            awaitLive("forward 30 s") { it.positionMs in 133_900..134_100 }
             composeRule.onNode(hasContentDescription("Back 15 seconds") and hasClickAction()).performClick()
-            awaitLive("back 15 s") { it.positionMs in (paused + 14_900)..(paused + 15_100) }
+            awaitLive("back 15 s") { it.positionMs in 118_900..119_100 }
 
             // The scrubber spans the current chapter, 100–150 s: its middle is 125 s.
             composeRule.onNode(SemanticsMatcher.keyIsDefined(SemanticsActions.SetProgress)).performSemanticsAction(SemanticsActions.SetProgress) { it(0.5f) }

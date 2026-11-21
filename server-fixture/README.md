@@ -163,3 +163,13 @@ container with `docker cp`, then `chmod -R a+rX` inside the container.
 `<refresh-token>`, `Set-Cookie` dropped, host → `server.example`, no
 passwords). `login-browser.json` and `login-nolibs.json` are extra context
 for the per-user captures.
+
+### Playback and system controls
+
+After building both APKs, run `server-fixture/m4-check.sh <emulator-serial>` on
+a disposable Google APIs emulator. The `a16-noisy` phase temporarily switches
+adbd to root for the system headphone-disconnect broadcast. `a16e-kill` sends
+a media key after a background process kill. `restart` runs the progress
+recovery checks. `repair` and `notifications` use the seeded reference server.
+The notifications phase clears Pageworn’s app data to test a fresh denied
+permission. Set `ONLY=restart` or another phase name to run it by itself.

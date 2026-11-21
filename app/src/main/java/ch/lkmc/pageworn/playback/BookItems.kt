@@ -13,7 +13,7 @@ class BookItems(private val context: Context) {
             .setMediaId(plan.key.mediaId)
             .setUri("pageworn://book/${plan.generationId}")
             .setTag(plan)
-            .setMediaMetadata(metadata(plan, null))
+            .setMediaMetadata(metadata(plan, SYSTEM_UI))
             .build()
 
     /** Item for browsing (the car list, item lookups): metadata only, no local file reference. */
@@ -46,4 +46,9 @@ class BookItems(private val context: Context) {
             .setDurationMs(plan.timeline.durationMs)
             .setArtworkUri(CoverProvider.uriFor(context, plan.key, plan.generationId, callerPackage))
             .build()
+
+    private companion object {
+        // Platform media controls read the session's artwork URI separately from the car browser.
+        const val SYSTEM_UI = "com.android.systemui"
+    }
 }
