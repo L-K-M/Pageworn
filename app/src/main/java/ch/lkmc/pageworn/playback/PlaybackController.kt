@@ -86,7 +86,7 @@ class PlaybackController(
 
     fun release() {
         tickJob?.cancel()
-        checkpoint(StopKind.ORDINARY, listened = exo.isPlaying)
+        checkpointIfPlaying()
         loaded?.let { editions.release(it.plan.generationId) }
         loaded = null
         hub.clear()
@@ -108,7 +108,7 @@ class PlaybackController(
         val outgoing = loaded
         if (outgoing != null && outgoing.key != key) {
             // Book switch: checkpoint the old book now, release its timer and reader.
-            checkpoint(StopKind.ORDINARY, listened = exo.isPlaying)
+            checkpointIfPlaying()
             clearSleep()
             clippedAtMs = null
         }
@@ -331,6 +331,15 @@ class PlaybackController(
         // another book after the end must not store it as unfinished at its last position.
         if (book.saved?.finished == true) return
         save(exo.currentPosition, kind, listened = listened)
+    }
+
+    /**
+     * The checkpoint when playing audio is cut off by a book switch or by the service going away. A
+     * book at rest was saved when it stopped; another write would restart its rest and replace how
+     * it stopped, and with that the resume rewind.
+     */
+    private fun checkpointIfPlaying() {
+        if (exo.isPlaying) checkpoint(StopKind.ORDINARY, listened = true)
     }
 
     private fun save(positionMs: Long, kind: StopKind, finished: Boolean = false, listened: Boolean) {

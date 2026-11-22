@@ -6,6 +6,7 @@ import androidx.media3.session.MediaController
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.core.FakeClock
+import ch.lkmc.pageworn.core.progress.StopKind
 import ch.lkmc.pageworn.debug.LocalEditions
 import ch.lkmc.pageworn.testing.FaultyFiles
 import ch.lkmc.pageworn.testing.Fixtures
@@ -161,8 +162,34 @@ class ProgressOrderTest {
     }
 
     @Test
-    fun a29AnotherBookForTenMinutesRewindsTheRestingOne() = onMain {
+    fun a29SwitchingAwayFromARestingBookKeepsWhenAndHowItStopped() {
         val orchard = TestApp.publishSingleM4b()
+        onMain {
+            val c = connectController(context)
+            c.stopAt(boundary, 115_000)
+            c.seekTo(120_000)
+            c.awaitUntil(description = "moved while paused") { playbackState == Player.STATE_READY && currentPosition >= 119_900 }
+            delay(300)
+            val stopped = stored(boundary)
+            assertThat(stopped.stopKind).isEqualTo(StopKind.EXACT)
+            clock.advance(4 * 60_000L)
+            c.setMediaItem(item(orchard), 50_000)
+            c.prepare()
+            c.awaitUntil(description = "other book ready") { playbackState == Player.STATE_READY && currentMediaItem?.mediaId == orchard.mediaId }
+            delay(300)
+            assertThat(stored(boundary)).isEqualTo(stopped)
+            c.release()
+        }
+    }
+
+    @Test
+    fun a29AnotherBookForTenMinutesRewindsTheRestingOne() {
+        // Probing a fixture posts to the main thread, so it cannot run inside onMain.
+        val orchard = TestApp.publishSingleM4b()
+        onMain { a29RestingOneRewindsAfter(orchard) }
+    }
+
+    private suspend fun a29RestingOneRewindsAfter(orchard: BookKey) {
         val c = connectController(context)
         val stop = c.stopAt(boundary, 115_000)
         c.setMediaItem(item(orchard), 50_000)
