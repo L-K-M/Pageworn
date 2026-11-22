@@ -15,6 +15,7 @@ import ch.lkmc.pageworn.ui.model.SleepChoice
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -90,23 +91,20 @@ class PlayerConnection(
 
     /**
      * A tap on a key of [key] that showed Play. The screen can trail the player by a frame or more,
-     * so the book may be starting already; that tap must not pause it.
+     * so the book may be starting already; that tap must not pause it. The job ends when the start
+     * has been reported, and is null when there was nothing to do.
      */
-    fun playFromKey(key: BookKey) {
-        if (!hub.state.value.showsPause(key)) play(key)
-    }
+    fun playFromKey(key: BookKey): Job? = if (hub.state.value.showsPause(key)) null else play(key)
 
     /** A tap on a key of [key] that showed Pause. It pauses that book and no other. */
-    fun pauseFromKey(key: BookKey) {
-        if (hub.state.value.showsPause(key)) pause()
-    }
+    fun pauseFromKey(key: BookKey): Job? = if (hub.state.value.showsPause(key)) pause() else null
 
     /** Starts [key] from its saved place, or exactly at [fromMs] (a chapter choice moves the place). */
-    fun play(key: BookKey, fromMs: Long? = null) {
+    fun play(key: BookKey, fromMs: Long? = null): Job {
         val tap = ++newestTap
         _problem.value = null
         hub.expectStart(key)
-        scope.launch {
+        return scope.launch {
             val refusal = inOrder<PlayRefusal?>(PlayRefusal.DID_NOT_START) { start(key, fromMs) }
             val started = refusal == null && withTimeoutOrNull(START_TIMEOUT_MS) {
                 hub.state.first { it.key == key && it.held && (it.playbackRequested || it.failed) }
@@ -118,11 +116,11 @@ class PlayerConnection(
         }
     }
 
-    fun pause() {
+    fun pause(): Job {
         newestTap++
         _problem.value = null
         hub.endStart()
-        launchInOrder { connected().pause() }
+        return launchInOrder { connected().pause() }
     }
 
     private suspend fun start(key: BookKey, fromMs: Long?): PlayRefusal? {
@@ -201,9 +199,7 @@ class PlayerConnection(
         return args
     }
 
-    private fun launchInOrder(command: suspend () -> Unit) {
-        scope.launch { inOrder(Unit) { command() } }
-    }
+    private fun launchInOrder(command: suspend () -> Unit): Job = scope.launch { inOrder(Unit) { command() } }
 
     private suspend fun <T> inOrder(onFailure: T, command: suspend () -> T): T = commands.withLock {
         try {

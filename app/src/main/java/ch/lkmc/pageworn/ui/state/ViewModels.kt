@@ -9,7 +9,6 @@ import ch.lkmc.pageworn.core.progress.StopKind
 import ch.lkmc.pageworn.core.timeline.BookTimeline
 import ch.lkmc.pageworn.data.db.BookProgressEntity
 import ch.lkmc.pageworn.data.db.LocalEditionEntity
-import ch.lkmc.pageworn.playback.BookPlayer
 import ch.lkmc.pageworn.playback.EditionPlan
 import ch.lkmc.pageworn.playback.PlayProblem
 import ch.lkmc.pageworn.playback.PlayRefusal
@@ -33,8 +32,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.ConcurrentHashMap
 
 /** Caches edition plans (timeline, files, cover) by generation for row labels and the player. */
@@ -64,9 +61,6 @@ class PlayerViewModel(private val container: AppContainer) : ViewModel() {
     ) { active, last, problem ->
         problem?.takeIf { it.refusal == PlayRefusal.NEEDS_CHOICE }?.key ?: active ?: last
     }.distinctUntilChanged()
-
-    /** Moves of a resting book's place, one after another: a skip reads the place it moves. */
-    private val restingMoves = Mutex()
 
     private data class Shown(val plan: EditionPlan, val edition: LocalEditionEntity?, val progress: BookProgressEntity?)
 
@@ -99,43 +93,28 @@ class PlayerViewModel(private val container: AppContainer) : ViewModel() {
     private fun currentKey(): BookKey? = player.value?.face?.key
 
     /** [key] is the book of the key that was tapped, never whichever book is shown by now. */
-    fun playPause(key: BookKey, action: KeyAction) = when (action) {
-        KeyAction.PLAY -> connection.playFromKey(key)
-        KeyAction.PAUSE -> connection.pauseFromKey(key)
+    fun playPause(key: BookKey, action: KeyAction) {
+        when (action) {
+            KeyAction.PLAY -> connection.playFromKey(key)
+            KeyAction.PAUSE -> connection.pauseFromKey(key)
+        }
     }
 
     fun dismissProblem() = connection.dismissProblem()
 
     fun skipBack() {
         val key = currentKey() ?: return
-        if (isLoaded(key)) connection.skipBack() else moveRestingPlace(key) { it - BookPlayer.SEEK_BACK_MS }
+        container.bookTransport.skipBack(key)
     }
 
     fun skipForward() {
         val key = currentKey() ?: return
-        if (isLoaded(key)) connection.skipForward() else moveRestingPlace(key) { it + BookPlayer.SEEK_FORWARD_MS }
+        container.bookTransport.skipForward(key)
     }
 
     fun seekTo(positionMs: Long) {
         val key = currentKey() ?: return
-        if (isLoaded(key)) connection.seekTo(positionMs) else moveRestingPlace(key) { positionMs }
-    }
-
-    private fun isLoaded(key: BookKey) = container.playbackHub.state.value.key == key
-
-    /** Moving the place of a resting book: an exact stop, and at the book's end the finished state. */
-    private fun moveRestingPlace(key: BookKey, target: (Long) -> Long) {
-        container.appScope.launch {
-            restingMoves.withLock {
-                val plan = container.editionStore.anyPlan(key) ?: return@withLock
-                val from = container.progressStore.read(key)?.positionMs ?: 0L
-                val to = plan.timeline.clamp(target(from))
-                container.progressStore.saveOutsideSession(
-                    key, to, plan.timeline.durationMs, plan.fingerprint, StopKind.EXACT,
-                    finished = plan.timeline.isAtEnd(to),
-                )
-            }
-        }
+        container.bookTransport.seekTo(key, positionMs)
     }
 
     fun selectSegment(startMs: Long) {
@@ -144,7 +123,9 @@ class PlayerViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     /** A chapter row in a book's details starts that book there. */
-    fun playFrom(key: BookKey, startMs: Long) = connection.play(key, startMs)
+    fun playFrom(key: BookKey, startMs: Long) {
+        connection.play(key, startMs)
+    }
 
     fun setSpeed(speed: Float) {
         container.settings.setSpeed(speed)

@@ -26,6 +26,7 @@ import ch.lkmc.pageworn.data.SettingsStore
 import ch.lkmc.pageworn.data.db.PagewornDatabase
 import ch.lkmc.pageworn.formats.FormatSupport
 import ch.lkmc.pageworn.formats.MediaProbe
+import ch.lkmc.pageworn.playback.BookTransport
 import ch.lkmc.pageworn.playback.EditionSource
 import ch.lkmc.pageworn.playback.PlaybackHub
 import ch.lkmc.pageworn.playback.PlayerConnection
@@ -75,6 +76,7 @@ class AppContainer(private val app: PagewornApp) {
     val editionStore: EditionStore by lazy { EditionStore(database, editionFiles, liveClock) }
     val playbackHub = PlaybackHub()
     val playerConnection: PlayerConnection by lazy { PlayerConnection(app, playbackHub, editionStore, progressStore) }
+    val bookTransport: BookTransport by lazy { BookTransport(playbackHub, playerConnection, editionStore, progressStore, appScope) }
     val notices: AppNotices by lazy { AppNotices(settings) }
 
     /** Where the player's progress writes go. Tests may hold a write back to deliver it late. */
