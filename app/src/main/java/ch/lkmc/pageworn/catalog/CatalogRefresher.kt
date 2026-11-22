@@ -9,11 +9,13 @@ import ch.lkmc.pageworn.data.db.RefreshState
 import ch.lkmc.pageworn.server.ServerError
 import ch.lkmc.pageworn.server.ServerResult
 import java.util.UUID
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 
 /**
@@ -120,7 +122,10 @@ class CatalogRefresher(
                     }
                     rowsFlow = db.catalog().observeStaged(attempt.refreshId, escaped).map { staged -> staged.map { it.toRow() } }
                 }
-                rowsFlow.map { rows -> CatalogListing(sort.order(rows), status, library?.lastRefreshAt, sort) }
+                rowsFlow
+                    .map { rows -> CatalogListing(sort.order(rows), status, library?.lastRefreshAt, sort) }
+                    // A large library's collation is work for a background thread, not the collector's.
+                    .flowOn(Dispatchers.Default)
             }
     }
 

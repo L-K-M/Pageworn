@@ -100,7 +100,7 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
 
     val state: StateFlow<LibraryUiState> = combine(scope, query, listing, local, conditions) { s, q, rows, l, condition ->
         withRefusal(build(s, q, rows, l, condition.notice, condition.checked), condition.refusal)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryUiState())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryUiState(sort = container.settings.librarySort.value))
 
     /** A Download tap refused for the book itself says why on its row. */
     private fun withRefusal(state: LibraryUiState, refusal: DownloadRefusal?): LibraryUiState {
