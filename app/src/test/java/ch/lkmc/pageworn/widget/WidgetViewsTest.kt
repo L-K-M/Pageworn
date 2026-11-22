@@ -99,6 +99,31 @@ class WidgetViewsTest {
     }
 
     @Test
+    fun anUpdateOntoTheViewsAlreadyShownLeavesNothingBehind() {
+        for (layout in ReadingLayout.entries) {
+            val shown = measured(views.reading(reading(Copy.PLAY_DID_NOT_START).copy(key = null), layout), layout.minimum(1f))
+
+            views.reading(reading(), layout).reapply(app, (shown as ViewGroup).getChildAt(0))
+
+            assertWithMessage("$layout key").that(shown.findViewById<View>(R.id.widget_toggle).isDrawn()).isTrue()
+            assertWithMessage("$layout cover").that(shown.findViewById<View>(R.id.widget_cover).isDrawn()).isTrue()
+            assertWithMessage("$layout notice").that(shown.findViewById<View>(R.id.widget_notice).isDrawn()).isFalse()
+        }
+
+        val shelved = measured(views.shelf(shelf(Copy.PLAY_DID_NOT_START), ShelfLayout.FOUR), ShelfLayout.FOUR.minimum(1f))
+        views.shelf(shelf(null).copy(books = shelf(null).books.take(2)), ShelfLayout.FOUR).reapply(app, (shelved as ViewGroup).getChildAt(0))
+        assertThat(shelved.findViewById<ViewGroup>(R.id.widget_books).childCount).isEqualTo(2)
+        assertThat(shelved.findViewById<View>(R.id.widget_books).isDrawn()).isTrue()
+    }
+
+    @Test
+    fun aShelfReadsOutWhyABookDidNotStart() {
+        val root = measured(views.shelf(shelf(Copy.PLAY_DID_NOT_START), ShelfLayout.FOUR), ShelfLayout.FOUR.minimum(1f))
+
+        assertThat(root.findViewById<View>(android.R.id.background).contentDescription.toString()).contains(Copy.PLAY_DID_NOT_START)
+    }
+
+    @Test
     fun theLauncherPicksAnArrangementByTheWidgetsSize() {
         val sized = views.reading(reading())
 

@@ -114,7 +114,8 @@ class WidgetViews(private val context: Context, private val openPlayer: PendingI
     fun shelf(state: ShelfWidgetState, layout: ShelfLayout): RemoteViews {
         val views = RemoteViews(context.packageName, R.layout.pw_widget_shelf)
         views.setOnClickPendingIntent(android.R.id.background, openApp())
-        views.setContentDescription(android.R.id.background, context.getString(R.string.widget_bookshelf))
+        val spoken = listOfNotNull(context.getString(R.string.widget_bookshelf), state.notice).joinToString(". ")
+        views.setContentDescription(android.R.id.background, spoken)
         views.setViewVisibility(R.id.widget_notice, visibleIf(state.notice != null))
         views.setTextViewText(R.id.widget_notice, state.notice.orEmpty())
         // A short shelf has room for its books or for why one did not start.
