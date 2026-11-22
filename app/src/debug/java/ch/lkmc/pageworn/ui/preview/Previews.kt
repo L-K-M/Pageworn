@@ -48,7 +48,7 @@ fun LibraryPreview() {
                 CatalogRow(coast, CatalogAction.Transferring(transfer)),
                 CatalogRow(rain, CatalogAction.Ready(showsPause = false, starting = false, StartAction.PLAY)),
                 CatalogRow(hours, CatalogAction.Download),
-            )), listState = rememberLazyListState(), onQueryChange = {}, onSelectLibrary = {}, onOpenBook = {}, onDownload = {}, onPlayPause = { _, _ -> }, onPauseTransfer = {}, onResumeTransfer = {}, onCancelTransfer = {}, onAction = {}, onOpenSettings = {}, contentPadding = padding)
+            )), listState = rememberLazyListState(), onQueryChange = {}, onSelectLibrary = {}, onSelectSort = {}, onOpenBook = {}, onDownload = {}, onPlayPause = { _, _ -> }, onPauseTransfer = {}, onResumeTransfer = {}, onCancelTransfer = {}, onAction = {}, onOpenSettings = {}, contentPadding = padding)
         }
     } }
 }

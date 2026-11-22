@@ -18,13 +18,11 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -50,6 +48,7 @@ import ch.lkmc.pageworn.R
 import ch.lkmc.pageworn.ui.components.BookCover
 import ch.lkmc.pageworn.ui.components.PencilIcon
 import ch.lkmc.pageworn.ui.components.PlayPauseKey
+import ch.lkmc.pageworn.ui.components.RadioRow
 import ch.lkmc.pageworn.ui.components.SkipKey
 import ch.lkmc.pageworn.ui.components.TextAction
 import ch.lkmc.pageworn.ui.components.paperBackground
@@ -168,17 +167,5 @@ private fun SleepSheet(sleep: SleepUi, onSelect: (SleepChoice) -> Unit) {
             SleepChoice.OFF to "Off", SleepChoice.MINUTES_15 to "15 minutes", SleepChoice.MINUTES_30 to "30 minutes",
             SleepChoice.MINUTES_45 to "45 minutes", SleepChoice.MINUTES_60 to "60 minutes", SleepChoice.END_OF_SEGMENT to sleep.endLabel,
         ).forEach { (choice, label) -> RadioRow(label, sleep.selected == choice, if (sleep.selected == choice) sleep.remainingText else null) { onSelect(choice) } }
-    }
-}
-
-@Composable
-private fun RadioRow(label: String, selected: Boolean, detail: String?, onClick: () -> Unit) {
-    HorizontalDivider(color = PagewornTheme.colors.secondaryInk.copy(alpha = .25f))
-    Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).selectable(selected = selected, role = Role.RadioButton, onClick = onClick).padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            Text(label, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.rowTitle)
-            detail?.let { Text(it, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status) }
-        }
-        RadioButton(selected = selected, onClick = null)
     }
 }

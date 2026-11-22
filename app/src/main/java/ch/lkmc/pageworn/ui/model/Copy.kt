@@ -1,9 +1,27 @@
 package ch.lkmc.pageworn.ui.model
 
+import ch.lkmc.pageworn.catalog.CatalogSort
 import java.util.Locale
 
 /** The listener-facing sentences of docs/01-product.md ("Copy and recovery"), verbatim. */
 object Copy {
+    /** An order as the sheet lists it and as TalkBack reads the Sort control. */
+    fun sortName(sort: CatalogSort) = when (sort) {
+        CatalogSort.DATE_ADDED_NEWEST -> "Date added, newest first"
+        CatalogSort.DATE_ADDED_OLDEST -> "Date added, oldest first"
+        CatalogSort.TITLE -> "Title"
+        CatalogSort.AUTHOR -> "Author"
+    }
+
+    /** An order as the Sort control shows it. */
+    fun sortShortName(sort: CatalogSort) = when (sort) {
+        CatalogSort.DATE_ADDED_NEWEST -> "Newest first"
+        CatalogSort.DATE_ADDED_OLDEST -> "Oldest first"
+        CatalogSort.TITLE -> "Title"
+        CatalogSort.AUTHOR -> "Author"
+    }
+
+    const val SORT_LIBRARY = "Sort Library"
     const val BACK_15 = "Back 15 seconds"
     const val FORWARD_30 = "Forward 30 seconds"
     const val NO_DOWNLOADS = "Your downloaded books will appear here."

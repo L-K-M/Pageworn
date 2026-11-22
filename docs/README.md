@@ -65,6 +65,7 @@ The owner asked for implementation work to be committed directly on `main`, with
 |---|---|
 | One client | One Android installation, one account, one logical server with multiple addresses. Local per-book progress is authoritative. Signing out keeps the downloaded books and saved places for the same account. |
 | Book formats | DRM-free **audiobook** files that the target Audiobookshelf release recognizes and Media3 can extract, decode and seek on the phone. A recognized format that Media3 cannot play is refused as unsupported in v1, and the app bundles no decoder of its own. Inventory the formats and exercise local decoding and seeking. Track actual coverage in M0 and M4. |
+| Library order | Library can be sorted, and starts sorted by date added with the newest book at the top. |
 | Two scales | The player shows two progress bars: one for the chapter and one for the whole book. A book without chapters is broken into ten-minute parts. A multi-file book’s files already act as its chapters, so it keeps its Tracks. |
 | Sleep mode | Pause after a wall-clock duration or at the end of the current chapter. Support the locked screen and headphone controls. After a timed stop, a book that has rested five minutes or more starts five minutes earlier. |
 | Design baseline | Kotlin, Jetpack Compose, Room and a Media3 library session. The minimum Android version is 12 (API 31) and the target SDK is 37. The application ID is `ch.lkmc.pageworn`. Sign-in uses an Audiobookshelf username and password. The interface ships in English. |
@@ -72,4 +73,4 @@ The owner asked for implementation work to be committed directly on `main`, with
 | In the car | Android Auto lists the downloaded books and resumes one on a tap. Browsing the library and downloading stay on the phone. |
 | Distribution | A signed APK on the repository’s GitHub Releases, built and signed by GitHub Actions. The app has no store listing, crash reporting or analytics. |
 
-The owner settled these on 21 November 2026, and the two scales on 22 November 2026, together with the facts about their own setup under [the listener’s deployment](06-delivery-and-tests.md#the-listeners-deployment). Keep implementation evidence with the milestone so the next contributor can reproduce it.
+The owner settled these on 21 November 2026, and the Library order and two scales on 22 November 2026, together with the facts about their own setup under [the listener’s deployment](06-delivery-and-tests.md#the-listeners-deployment). Keep implementation evidence with the milestone so the next contributor can reproduce it.

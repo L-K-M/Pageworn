@@ -291,6 +291,7 @@ private fun MainRoute(container: AppContainer, main: MainViewModel, player: Play
                     listState = libraryList,
                     onQueryChange = library::setQuery,
                     onSelectLibrary = library::selectLibrary,
+                    onSelectSort = library::setSort,
                     onOpenBook = openBook,
                     onDownload = library::download,
                     onPlayPause = player::playPause,

@@ -26,7 +26,7 @@ import androidx.room.RoomDatabase
         TransferFileEntity::class,
         BookProgressEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 abstract class PagewornDatabase : RoomDatabase() {
@@ -42,7 +42,15 @@ abstract class PagewornDatabase : RoomDatabase() {
         const val NAME = "pageworn.db"
 
         /** Additive migrations, oldest first. Never add a destructive fallback. */
-        val MIGRATIONS = arrayOf<androidx.room.migration.Migration>()
+        val MIGRATIONS = arrayOf<androidx.room.migration.Migration>(
+            // 2: when each book came to the server, for Library's date order.
+            object : androidx.room.migration.Migration(1, 2) {
+                override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                    db.execSQL("ALTER TABLE catalog_book ADD COLUMN addedAt INTEGER")
+                    db.execSQL("ALTER TABLE catalog_staging ADD COLUMN addedAt INTEGER")
+                }
+            },
+        )
 
         fun build(context: Context, inMemory: Boolean = false): PagewornDatabase {
             val builder = if (inMemory) {

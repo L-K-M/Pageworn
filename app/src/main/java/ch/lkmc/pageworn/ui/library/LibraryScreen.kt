@@ -23,6 +23,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,6 +37,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import ch.lkmc.pageworn.R
+import ch.lkmc.pageworn.catalog.CatalogSort
 import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.ui.components.BookCover
 import ch.lkmc.pageworn.ui.components.EmptyStateView
@@ -56,7 +58,14 @@ import ch.lkmc.pageworn.ui.theme.PagewornTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LibraryScreen(state: LibraryUiState, listState: LazyListState, onQueryChange: (String) -> Unit, onSelectLibrary: (String) -> Unit, onOpenBook: (BookKey) -> Unit, onDownload: (BookKey) -> Unit, onPlayPause: (BookKey, KeyAction) -> Unit, onPauseTransfer: (String) -> Unit, onResumeTransfer: (String) -> Unit, onCancelTransfer: (String) -> Unit, onAction: (UiAction) -> Unit, onOpenSettings: () -> Unit, contentPadding: PaddingValues) {
+fun LibraryScreen(state: LibraryUiState, listState: LazyListState, onQueryChange: (String) -> Unit, onSelectLibrary: (String) -> Unit, onSelectSort: (CatalogSort) -> Unit, onOpenBook: (BookKey) -> Unit, onDownload: (BookKey) -> Unit, onPlayPause: (BookKey, KeyAction) -> Unit, onPauseTransfer: (String) -> Unit, onResumeTransfer: (String) -> Unit, onCancelTransfer: (String) -> Unit, onAction: (UiAction) -> Unit, onOpenSettings: () -> Unit, contentPadding: PaddingValues) {
+    // A new order starts at its top, where the books it was chosen for are.
+    var shownSort by remember { mutableStateOf(state.sort) }
+    LaunchedEffect(state.sort) {
+        if (shownSort == state.sort) return@LaunchedEffect
+        shownSort = state.sort
+        listState.scrollToItem(0)
+    }
     LazyColumn(state = listState, contentPadding = contentPadding) {
         item(key = "heading") { SectionHeader(state.heading, onOpenSettings) }
         if (state.showSelectorAndSearch) {
@@ -74,6 +83,7 @@ fun LibraryScreen(state: LibraryUiState, listState: LazyListState, onQueryChange
                     if (state.query.isNotEmpty()) IconButton(onClick = { onQueryChange("") }, modifier = Modifier.size(48.dp)) { Text("×", modifier = Modifier.semantics { contentDescription = "Clear search" }) }
                 }, singleLine = false)
             }
+            item(key = "sort") { LibrarySortControl(state.sort, onSelectSort) }
         }
         state.status?.let { line -> item(key = "status") { StatusLineView(line, onAction) } }
         if (state.empty != null) item(key = "empty") { EmptyStateView(state.empty, onAction) }

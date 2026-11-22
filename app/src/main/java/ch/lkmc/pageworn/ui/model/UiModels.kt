@@ -1,5 +1,6 @@
 package ch.lkmc.pageworn.ui.model
 
+import ch.lkmc.pageworn.catalog.CatalogSort
 import ch.lkmc.pageworn.core.BookKey
 import java.io.File
 
@@ -115,6 +116,7 @@ data class LibraryUiState(
     val libraries: List<LibraryChoice> = emptyList(),
     val selectedLibraryId: String? = null,
     val query: String = "",
+    val sort: CatalogSort = CatalogSort.DEFAULT,
     val rows: List<CatalogRow> = emptyList(),
     val status: StatusLine? = null,
     /** When set, replaces the rows (and, for no audiobook libraries, the selector and search). */

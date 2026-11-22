@@ -79,7 +79,7 @@ class LargeTextScreensTest {
     fun lightAndDarkDestinationsKeepLargeTextVisibleAndTargetsTouchable() {
         val light = checkAndCapture("Downloaded", listOf("Field Notes on Rain", "The Night Orchard", "Boundary Book"), "m1-downloaded-light-200")
         bookmark("Library").performClick()
-        checkAndCapture("Library", listOf("Boundary Book", "Field Notes on Rain", "Small Hours", "The Glass Coast", "The Night Orchard"), "m1-library-light-200")
+        checkAndCapture("Library", listOf("The Night Orchard", "The Glass Coast", "Field Notes on Rain", "Small Hours", "Boundary Book"), "m1-library-light-200")
 
         shell("cmd uimode night yes")
         waitForTheme(Configuration.UI_MODE_NIGHT_YES)
@@ -87,7 +87,7 @@ class LargeTextScreensTest {
         bookmark("Downloaded").performClick()
         val dark = checkAndCapture("Downloaded", listOf("Field Notes on Rain", "The Night Orchard", "Boundary Book"), "m1-downloaded-dark-200")
         bookmark("Library").performClick()
-        checkAndCapture("Library", listOf("Boundary Book", "Field Notes on Rain", "Small Hours", "The Glass Coast", "The Night Orchard"), "m1-library-dark-200")
+        checkAndCapture("Library", listOf("The Night Orchard", "The Glass Coast", "Field Notes on Rain", "Small Hours", "Boundary Book"), "m1-library-dark-200")
 
         assertThat(centreLuminance(dark)).isLessThan(centreLuminance(light))
     }

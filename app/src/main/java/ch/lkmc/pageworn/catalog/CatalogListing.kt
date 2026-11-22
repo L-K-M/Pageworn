@@ -10,6 +10,7 @@ data class CatalogRow(
     val updatedAt: Long,
     val durationMs: Long?,
     val sizeBytes: Long?,
+    val addedAt: Long? = null,
 )
 
 /** What the Library screen shows above its rows. */
@@ -24,9 +25,10 @@ enum class ListingStatus {
     INCOMPLETE,
 }
 
-/** The listing of one library: rows in the server's order, the status and the last publish time. */
+/** The listing of one library: rows in [sort] order, the status and the last publish time. */
 data class CatalogListing(
     val rows: List<CatalogRow>,
     val status: ListingStatus,
     val lastRefreshAt: Long?,
+    val sort: CatalogSort = CatalogSort.DEFAULT,
 )

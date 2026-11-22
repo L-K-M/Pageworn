@@ -97,7 +97,7 @@ class CatalogRefresher(
      * playable staging is shown while it fills or after it failed.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
-    fun observeListing(profileId: String, libraryId: String, query: String): Flow<CatalogListing> {
+    fun observeListing(profileId: String, libraryId: String, query: String, sort: CatalogSort = CatalogSort.DEFAULT): Flow<CatalogListing> {
         val escaped = escapeLike(query)
         return combine(
             db.libraries().observeOne(profileId, libraryId),
@@ -120,7 +120,7 @@ class CatalogRefresher(
                     }
                     rowsFlow = db.catalog().observeStaged(attempt.refreshId, escaped).map { staged -> staged.map { it.toRow() } }
                 }
-                rowsFlow.map { rows -> CatalogListing(rows, status, library?.lastRefreshAt) }
+                rowsFlow.map { rows -> CatalogListing(sort.order(rows), status, library?.lastRefreshAt, sort) }
             }
     }
 
@@ -219,6 +219,7 @@ class CatalogRefresher(
         durationMs = durationMs,
         sizeBytes = sizeBytes,
         playable = numTracks > 0,
+        addedAt = addedAt,
     )
 
     private fun CatalogStagingEntity.toBook(profileId: String, libraryId: String, refreshId: String) = CatalogBookEntity(
@@ -233,11 +234,12 @@ class CatalogRefresher(
         durationMs = durationMs,
         sizeBytes = sizeBytes,
         refreshId = refreshId,
+        addedAt = addedAt,
     )
 
-    private fun CatalogBookEntity.toRow() = CatalogRow(itemId, title, authors, narrators, updatedAt, durationMs, sizeBytes)
+    private fun CatalogBookEntity.toRow() = CatalogRow(itemId, title, authors, narrators, updatedAt, durationMs, sizeBytes, addedAt)
 
-    private fun CatalogStagingEntity.toRow() = CatalogRow(itemId, title, authors, narrators, updatedAt, durationMs, sizeBytes)
+    private fun CatalogStagingEntity.toRow() = CatalogRow(itemId, title, authors, narrators, updatedAt, durationMs, sizeBytes, addedAt)
 
     companion object {
         /** Escapes the LIKE wildcards and the escape character so the query matches literally. */

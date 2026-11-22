@@ -101,6 +101,8 @@ data class CatalogBookEntity(
     val durationMs: Long?,
     val sizeBytes: Long?,
     val refreshId: String,
+    /** Item `addedAt`; null in rows cached before schema 2, until the next refresh. */
+    val addedAt: Long? = null,
 )
 
 enum class RefreshState { RUNNING, FAILED, PUBLISHED, SUPERSEDED }
@@ -133,6 +135,7 @@ data class CatalogStagingEntity(
     val sizeBytes: Long?,
     /** Entries with no audio tracks count toward completeness but are never published. */
     val playable: Boolean,
+    val addedAt: Long? = null,
 )
 
 enum class EditionState { READY, REPAIR_NEEDED }
