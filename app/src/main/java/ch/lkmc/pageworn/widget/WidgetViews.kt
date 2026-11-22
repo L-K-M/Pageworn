@@ -4,6 +4,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.util.SizeF
+import android.util.TypedValue
 import android.view.View
 import android.widget.RemoteViews
 import androidx.annotation.LayoutRes
@@ -12,6 +13,9 @@ import ch.lkmc.pageworn.R
 import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.ui.model.Copy
 import ch.lkmc.pageworn.ui.model.StartAction
+
+/** From this font scale a notice's first sentence takes the room of both. */
+private const val ENLARGED_NOTICE_TYPE = 1.2f
 
 /**
  * Now reading's arrangements. The launcher picks the closest that fits, so each gives the least
@@ -31,11 +35,7 @@ enum class ReadingLayout(
 
     fun minimum(fontScale: Float) = SizeF(minWidth, fixedHeight + textHeight * fontScale)
 
-    fun showsWholeNotice(fontScale: Float) = this == TALL || (this == PLAYER && fontScale < WHOLE_NOTICE_TYPE)
-
-    private companion object {
-        const val WHOLE_NOTICE_TYPE = 1.2f
-    }
+    fun showsWholeNotice(fontScale: Float) = this == TALL || (this == PLAYER && fontScale < ENLARGED_NOTICE_TYPE)
 }
 
 /** Bookshelf's arrangements: as many books as the width holds, with titles where the height allows. */
@@ -49,7 +49,10 @@ enum class ShelfLayout(val books: Int, val titles: Boolean) {
         if (titles) TITLED_HEIGHT + TITLE_HEIGHT * fontScale else HEIGHT,
     )
 
-    fun showsWholeNotice() = books >= WHOLE_NOTICE_BOOKS
+    fun showsWholeNotice(fontScale: Float) = books >= WHOLE_NOTICE_BOOKS && fontScale < ENLARGED_NOTICE_TYPE
+
+    /** A notice shares the paper with the covers only where both can be read. */
+    fun keepsBooksBesideNotice(fontScale: Float) = titles && fontScale < ENLARGED_NOTICE_TYPE
 
     private companion object {
         const val WHOLE_NOTICE_BOOKS = 3
@@ -114,6 +117,10 @@ class WidgetViews(private val context: Context, private val openPlayer: PendingI
         // A short arrangement's notice needs the title's lines. Its cover still names the book.
         val noticeTakesTitle = hasNotice && (layout == ReadingLayout.STRIP || layout == ReadingLayout.SQUARE)
         views.setViewVisibility(R.id.widget_title, visibleIf(!noticeTakesTitle))
+        if (layout == ReadingLayout.STRIP || layout == ReadingLayout.SQUARE) {
+            // The least heights grow linearly with the type, which a height in sp stops doing on Android 14.
+            views.setViewLayoutHeight(R.id.widget_notice, NOTICE_HEIGHT * fontScale, TypedValue.COMPLEX_UNIT_DIP)
+        }
 
         val key = state.key
         for (control in KEY_VIEWS) views.setViewVisibility(control, visibleIf(key != null))
@@ -131,10 +138,14 @@ class WidgetViews(private val context: Context, private val openPlayer: PendingI
         val spoken = listOfNotNull(context.getString(R.string.widget_bookshelf), state.notice).joinToString(". ")
         views.setContentDescription(android.R.id.background, spoken)
         views.setViewVisibility(R.id.widget_notice, visibleIf(state.notice != null))
-        val notice = state.notice?.let { if (layout.showsWholeNotice()) it else firstSentence(it) }
+        val fontScale = context.resources.configuration.fontScale
+        val notice = state.notice?.let { if (layout.showsWholeNotice(fontScale)) it else firstSentence(it) }
         views.setTextViewText(R.id.widget_notice, notice.orEmpty())
-        // A short shelf has room for its books or for why one did not start.
-        views.setViewVisibility(R.id.widget_books, visibleIf(state.notice == null || layout.titles))
+        // A short shelf, or one in large type, has room for its books or for why one did not start.
+        val keepsBooks = layout.keepsBooksBesideNotice(fontScale)
+        views.setViewVisibility(R.id.widget_books, visibleIf(state.notice == null || keepsBooks))
+        val noticeHeight = if (keepsBooks) NOTICE_BESIDE_BOOKS_HEIGHT else NOTICE_ALONE_HEIGHT
+        views.setViewLayoutHeight(R.id.widget_notice, noticeHeight, TypedValue.COMPLEX_UNIT_DIP)
 
         views.removeAllViews(R.id.widget_books)
         views.removeAllViews(R.id.widget_keys)
@@ -225,6 +236,9 @@ class WidgetViews(private val context: Context, private val openPlayer: PendingI
 
     private companion object {
         const val LARGE_TYPE = 1.5f
+        const val NOTICE_HEIGHT = 44f
+        const val NOTICE_BESIDE_BOOKS_HEIGHT = 36f
+        const val NOTICE_ALONE_HEIGHT = 56f
         val PROGRESS_VIEWS = intArrayOf(R.id.widget_progress, R.id.widget_segment_row)
         val KEY_VIEWS = intArrayOf(R.id.widget_toggle, R.id.widget_back, R.id.widget_forward, R.id.widget_key_row)
     }

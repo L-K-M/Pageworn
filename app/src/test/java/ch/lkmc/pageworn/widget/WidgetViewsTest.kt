@@ -162,6 +162,21 @@ class WidgetViewsTest {
         }
     }
 
+    /** 200 % text: only the compact arrangement is too narrow to enlarge its notice. */
+    @Test
+    @Config(sdk = [31, 34])
+    fun largeTypeEnlargesANotice() {
+        RuntimeEnvironment.setFontScale(2f)
+        for (notice in listOf(Copy.PLAY_DID_NOT_START, Copy.DAMAGED_COPY)) {
+            for (layout in ReadingLayout.entries - ReadingLayout.COMPACT) {
+                assertEnlarged(measured(views.reading(reading(notice), layout), layout.minimum(2f)), "$layout: $notice")
+            }
+            for (layout in ShelfLayout.entries) {
+                assertEnlarged(measured(views.shelf(shelf(notice), layout), layout.minimum(2f)), "$layout: $notice")
+            }
+        }
+    }
+
     @Test
     fun nowReadingIsOneSpokenTargetBesideItsKeys() {
         for (layout in ReadingLayout.entries) {
@@ -283,6 +298,11 @@ class WidgetViewsTest {
         }
     }
 
+    private fun assertEnlarged(root: View, where: String) {
+        val size = root.findViewById<TextView>(R.id.widget_notice).textSize / density
+        assertWithMessage(where).that(size).isAtLeast(NOTICE_DP * ENLARGED)
+    }
+
     private fun descendants(view: View): List<View> =
         listOf(view) + ((view as? ViewGroup)?.let { group -> (0 until group.childCount).flatMap { descendants(group.getChildAt(it)) } }.orEmpty())
 
@@ -297,5 +317,7 @@ class WidgetViewsTest {
         val FONT_SCALES = listOf(0.85f, 1f, 1.3f, 2f)
         const val MIN_TARGET_DP = 48f
         const val ROUNDING_PX = 2
+        const val NOTICE_DP = 12f
+        const val ENLARGED = 1.2f
     }
 }

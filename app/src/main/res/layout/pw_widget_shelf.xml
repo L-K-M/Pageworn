@@ -29,6 +29,7 @@
                 android:autoSizeMinTextSize="7dp"
                 android:autoSizeTextType="uniform"
                 android:gravity="center_vertical"
+                android:maxLines="3"
                 android:paddingHorizontal="12dp"
                 android:paddingTop="1dp"
                 android:visibility="gone" />
