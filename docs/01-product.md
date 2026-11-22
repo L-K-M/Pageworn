@@ -18,6 +18,7 @@ A listener leaves home halfway through an audiobook. On the train they open Page
 | Resume after a rest | A book that has rested five minutes or more resumes ten seconds before its saved position. A timed sleep stop takes the five minutes of the Sleep row instead. A stop at the end of a chapter resumes exactly, and so does a position the listener moved while the book was paused. |
 | Multiple addresses | Configure human-readable aliases such as Home and Tailscale. Show the address used for the last successful connection and offer a manual choice. An address uses HTTPS, HTTPS with a certificate the listener has confirmed, or explicitly allowed HTTP. Downloads run on any network, including mobile data. |
 | In the car | Android Auto lists the downloaded books, most recently played first. A tap resumes the book. |
+| Home screen widgets | Now reading shows the current book, both progress scales, Play or Pause and the skips. Bookshelf shows the newest downloads, each with Play or Pause. Both work with the app closed and without a network. |
 | Diagnostics | Settings can export a redacted connection log as a file to share. |
 
 Pageworn v1 serves audiobooks. Ebooks, podcasts, streaming, remote playback, cross-device sync, server administration and cloud accounts fall outside this release. So do OpenID Connect sign-in, a bundled decoder for formats Android’s player cannot play, switching accounts inside the app, crash reporting, analytics and languages other than English. A mixed-media item appears when it contains playable audiobook tracks.

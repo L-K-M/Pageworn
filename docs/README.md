@@ -71,6 +71,7 @@ The owner asked for implementation work to be committed directly on `main`, with
 | Design baseline | Kotlin, Jetpack Compose, Room and a Media3 library session. The minimum Android version is 12 (API 31) and the target SDK is 37. The application ID is `ch.lkmc.pageworn`. Sign-in uses an Audiobookshelf username and password. The interface ships in English. |
 | Network | Browse and transfer through a configured address, over HTTPS or explicitly allowed HTTP, on any network including mobile data. Playback, chapters, the timer and progress read from the phone. |
 | In the car | Android Auto lists the downloaded books and resumes one on a tap. Browsing the library and downloading stay on the phone. |
+| Home screen widgets | The owner asked for widgets on 22 November 2026. Pageworn offers two, [Now reading and Bookshelf](02-interface.md#home-screen-widgets). They read and play from the phone alone. |
 | Distribution | A signed APK on the repository’s GitHub Releases, built and signed by GitHub Actions. The app has no store listing, crash reporting or analytics. |
 
-The owner settled these on 21 November 2026, and the Library order and two scales on 22 November 2026, together with the facts about their own setup under [the listener’s deployment](06-delivery-and-tests.md#the-listeners-deployment). Keep implementation evidence with the milestone so the next contributor can reproduce it.
+The owner settled these on 21 November 2026, and the Library order, two scales and widgets on 22 November 2026, together with the facts about their own setup under [the listener’s deployment](06-delivery-and-tests.md#the-listeners-deployment). Keep implementation evidence with the milestone so the next contributor can reproduce it.

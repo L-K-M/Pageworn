@@ -50,6 +50,7 @@ Run V01–V05 alongside M1 and M5, and V06 with M0. The [screen gallery](07-scre
 | V04 | Change speed, select a chapter, open sleep and switch to night theme | Each pencil icon reads clearly. Actual speed and timer choice are announced. Only one radio is selected. |
 | V05 | Enable 200% text, high contrast and reduced motion, then rotate | Labels remain live and legible, tab and key targets remain reachable, and every state change works without animation. |
 | V06 | Install the app and look at its launcher icon under a round mask, under a rounded-square mask and with themed icons turned on | The open book, play mark and ribbon stay whole and centered under each mask. The themed icon shows the tinted single-color shape. |
+| V07 | Place both widgets by day and night, at every arrangement’s least size and at 100% and 200% text | Paper, binding, covers and keys match the screens. Both bars are legible, and no key is clipped or smaller than 48 dp. |
 
 ## Fixtures a contributor can reproduce
 
@@ -126,6 +127,8 @@ Unless a case says otherwise, a book rests less than five minutes between a stop
 | A29 | With the injected clock, pause the boundary book at 115 s and press Play after a rest of 4 min 59 s. Pause at 120 s and press Play after 5 min. Pause at 8 s, rest 10 min and play. Pause at 115 s, rest 10 min, seek to 140 s while paused and play. Pause at 115 s, kill the process, rest 10 min and press Play on a Bluetooth headset. Play another book for 10 min while the boundary book rests at 115 s, then return to it. | The first start is at exactly 115 s and the second at 110 s. The third starts at 0 s. After the seek, playback starts at exactly 140 s. After process death it starts at 105 s, and so does the boundary book after the other book. Before each start, Downloaded and the player show the stop position. |
 | A30 | With two paired addresses, a downloaded book with a saved place and a transfer in progress, open Settings, choose Sign out and confirm. Open Downloaded and play. Open Library. Sign in with a different account, then with the original one. | Each reachable address receives one `POST /logout` for its own session, and no credential remains on the phone. The transfer waits with its staged files. Downloaded and playback work without a request. Library shows “Sign in to refresh your library.” over its cached rows. The different account is refused with “This phone holds books for [account name]. Sign in with that account.” and changes nothing. After the original account signs in, the catalog refreshes, the transfer continues and the saved place is intact. |
 | A31 | Build the release variant with a throwaway keystore through the release workflow’s inputs, install it on an emulator and run the first-book journey. Open Settings. Then run the release build without the signing inputs. | The release build is signed, installs, signs in, downloads and plays. Settings lists the open-source licences, including Spectral’s, and shows the version. Without its inputs the build fails with a message that names the missing input and prints no secret. |
+| A32 | With several downloaded books, one with a saved place, place both widgets. Play, pause, skip, double-tap Play, then try changed audio, a damaged copy and no downloads. Tap beside the keys and on a shelf cover. | Each widget follows the app’s state. A key acts on the book it was drawn for, and a double tap is one tap. Blocked books give their reason and no key. Links open the player or that book’s details each time, and the shelf keeps its order while playing. |
+| A32b | On API 31 and API 37, stop the app’s process from the background, then tap Play on each widget from the launcher. On API 37, repeat with `adb shell cmd audio set-enable-hardening throw`. Leave the launcher and turn the screen off. | Audio starts within five seconds and continues. The media notification appears, no foreground-service start is refused and no `AudioHardening` line names the app. |
 
 ## Coverage map
 
@@ -148,6 +151,7 @@ Every release-scope requirement needs at least one acceptance case or visual che
 | Sort and replay | A16, A18, A18b |
 | System controls, notifications and background limits | A16, A16b, A16c, A16d, A16e, A16g |
 | Android Auto | A16f |
+| Home screen widgets | A32, A32b, V07 |
 | Diagnostics, keys and backups | A23 |
 | Connection and setup errors, certificates, cleartext and local-network permission | A19, A26, A26b, A26c |
 | Transfer grouping and row states | A27 |
@@ -179,6 +183,7 @@ These need the listener’s phone, car or server. Report each as pending, with i
 - On the deployment: sign in through each kind of address, including the confirmed certificate and both plain-HTTP addresses. Interrupt a download and resume it, and note whether the file continued or restarted, which shows what nginx does with the validators. Confirm that a download delivers audio, which fails when `USE_X_ACCEL` is on without matching nginx rules.
 - On the phone: whether the Tailscale address asks for the local-network permission. Play from a Bluetooth headset, from the car’s buttons and from a wired headset after the app was closed. The media resumption control after a restart of the phone.
 - In the car: with the unknown-sources option turned on in Android Auto’s developer settings, Android Auto lists the downloaded books and resumes one. Note which buttons the head unit shows and how it presents the nothing-downloaded message.
+- On the phone’s launcher: add both widgets from the widget picker and resize them. Swipe Pageworn away, wait until playback has been stopped for over ten minutes, tap Play on each, then turn the screen off and confirm that audio continues. Confirm that the widgets are not offered for the lock screen.
 - The checks that [verification and handoff](#verification-and-handoff) assigns to a physical phone: Bluetooth, locked-screen sleep, real network switching and audible seek accuracy.
 - The four product journeys and the release check at the end of this document.
 - The release workflow, once the owner has added the signing key.

@@ -54,6 +54,10 @@ On a narrow screen, shrink the drawn face inside a 48 dp tap region. On a large-
 - Use `pw_cover_cloth.png` behind live title/author text for missing cover art. Center real cover art with aspect-preserving fit. A narrow `pw_place_ribbon.png` can peek 6–10 dp out of the bottom edge near the spine. Use a single ribbon even when the mockup artwork already shows one.
 - Draw normal text, times, search fields, sliders, progress bars/rings, radio selections and dividers natively. Keep accessibility range actions and dynamic percentages. Lay the paper tile at 55% by day and 45% at night, mirrored, over the flat paper colour, and the binding cloth at 90%. High contrast drops both. Keep texture away from fine glyph edges where it reduces contrast.
 
+### Home screen widgets
+
+Layer a widget as cloth with the system’s corner radius, paper above it and three page edges at the paper’s foot. Use `pw_paper_day` or `pw_paper_night` and `pw_binding_cloth` at the screens’ opacities. Build keys as the screens do, from `pw_key_oxblood` or `pw_key_ivory_skip` and the vector inlays. Draw each cover in the app as one picture with its crease, shadow, ribbon and, for cloth, lettering: the launcher can draw none of them. Colours are resources with a night variant, because the launcher resolves them.
+
 ### Launcher icon
 
 The icon is an open ivory book on bottle-green cloth, with an oxblood play mark on the right-hand page and the place ribbon hanging below the spine. Codex drew it from the app’s name and this artwork at the owner’s request.

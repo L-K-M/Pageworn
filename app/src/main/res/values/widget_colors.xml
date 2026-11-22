@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The app's tokens (ui/theme/Theme.kt), for the launcher, which draws the widgets. -->
+    <color name="widget_paper">#F3EBD9</color>
+    <color name="widget_ink">#30251E</color>
+    <color name="widget_secondary">#625243</color>
+    <color name="widget_accent">#833828</color>
+    <color name="widget_cloth">#233831</color>
+    <color name="widget_track">#D3C9B8</color>
+    <color name="widget_page_middle">#E4DBCA</color>
+    <color name="widget_page_under">#D6CCBB</color>
+    <color name="widget_page_line">#B2A696</color>
+    <!-- On cloth, by day and by night. -->
+    <color name="widget_on_cloth">#F4E4C8</color>
+</resources>

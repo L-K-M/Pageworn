@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools"
+    android:id="@android:id/background"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/pw_widget_binding"
+    android:clipToOutline="true"
+    android:foreground="?android:attr/selectableItemBackground"
+    android:orientation="vertical"
+    android:paddingBottom="5dp">
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="@drawable/pw_widget_paper">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:paddingHorizontal="10dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="4dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:gravity="center_vertical"
+                android:minHeight="56dp">
+
+                <ImageView
+                    android:id="@+id/widget_cover"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:importantForAccessibility="no"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/pw_cover_cloth" />
+
+                <ImageView
+                    android:id="@+id/widget_toggle"
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    android:background="@drawable/pw_key_oxblood"
+                    android:contentDescription="@string/widget_now_reading"
+                    android:focusable="true"
+                    android:foreground="?android:attr/selectableItemBackgroundBorderless"
+                    android:padding="16dp"
+                    android:src="@drawable/pw_inlay_play" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/widget_title"
+                style="@style/Widget.Pageworn.Title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="The Night Orchard"
+                tools:ignore="HardcodedText" />
+
+            <LinearLayout
+                android:id="@+id/widget_segment_row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:baselineAligned="true">
+
+                <TextView
+                    android:id="@+id/widget_segment"
+                    style="@style/Widget.Pageworn.Segment"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="The Gate"
+                    tools:ignore="HardcodedText" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/widget_progress"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:orientation="vertical">
+
+                <ProgressBar
+                    android:id="@+id/widget_segment_bar"
+                    style="@style/Widget.Pageworn.Bar"
+                    android:layout_width="match_parent"
+                    android:layout_height="6dp"
+                    android:max="1000"
+                    android:progress="400" />
+
+                <ProgressBar
+                    android:id="@+id/widget_book_bar"
+                    style="@style/Widget.Pageworn.Bar"
+                    android:layout_width="match_parent"
+                    android:layout_height="3dp"
+                    android:layout_marginTop="3dp"
+                    android:max="1000"
+                    android:progress="490" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/widget_notice"
+                style="@style/Widget.Pageworn.Notice"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:visibility="gone" />
+        </LinearLayout>
+    </FrameLayout>
+
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="8dp"
+        android:background="@drawable/pw_widget_page_edges"
+        android:importantForAccessibility="no" />
+</LinearLayout>

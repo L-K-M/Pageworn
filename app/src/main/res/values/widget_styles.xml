@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The launcher cannot load the bundled Spectral, so the widgets letter in the system serif. -->
+    <style name="Widget.Pageworn.Title" parent="">
+        <item name="android:textColor">@color/widget_ink</item>
+        <item name="android:fontFamily">serif</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textSize">17sp</item>
+        <item name="android:includeFontPadding">false</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:maxLines">1</item>
+    </style>
+    <style name="Widget.Pageworn.Segment" parent="">
+        <item name="android:textColor">@color/widget_ink</item>
+        <item name="android:fontFamily">serif</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:includeFontPadding">false</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:maxLines">1</item>
+    </style>
+    <style name="Widget.Pageworn.Meta" parent="">
+        <item name="android:textColor">@color/widget_secondary</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:includeFontPadding">false</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:maxLines">1</item>
+    </style>
+    <style name="Widget.Pageworn.Notice" parent="Widget.Pageworn.Meta">
+        <item name="android:textColor">@color/widget_accent</item>
+        <item name="android:maxLines">2</item>
+    </style>
+    <style name="Widget.Pageworn.Bar" parent="android:Widget.ProgressBar.Horizontal">
+        <item name="android:progressDrawable">@drawable/pw_widget_bar</item>
+        <item name="android:minHeight">1dp</item>
+        <item name="android:maxHeight">16dp</item>
+        <item name="android:importantForAccessibility">no</item>
+    </style>
+</resources>

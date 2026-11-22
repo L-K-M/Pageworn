@@ -42,6 +42,7 @@ import ch.lkmc.pageworn.transfer.ProbeTrackVerifier
 import ch.lkmc.pageworn.transfer.TransferCoordinator
 import ch.lkmc.pageworn.transfer.TransferNotifications
 import ch.lkmc.pageworn.ui.state.AppNotices
+import ch.lkmc.pageworn.widget.HomeWidgets
 import java.io.File
 import java.io.IOException
 import java.security.KeyStore
@@ -77,6 +78,7 @@ class AppContainer(private val app: PagewornApp) {
     val playbackHub = PlaybackHub()
     val playerConnection: PlayerConnection by lazy { PlayerConnection(app, playbackHub, editionStore, progressStore) }
     val bookTransport: BookTransport by lazy { BookTransport(playbackHub, playerConnection, editionStore, progressStore, appScope) }
+    val homeWidgets: HomeWidgets by lazy { HomeWidgets(app, this) }
     val notices: AppNotices by lazy { AppNotices(settings) }
 
     /** Where the player's progress writes go. Tests may hold a write back to deliver it late. */

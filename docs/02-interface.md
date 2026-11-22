@@ -104,6 +104,33 @@ Recoverable conditions stay on the page. None of them opens a dialog. Sign out i
 
 Where the copy table names two actions for a status line or empty state, the first is its text action. The second is the control already on screen, such as the Downloaded bookmark, the library selector or the address list. When no paired address answers and a denied local-network permission or a changed certificate blocks one of them, that address’s message takes the place of the unreachable-server message, as [the address rules](04-server-and-downloads.md#a-profile-can-have-several-addresses) describe. Announce a status line once, politely, when it appears or its text changes. Keep its action separately focusable. Remove the line as soon as its condition ends.
 
+## Home screen widgets
+
+The widgets are the same book on the home screen: paper, page edges over green cloth, bound covers with the place ribbon and the app’s own keys. They follow the phone’s day and night. Android’s launchers cannot load the bundled Spectral, so live widget text uses the system serif. Cover lettering is drawn by the app and keeps Spectral.
+
+**Now reading** shows the player’s book: the one starting, loaded or last played. Without one on the phone it shows the first book of Downloaded. Its arrangement follows its size and the system’s font scale.
+
+| Arrangement | Least size at normal type | Shows |
+|---|---|---|
+| Compact | 110 × 57 | Cover and Play or Pause |
+| Square | 120 × 139 | Cover, title, segment, both bars and Play or Pause |
+| Strip | 240 × 77 | The same, in a row |
+| Player | 250 × 157 | Adds the time left in the segment, the book line and both skips |
+| Tall | 310 × 260 | Adds the author and larger cover and keys |
+
+Each least height grows with the type. At a font scale of 1.5 and more, the player arrangement leaves out the time left so the segment keeps its name.
+
+**Bookshelf** shows up to four books, newest download first, standing on the page with their keys on the binding below. Playing never reorders them. It holds one book from 110 dp of width and one more for each further 70 dp, which grows with the type. Titles appear from 164 dp of height.
+
+- A key does what it shows, for the book it was drawn for. A widget gets no touch times, so Play/Pause keeps its action for one double-tap timeout after a tap: the second tap of a double tap is the same tap.
+- A tap beside the keys opens the player. For a book that is not the player’s, and for a cover on the shelf, it opens that book’s details. A link to a book that left the phone opens Downloaded.
+- A book that cannot play has no key. Now reading gives the player’s reason and leads there. The shelf shows “Repair” or “Choose” and leads to details.
+- A failed start replaces the progress with “Couldn’t start playback. Another app may be using audio.” and keeps Play. On the smallest arrangement and the shortest shelf that message takes the covers’ place.
+- While a book plays, the chapter bar moves in 30-second steps and the book bar each minute. A new segment, transport change or problem shows at once. A book at rest shows its exact place. There are no running clocks.
+- Without downloads, each widget says “Your downloaded books will appear here.” and opens the app.
+- Every key is at least 48 × 48 dp and is named. Now reading reads out the title, author, segment and book position as one target.
+- The widgets ask to stay off the lock screen, because they show what is being listened to.
+
 ## Accessibility and acceptance
 
 - Every action has at least a 48 × 48 dp target. Keep the mini-player body, its transport and the destinations independently focusable. TalkBack should announce e.g. “Downloaded, tab, selected”, “Pause The Night Orchard” and “Playback speed, 1.25 times”.
