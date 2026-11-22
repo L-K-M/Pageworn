@@ -9,7 +9,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.asImageBitmap
 import ch.lkmc.pageworn.ui.AppNavHost
@@ -27,13 +26,14 @@ class MainActivity : ComponentActivity() {
         const val EXTRA_OPEN_DOWNLOADED = "open_downloaded"
     }
 
-    private var openPlayer by mutableStateOf(false)
+    // Each tap counts, so the same link navigates again after the listener left where it led.
+    private var openPlayer by mutableIntStateOf(0)
     private var openDownloaded by mutableIntStateOf(0)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        openPlayer = intent.getBooleanExtra(EXTRA_OPEN_PLAYER, false)
+        takePlayerLink(intent)
         takeDownloadLink(intent)
         val container = (application as PagewornApp).container
         val covers = CoverLoader { cover, sizePx ->
@@ -59,18 +59,20 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        takePlayerLink(intent)
         takeDownloadLink(intent)
-        if (intent.getBooleanExtra(EXTRA_OPEN_PLAYER, false)) {
-            // Toggle so a second notification tap navigates again.
-            openPlayer = false
-            openPlayer = true
-        }
+    }
+
+    private fun takePlayerLink(intent: Intent) {
+        if (!intent.getBooleanExtra(EXTRA_OPEN_PLAYER, false)) return
+        intent.removeExtra(EXTRA_OPEN_PLAYER)
+        openPlayer++
     }
 
     private fun takeDownloadLink(intent: Intent) {
         if (!intent.getBooleanExtra(EXTRA_OPEN_DOWNLOADED, false)) return
         intent.removeExtra(EXTRA_OPEN_DOWNLOADED)
-        openPlayer = false
+        openPlayer = 0
         openDownloaded++
     }
 }

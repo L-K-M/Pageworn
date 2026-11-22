@@ -68,7 +68,7 @@ object Routes {
 }
 
 @Composable
-fun AppNavHost(container: AppContainer, openPlayer: Boolean, openDownloaded: Int, navController: NavHostController = rememberNavController()) {
+fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, navController: NavHostController = rememberNavController()) {
     val main: MainViewModel = viewModel { MainViewModel(container) }
     val player: PlayerViewModel = viewModel { PlayerViewModel(container) }
     val context = LocalContext.current
@@ -97,7 +97,7 @@ fun AppNavHost(container: AppContainer, openPlayer: Boolean, openDownloaded: Int
     }
 
     LaunchedEffect(openPlayer) {
-        if (openPlayer) navController.navigate(Routes.PLAYER) { launchSingleTop = true }
+        if (openPlayer > 0) navController.navigate(Routes.PLAYER) { launchSingleTop = true }
     }
 
     val problem by player.problem.collectAsStateWithLifecycle()
