@@ -202,6 +202,8 @@ data class SleepUi(
     val remainingText: String?,
     /** Accessible value of the Sleep utility, e.g. "Sleep, 14 minutes remaining". */
     val utilityDescription: String,
+    /** The active choice under the Sleep utility, "12 min" or "End of chapter"; null when off. */
+    val shortTarget: String? = null,
 )
 
 data class SegmentRow(

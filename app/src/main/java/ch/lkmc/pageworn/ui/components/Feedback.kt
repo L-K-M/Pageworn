@@ -6,18 +6,21 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.ui.layout.layout
@@ -46,7 +49,7 @@ fun TextAction(label: String, spokenLabel: String? = null, onClick: () -> Unit) 
     val spoken = if (spokenLabel == null) Modifier else Modifier.semantics { contentDescription = spokenLabel }
     val visible = if (spokenLabel == null) Modifier else Modifier.clearAndSetSemantics {}
     Box(Modifier.heightIn(min = 48.dp).widthIn(min = 48.dp).clickable(role = Role.Button, onClick = onClick).then(spoken).padding(horizontal = 8.dp), contentAlignment = Alignment.Center) {
-        Text(label, visible, color = PagewornTheme.colors.accent, style = PagewornTheme.type.metadata)
+        Text(label, visible, color = PagewornTheme.colors.accent, style = PagewornTheme.type.ribbonLabel.copy(fontWeight = FontWeight.SemiBold))
     }
 }
 
@@ -95,18 +98,20 @@ fun TransferIndicator(transfer: TransferUi, compact: Boolean) {
         // The ring holds the progress; the row's metadata line carries the state text. At large
         // text sizes the ring grows around its label instead of the label overflowing it.
         Box(semantics.defaultMinSize(48.dp, 48.dp), contentAlignment = Alignment.Center) {
-            Box(Modifier.defaultMinSize(42.dp, 42.dp).squareAroundContent(), contentAlignment = Alignment.Center) {
+            Box(Modifier.defaultMinSize(48.dp, 48.dp).squareAroundContent(), contentAlignment = Alignment.Center) {
                 val ring = Modifier.matchParentSize()
                 if (active && value == null) CircularProgressIndicator(ring, strokeWidth = 3.dp)
-                else CircularProgressIndicator(progress = { value ?: 0f }, modifier = ring, strokeWidth = 3.dp, color = colors.accent)
-                Text(progress, Modifier.padding(6.dp), color = colors.primaryInk, style = PagewornTheme.type.metadata, maxLines = 1)
+                else CircularProgressIndicator(progress = { value ?: 0f }, modifier = ring, strokeWidth = 3.dp, color = colors.accent, trackColor = MaterialTheme.colorScheme.primaryContainer, strokeCap = StrokeCap.Round, gapSize = 0.dp)
+                Text(progress, Modifier.padding(6.dp), color = colors.primaryInk, style = PagewornTheme.type.time, maxLines = 1)
             }
         }
     } else {
         Column(semantics.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                if (active && value == null) LinearProgressIndicator(Modifier.weight(1f))
-                else LinearProgressIndicator(progress = { value ?: 0f }, modifier = Modifier.weight(1f))
+                val bar = Modifier.weight(1f).height(8.dp)
+                val track = MaterialTheme.colorScheme.primaryContainer
+                if (active && value == null) LinearProgressIndicator(bar, colors.accent, track, StrokeCap.Round, gapSize = 0.dp)
+                else LinearProgressIndicator({ value ?: 0f }, bar, colors.accent, track, StrokeCap.Round, gapSize = 0.dp, drawStopIndicator = {})
                 Text(progress, Modifier.padding(start = 8.dp), color = colors.primaryInk, style = PagewornTheme.type.metadata)
             }
             Text(transfer.stateText, color = colors.secondaryInk, style = PagewornTheme.type.status)

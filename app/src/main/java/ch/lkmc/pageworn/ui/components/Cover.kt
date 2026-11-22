@@ -16,9 +16,14 @@ import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
@@ -69,9 +74,26 @@ fun BookCover(face: BookFace, size: Dp, showRibbon: Boolean = false, modifier: M
     // below the lower edge from behind the book.
     val ribbonWidth = maxOf(size * 0.1f, 10.dp)
     val ribbonPeek = maxOf(size * 0.11f, 8.dp)
+    // Art keeps its shape: the book is as tall or as wide as the square allows.
+    val art = image.takeIf { previewPainter == null }
+    val aspect = art?.let { it.width.toFloat() / it.height } ?: 1f
+    val bookWidth = if (aspect < 1f) size * aspect else size
+    val bookHeight = if (aspect > 1f) size / aspect else size
+    val shape = RoundedCornerShape(maxOf(size * CORNER, 2.dp))
     Box(modifier.size(size, size + if (showRibbon) ribbonPeek else 0.dp)) {
-        if (showRibbon) Image(painterResource(R.drawable.pw_place_ribbon), null, Modifier.align(Alignment.BottomStart).padding(start = size * 0.12f).size(ribbonWidth, ribbonWidth * 1.5f))
-        Box(Modifier.size(size).shadow(3.dp, RoundedCornerShape(3.dp)).clip(RoundedCornerShape(3.dp)).background(PagewornTheme.colors.raisedSheet)) {
+        if (showRibbon) Image(
+            painterResource(R.drawable.pw_place_ribbon), null,
+            Modifier.padding(start = (size - bookWidth) / 2 + bookWidth * 0.12f, top = size + ribbonPeek - ribbonWidth * 1.5f).size(ribbonWidth, ribbonWidth * 1.5f),
+        )
+        Box(
+            Modifier.padding(start = (size - bookWidth) / 2, top = size - bookHeight).size(bookWidth, bookHeight)
+                .shadow(maxOf(size * ELEVATION, 2.dp), shape).clip(shape).background(PagewornTheme.colors.cloth)
+                .drawWithContent {
+                    drawContent()
+                    // The cloth cover has its own crease; flat art is bound here.
+                    if (art != null) bindEdges()
+                },
+        ) {
             if (previewPainter != null) {
                 Image(painter = previewPainter, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
             } else if (image != null) {
@@ -94,4 +116,29 @@ fun BookCover(face: BookFace, size: Dp, showRibbon: Boolean = false, modifier: M
             }
         }
     }
+}
+
+private const val CORNER = 0.04f
+private const val ELEVATION = 0.03f
+
+/** Binds flat art as a book: a crease beside the spine, and light along the top and fore edges. */
+private fun DrawScope.bindEdges() {
+    val spine = size.width * 0.075f
+    drawRect(
+        Brush.horizontalGradient(
+            0f to Color.Black.copy(alpha = 0.22f),
+            0.35f to Color.White.copy(alpha = 0.07f),
+            0.72f to Color.Transparent,
+            0.9f to Color.Black.copy(alpha = 0.26f),
+            1f to Color.White.copy(alpha = 0.14f),
+            endX = spine,
+        ),
+        size = Size(spine, size.height),
+    )
+    val edge = 1.dp.toPx()
+    val light = Color.White.copy(alpha = 0.16f)
+    val shade = Color.Black.copy(alpha = 0.2f)
+    drawRect(light, size = Size(size.width, edge))
+    drawRect(shade, topLeft = Offset(0f, size.height - edge), size = Size(size.width, edge))
+    drawRect(shade, topLeft = Offset(size.width - edge, 0f), size = Size(edge, size.height))
 }

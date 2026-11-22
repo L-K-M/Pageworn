@@ -2,7 +2,7 @@
 
 Pageworn is an Android audiobook player for one listener with an Audiobookshelf server. Choose a book in **Library**, download it, and listen from **Downloaded**. A book keeps its place even when a download is removed. Its cloth cover, paper surfaces and place ribbon come from a well-used hardcover.
 
-The plan lives in `docs/`. This is a build specification. Test cases describe expected behavior and have yet to be run against an implementation.
+The plan lives in `docs/`. This is a build specification. Test cases describe expected behavior. The [milestone reports](milestones/) record which have been run, on what, and which are pending.
 
 ## Visual handoff
 

@@ -126,6 +126,9 @@ object Format {
         }
     }
 
+    /** A countdown in whole minutes, rounded up: "13 min". */
+    fun minutesLeft(ms: Long): String = "${(ms.coerceAtLeast(0) + 59_999) / 60_000} min"
+
     /** Spoken duration for accessibility: "12 minutes 40 seconds". */
     fun spokenDuration(ms: Long): String {
         val totalSeconds = (ms.coerceAtLeast(0) + 500) / 1000

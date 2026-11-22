@@ -1,25 +1,31 @@
 package ch.lkmc.pageworn.ui.library
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,6 +36,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -47,6 +54,7 @@ import ch.lkmc.pageworn.ui.components.SectionHeader
 import ch.lkmc.pageworn.ui.components.StatusLineView
 import ch.lkmc.pageworn.ui.components.TextAction
 import ch.lkmc.pageworn.ui.components.TransferIndicator
+import ch.lkmc.pageworn.ui.components.paperFieldColors
 import ch.lkmc.pageworn.ui.model.CatalogAction
 import ch.lkmc.pageworn.ui.model.CatalogRow
 import ch.lkmc.pageworn.ui.model.Copy
@@ -54,6 +62,7 @@ import ch.lkmc.pageworn.ui.model.KeyAction
 import ch.lkmc.pageworn.ui.model.LibraryUiState
 import ch.lkmc.pageworn.ui.model.StartAction
 import ch.lkmc.pageworn.ui.model.UiAction
+import ch.lkmc.pageworn.ui.theme.LocalHighContrast
 import ch.lkmc.pageworn.ui.theme.PagewornTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -72,17 +81,13 @@ fun LibraryScreen(state: LibraryUiState, listState: LazyListState, onQueryChange
             if (state.libraries.size > 1) item(key = "selector") {
                 var expanded by remember { mutableStateOf(false) }
                 ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }, modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp)) {
-                    OutlinedTextField(value = state.libraries.firstOrNull { it.id == state.selectedLibraryId }?.name ?: "Choose library", onValueChange = {}, readOnly = true, label = { Text("Library") }, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) }, modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable))
-                    ExposedDropdownMenu(expanded, onDismissRequest = { expanded = false }) {
-                        state.libraries.forEach { choice -> DropdownMenuItem(text = { Text(choice.name) }, onClick = { expanded = false; onSelectLibrary(choice.id) }) }
+                    OutlinedTextField(value = state.libraries.firstOrNull { it.id == state.selectedLibraryId }?.name ?: "Choose library", onValueChange = {}, readOnly = true, label = { Text("Library") }, trailingIcon = { PencilIcon(R.drawable.pw_pencil_collapse, null, 20.dp) }, shape = RoundedCornerShape(12.dp), colors = paperFieldColors(), modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable))
+                    ExposedDropdownMenu(expanded, onDismissRequest = { expanded = false }, shape = RoundedCornerShape(12.dp), containerColor = PagewornTheme.colors.raisedSheet) {
+                        state.libraries.forEach { choice -> DropdownMenuItem(text = { Text(choice.name, style = PagewornTheme.type.author) }, onClick = { expanded = false; onSelectLibrary(choice.id) }) }
                     }
                 }
             }
-            item(key = "search") {
-                OutlinedTextField(value = state.query, onValueChange = onQueryChange, modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp), placeholder = { Text("Search title or author") }, leadingIcon = { PencilIcon(R.drawable.pw_pencil_search, null, 24.dp) }, trailingIcon = {
-                    if (state.query.isNotEmpty()) IconButton(onClick = { onQueryChange("") }, modifier = Modifier.size(48.dp)) { Text("×", modifier = Modifier.semantics { contentDescription = "Clear search" }) }
-                }, singleLine = false)
-            }
+            item(key = "search") { SearchField(state.query, onQueryChange) }
             item(key = "sort") { LibrarySortControl(state.sort, onSelectSort) }
         }
         state.status?.let { line -> item(key = "status") { StatusLineView(line, onAction) } }
@@ -98,12 +103,14 @@ fun LibraryScreen(state: LibraryUiState, listState: LazyListState, onQueryChange
 private fun CatalogBookRow(row: CatalogRow, onOpenBook: (BookKey) -> Unit, onDownload: (BookKey) -> Unit, onPlayPause: (BookKey, KeyAction) -> Unit, onPauseTransfer: (String) -> Unit, onResumeTransfer: (String) -> Unit, onCancelTransfer: (String) -> Unit) {
     val face = row.face
     val compact = LocalDensity.current.fontScale >= 1.5f
-    Column(Modifier.fillMaxWidth().semantics { if (row.action is CatalogAction.Ready) stateDescription = "Downloaded" }.padding(horizontal = 20.dp, vertical = 12.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Box(Modifier.width(76.dp).clickable(role = Role.Button) { onOpenBook(face.key) }.semantics { contentDescription = "Open ${face.title}" }) { BookCover(face, 76.dp, showRibbon = (row.action as? CatalogAction.Ready)?.start == StartAction.RESUME) }
-            Column(Modifier.weight(1f)) {
+    Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 14.dp, top = 9.dp, bottom = 9.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 16.dp)) {
+            val coverSize = if (compact) 76.dp else 96.dp
+            Box(Modifier.width(coverSize).clickable(role = Role.Button) { onOpenBook(face.key) }.semantics { contentDescription = "Open ${face.title}" }) { BookCover(face, coverSize, showRibbon = (row.action as? CatalogAction.Ready)?.start == StartAction.RESUME) }
+            // The Play key says it is downloaded to the eye, and the title's state to TalkBack.
+            Column(Modifier.weight(1f).semantics(mergeDescendants = true) { if (row.action is CatalogAction.Ready) stateDescription = "Downloaded" }) {
                 Text(face.title, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.rowTitle)
-                face.author?.let { Text(it, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.metadata) }
+                face.author?.let { Text(it, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.author) }
                 val message = when (row.action) {
                     CatalogAction.DownloadDisabled -> row.message ?: Copy.DOWNLOAD_DISABLED
                     CatalogAction.Unsupported -> row.message ?: Copy.UNSUPPORTED_FORMAT
@@ -111,22 +118,23 @@ private fun CatalogBookRow(row: CatalogRow, onOpenBook: (BookKey) -> Unit, onDow
                     else -> row.message
                 }
                 message?.let { Text(it, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status) }
-                if (row.action is CatalogAction.Ready) Text("Downloaded", Modifier.semantics { stateDescription = "Downloaded" }, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status)
                 if (row.action is CatalogAction.Transferring && compact) Text(row.action.transfer.stateText, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status)
             }
             if (!compact) CatalogActionView(row, onDownload, onPlayPause, onPauseTransfer, onResumeTransfer)
         }
         if (compact) CatalogActionView(row, onDownload, onPlayPause, onPauseTransfer, onResumeTransfer)
         val transfer = (row.action as? CatalogAction.Transferring)?.transfer
-        if (transfer?.canCancel == true) TextAction(Copy.CANCEL, spokenLabel = "Cancel download of ${face.title}") { onCancelTransfer(transfer.jobId) }
+        if (transfer?.canCancel == true) Box(Modifier.padding(start = if (compact) 0.dp else ACTIONS_INDENT)) {
+            TextAction(Copy.CANCEL, spokenLabel = "Cancel download of ${face.title}") { onCancelTransfer(transfer.jobId) }
+        }
     }
 }
 
 @Composable
 private fun CatalogActionView(row: CatalogRow, onDownload: (BookKey) -> Unit, onPlayPause: (BookKey, KeyAction) -> Unit, onPauseTransfer: (String) -> Unit, onResumeTransfer: (String) -> Unit) {
     when (val action = row.action) {
-        CatalogAction.Download -> IconButton(onClick = { onDownload(row.face.key) }, modifier = Modifier.size(48.dp)) { PencilIcon(R.drawable.pw_pencil_download, "Download ${row.face.title}") }
-        is CatalogAction.Ready -> PlayPauseKey(action.showsPause, row.face.title, 36.dp, starting = action.starting, start = action.start) { onPlayPause(row.face.key, it) }
+        CatalogAction.Download -> IconButton(onClick = { onDownload(row.face.key) }, modifier = Modifier.size(56.dp)) { PencilIcon(R.drawable.pw_pencil_download, "Download ${row.face.title}", 34.dp) }
+        is CatalogAction.Ready -> PlayPauseKey(action.showsPause, row.face.title, 46.dp, starting = action.starting, start = action.start) { onPlayPause(row.face.key, it) }
         is CatalogAction.Transferring -> {
             val t = action.transfer
             val callback = when { t.canPause -> ({ onPauseTransfer(t.jobId) }); t.canResume -> ({ onResumeTransfer(t.jobId) }); else -> null }
@@ -135,3 +143,40 @@ private fun CatalogActionView(row: CatalogRow, onDownload: (BookKey) -> Unit, on
         else -> Unit
     }
 }
+
+@Composable
+private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
+    val colors = PagewornTheme.colors
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
+    val shape = RoundedCornerShape(12.dp)
+    val edge = if (focused || LocalHighContrast.current) colors.primaryInk else colors.secondaryInk.copy(alpha = .25f)
+    BasicTextField(
+        query,
+        onQueryChange,
+        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
+        textStyle = PagewornTheme.type.empty.copy(color = colors.primaryInk),
+        cursorBrush = SolidColor(colors.accent),
+        interactionSource = interaction,
+        singleLine = LocalDensity.current.fontScale < 1.5f,
+        decorationBox = { field ->
+            Row(
+                Modifier.heightIn(min = 48.dp).background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = .5f), shape).border(if (focused) 2.dp else 1.dp, edge, shape).padding(start = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                PencilIcon(R.drawable.pw_pencil_search, null, 24.dp)
+                Box(Modifier.weight(1f).padding(vertical = 10.dp)) {
+                    if (query.isEmpty()) Text("Search title or author", color = colors.secondaryInk, style = PagewornTheme.type.empty)
+                    field()
+                }
+                if (query.isNotEmpty()) IconButton(onClick = { onQueryChange("") }, modifier = Modifier.size(48.dp)) {
+                    Text("×", Modifier.semantics { contentDescription = "Clear search" }, color = colors.primaryInk, style = PagewornTheme.type.sheetTitle)
+                }
+            }
+        },
+    )
+}
+
+/** Lines a transfer's action up under its title. */
+private val ACTIONS_INDENT = 104.dp

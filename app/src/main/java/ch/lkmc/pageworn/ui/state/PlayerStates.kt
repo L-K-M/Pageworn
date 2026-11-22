@@ -59,7 +59,12 @@ object PlayerStates {
             } to "Sleep, ${Format.spokenDuration(live.sleepRemainingMs ?: 0)} remaining"
             is SleepState.EndOf -> SleepChoice.END_OF_SEGMENT to "Sleep, ${label.lowercase()}"
         }
-        return SleepUi(choice, label, live.sleepRemainingMs?.let { Format.sleepRemaining(it) }, description)
+        val target = when (live.sleep) {
+            SleepState.Off -> null
+            is SleepState.EndOf -> label
+            is SleepState.Timed -> Format.minutesLeft(live.sleepRemainingMs ?: 0)
+        }
+        return SleepUi(choice, label, live.sleepRemainingMs?.let { Format.sleepRemaining(it) }, description, target)
     }
 
     /**

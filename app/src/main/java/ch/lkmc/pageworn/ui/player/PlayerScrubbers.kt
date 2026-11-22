@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -65,7 +66,8 @@ internal fun PlayerScrubbers(state: PlayerUiState, onSeekTo: (Long) -> Unit, mod
             value = "$elapsed of ${Format.clock(segmentScale.last - segmentScale.first)}",
             onSeekTo = onSeekTo,
         )
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        // The bar's round ends sit half a thumb in, and the times under them.
+        Row(Modifier.fillMaxWidth().padding(horizontal = ScrubberLook.SEGMENT.thumbSize / 2), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(elapsed, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.time)
             Text(
                 segment.target?.let { Format.remaining(segmentScale.last - it.positionMs) } ?: state.remainingText,
@@ -73,7 +75,7 @@ internal fun PlayerScrubbers(state: PlayerUiState, onSeekTo: (Long) -> Unit, mod
             )
         }
         Scrubber(ScrubberLook.BOOK, book, bookPosition, bookScale, state, name = "Book position", value = bookLine, onSeekTo = onSeekTo)
-        Text(bookLine, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.metadata, textAlign = TextAlign.Center)
+        Text(bookLine, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.time, textAlign = TextAlign.Center)
     }
 }
 

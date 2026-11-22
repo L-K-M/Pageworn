@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -15,6 +14,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.background
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -28,18 +29,22 @@ import ch.lkmc.pageworn.ui.theme.PagewornTheme
 
 @Composable
 fun MiniPlayer(state: MiniPlayerUi, onOpen: () -> Unit, onPlayPause: (KeyAction) -> Unit) {
+    // At large text one line each, so that the list keeps the screen.
+    val lines = if (LocalDensity.current.fontScale >= 1.5f) 1 else 2
     Column(Modifier.fillMaxWidth().background(PagewornTheme.colors.raisedSheet)) {
         HorizontalDivider(color = PagewornTheme.colors.secondaryInk.copy(alpha = .25f))
-        Row(Modifier.fillMaxWidth().heightIn(min = 72.dp).padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 76.dp).padding(start = 20.dp, end = 14.dp, top = 8.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(Modifier.weight(1f).heightIn(min = 48.dp).clickable(role = Role.Button, onClick = onOpen).semantics { contentDescription = "Open player, ${state.face.title}" }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                BookCover(state.face, 48.dp)
-                Box(Modifier.size(1.dp, 40.dp).background(PagewornTheme.colors.secondaryInk.copy(alpha = .3f)))
+                if (lines > 1) {
+                    BookCover(state.face, 52.dp)
+                    Box(Modifier.size(1.dp, 40.dp).background(PagewornTheme.colors.secondaryInk.copy(alpha = .3f)))
+                }
                 Column(Modifier.weight(1f)) {
-                    Text(state.face.title, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.rowTitle, maxLines = 2)
-                    state.subtitle?.let { Text(it, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.metadata, maxLines = 2) }
+                    Text(state.face.title, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.rowTitle.copy(fontSize = PagewornTheme.type.ribbonLabel.fontSize), maxLines = lines, overflow = TextOverflow.Ellipsis)
+                    state.subtitle?.let { Text(it, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.metadata, maxLines = lines, overflow = TextOverflow.Ellipsis) }
                 }
             }
-            PlayPauseKey(state.showsPause, state.face.title, 36.dp, starting = state.starting, enabled = state.enabled, disabledReason = state.disabledReason, start = state.start, onClick = onPlayPause)
+            PlayPauseKey(state.showsPause, state.face.title, 48.dp, starting = state.starting, enabled = state.enabled, disabledReason = state.disabledReason, start = state.start, onClick = onPlayPause)
         }
     }
 }

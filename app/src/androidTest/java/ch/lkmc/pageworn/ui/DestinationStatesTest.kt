@@ -8,7 +8,6 @@ import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasContentDescription
-import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasStateDescription
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasSetTextAction
@@ -98,7 +97,7 @@ class DestinationStatesTest {
             assertThat(bookTop(first)).isLessThan(bookTop(second))
         }
         visibleBook("Boundary Book")
-        assertShown(hasStateDescription("Downloaded") and hasAnyDescendant(hasText("Boundary Book")))
+        assertShown(hasStateDescription("Downloaded") and hasText("Boundary Book"))
         assertShown(hasContentDescription("Resume Boundary Book"))
         visibleBook("Field Notes on Rain")
         assertShown(hasText("61%"))
@@ -140,6 +139,7 @@ class DestinationStatesTest {
         assertShown(hasText("Chapter Two", substring = true))
         composeRule.onNodeWithContentDescription("Collapse player").performClick()
         bookmark("Library").assertIsSelected()
+        composeRule.onNode(hasScrollToIndexAction()).performScrollToIndex(0)
         assertShown(hasText("Search title or author"))
     }
 

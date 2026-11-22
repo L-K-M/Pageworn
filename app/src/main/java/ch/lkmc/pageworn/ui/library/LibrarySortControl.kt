@@ -11,7 +11,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -23,12 +22,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import ch.lkmc.pageworn.R
 import ch.lkmc.pageworn.catalog.CatalogSort
+import ch.lkmc.pageworn.ui.components.PaperSheet
 import ch.lkmc.pageworn.ui.components.PencilIcon
 import ch.lkmc.pageworn.ui.components.RadioRow
 import ch.lkmc.pageworn.ui.model.Copy
@@ -56,9 +55,8 @@ internal fun LibrarySortControl(sort: CatalogSort, onSelect: (CatalogSort) -> Un
         }
     }
     if (!open) return
-    ModalBottomSheet(onDismissRequest = { open = false }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).selectableGroup()) {
-            Text(Copy.SORT_LIBRARY, Modifier.padding(bottom = 12.dp).semantics { heading() }, style = PagewornTheme.type.heading)
+    PaperSheet(Copy.SORT_LIBRARY, rememberModalBottomSheetState(skipPartiallyExpanded = true), { open = false }) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 22.dp).selectableGroup()) {
             CatalogSort.entries.forEach { choice ->
                 RadioRow(Copy.sortName(choice), choice == sort) {
                     open = false

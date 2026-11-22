@@ -7,12 +7,14 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Icon
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -51,14 +53,15 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 
 @Composable
-fun PencilIcon(resId: Int, contentDescription: String?, size: Dp = 26.dp) {
-    Image(painterResource(resId), contentDescription, Modifier.size(size), colorFilter = ColorFilter.tint(PagewornTheme.colors.primaryInk))
+fun PencilIcon(resId: Int, contentDescription: String?, size: Dp = 26.dp, modifier: Modifier = Modifier) {
+    Image(painterResource(resId), contentDescription, modifier.size(size), colorFilter = ColorFilter.tint(PagewornTheme.colors.primaryInk))
 }
 
 @Composable
 private fun Key(face: Int, inlay: Int?, title: String, faceWidth: Dp, faceHeight: Dp, enabled: Boolean, disabledReason: String?, starting: Boolean, gestures: Modifier = Modifier, onClick: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     val pressed = rememberVisiblePress(interaction)
+    val focused by interaction.collectIsFocusedAsState()
     val reduced = LocalReducedMotion.current
     val haptic = LocalHapticFeedback.current
     Box(
@@ -81,8 +84,10 @@ private fun Key(face: Int, inlay: Int?, title: String, faceWidth: Dp, faceHeight
     ) {
         Box(Modifier.size(faceWidth, faceHeight).graphicsLayer { translationY = if (pressed && !reduced) 2.dp.toPx() else 0f }.alpha(if (enabled) 1f else .45f), contentAlignment = Alignment.Center) {
             Image(painterResource(face), null, Modifier.size(faceWidth, faceHeight))
-            if (inlay != null) Image(painterResource(inlay), null, Modifier.size(faceWidth * .43f, faceHeight * .43f))
+            // The inlays are square: sized by the face's height, they keep their shape on the wide skips.
+            if (inlay != null) Image(painterResource(inlay), null, Modifier.size(if (faceWidth > faceHeight) faceHeight * WIDE_INLAY else faceHeight * ROUND_INLAY))
             if (starting) StartingArc(minOf(faceWidth, faceHeight))
+            if (focused) Box(Modifier.matchParentSize().border(2.dp, PagewornTheme.colors.primaryInk, RoundedCornerShape(percent = 50)))
         }
     }
 }
@@ -137,6 +142,9 @@ private fun StartingArc(size: Dp) {
 }
 
 private val MIN_KEY_TARGET = 56.dp
+private const val ROUND_INLAY = 0.43f
+private const val WIDE_INLAY = 0.74f
+private const val SKIP_ASPECT = 0.55f
 private const val MIN_PRESS_VISIBLE_MS = 100L
 private const val STARTING_ARC_AFTER_MS = 350L
 private const val STARTING_TURN_MS = 900
@@ -203,8 +211,8 @@ private class TapTimes {
 }
 
 @Composable
-fun SkipKey(back: Boolean, onClick: () -> Unit, enabled: Boolean = true, disabledReason: String? = null) {
-    Key(R.drawable.pw_key_ivory_skip, if (back) R.drawable.pw_inlay_back_15 else R.drawable.pw_inlay_forward_30, if (back) Copy.BACK_15 else Copy.FORWARD_30, 80.dp, 44.dp, enabled, disabledReason, starting = false, onClick = onClick)
+fun SkipKey(back: Boolean, width: Dp, onClick: () -> Unit, enabled: Boolean = true, disabledReason: String? = null) {
+    Key(R.drawable.pw_key_ivory_skip, if (back) R.drawable.pw_inlay_back_15 else R.drawable.pw_inlay_forward_30, if (back) Copy.BACK_15 else Copy.FORWARD_30, width, width * SKIP_ASPECT, enabled, disabledReason, starting = false, onClick = onClick)
 }
 
 @Composable
