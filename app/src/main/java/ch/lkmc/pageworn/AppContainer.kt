@@ -77,7 +77,7 @@ class AppContainer(private val app: PagewornApp) {
     val editionStore: EditionStore by lazy { EditionStore(database, editionFiles, liveClock) }
     val playbackHub = PlaybackHub()
     val playerConnection: PlayerConnection by lazy { PlayerConnection(app, playbackHub, editionStore, progressStore) }
-    val bookTransport: BookTransport by lazy { BookTransport(playbackHub, playerConnection, editionStore, progressStore, appScope) }
+    val bookTransport: BookTransport by lazy { BookTransport(playerConnection, editionStore, progressStore) }
     val homeWidgets: HomeWidgets by lazy { HomeWidgets(app, this) }
     val notices: AppNotices by lazy { AppNotices(settings) }
 

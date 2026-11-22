@@ -142,11 +142,20 @@ class PlayerConnection(
         return null
     }
 
-    fun seekTo(positionMs: Long) = launchInOrder { connected().seekTo(positionMs) }
-
-    fun skipBack() = launchInOrder { connected().seekBack() }
-
-    fun skipForward() = launchInOrder { connected().seekForward() }
+    /**
+     * Moves [key] when this command's turn comes: [inPlayer] if the player holds it then, otherwise
+     * [atRest]. Which book that is cannot be decided at the tap, because a Play queued before it
+     * changes the answer. Taking the turn also keeps a resting move out of a book's loading, where
+     * its write would outdate the session that plays it.
+     */
+    fun moveBook(key: BookKey, inPlayer: (MediaController) -> Unit, atRest: suspend () -> Unit): Job = launchInOrder {
+        val handedOver = controller?.takeIf { it.isConnected }?.currentMediaItem?.mediaId
+        if (handedOver != null) {
+            // The controller has a book as soon as it is sent, the session once it has loaded it.
+            withTimeoutOrNull(START_TIMEOUT_MS) { hub.state.first { it.key?.mediaId == handedOver } }
+        }
+        if (hub.state.value.key == key) inPlayer(connected()) else atRest()
+    }
 
     fun setSpeed(speed: Float) = launchInOrder { connected().setPlaybackSpeed(speed) }
 
