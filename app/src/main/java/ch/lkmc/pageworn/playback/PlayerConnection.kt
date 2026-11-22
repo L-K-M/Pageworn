@@ -11,6 +11,7 @@ import androidx.media3.session.SessionToken
 import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.data.EditionStore
 import ch.lkmc.pageworn.data.ProgressStore
+import ch.lkmc.pageworn.data.db.EditionState
 import ch.lkmc.pageworn.ui.model.SleepChoice
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -20,6 +21,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.launch
@@ -66,6 +68,17 @@ class PlayerConnection(
 
     private val _problem = MutableStateFlow<PlayProblem?>(null)
     val problem: StateFlow<PlayProblem?> = _problem.asStateFlow()
+
+    init {
+        scope.launch { _problem.collectLatest { endWhenRepaired(it) } }
+    }
+
+    /** A damaged copy's problem lasts until that book has an intact copy, which a repair publishes. */
+    private suspend fun endWhenRepaired(problem: PlayProblem?) {
+        if (problem?.refusal != PlayRefusal.DAMAGED_COPY) return
+        editions.observeEverything().first { books -> books.any { it.key == problem.key && it.state == EditionState.READY } }
+        _problem.compareAndSet(problem, null)
+    }
 
     private suspend fun connected(): MediaController = connecting.withLock {
         controller?.takeIf { it.isConnected } ?: run {

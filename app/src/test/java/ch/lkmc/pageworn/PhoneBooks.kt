@@ -9,11 +9,17 @@ import java.io.File
 
 /** Downloaded books in an app's own stores, for tests of the surfaces that show them. */
 class PhoneBooks(private val container: AppContainer) {
-    /** [audio] is one byte unless the test plays it. */
-    suspend fun download(itemId: String, title: String = itemId, durationMs: Long = DURATION_MS, audio: ByteArray = byteArrayOf(1), extension: String = "mp3"): BookKey {
+    /** [audio] is one byte unless the test plays it. A repair is a download in a new [generation]. */
+    suspend fun download(
+        itemId: String,
+        title: String = itemId,
+        durationMs: Long = DURATION_MS,
+        audio: ByteArray = byteArrayOf(1),
+        extension: String = "mp3",
+        generation: String = "generation-$itemId",
+    ): BookKey {
         container.database.profiles().upsert(ProfileEntity(PROFILE, "account", "Listener", null, null, "2.38.0", 1))
         container.editionFiles.ensureRoots()
-        val generation = "generation-$itemId"
         val staged = container.editionFiles.staging(generation).also { it.mkdirs() }
         val file = "000.$extension"
         File(staged, file).writeBytes(audio)

@@ -8,8 +8,11 @@ import androidx.test.core.app.ApplicationProvider
 import ch.lkmc.pageworn.PagewornApp
 import ch.lkmc.pageworn.PhoneBooks
 import ch.lkmc.pageworn.core.BookKey
+import ch.lkmc.pageworn.playback.PlayProblem
+import ch.lkmc.pageworn.playback.PlayRefusal
 import ch.lkmc.pageworn.playback.PlaybackService
 import com.google.common.truth.Truth.assertThat
+import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlinx.coroutines.runBlocking
@@ -121,7 +124,20 @@ class WidgetPlaybackTest {
         }
     }
 
+    @Test
+    fun aRepairEndsTheDamagedCopyNotice() = runBlocking<Unit> {
+        File(container.editionFiles.published("generation-first"), "000.wav").writeBytes(byteArrayOf(1))
+        perform(WidgetCommand.PLAY, first)
+        await("refused as damaged") { problem() == PlayProblem(first, PlayRefusal.DAMAGED_COPY) }
+
+        books.download("first", durationMs = LENGTH_MS, audio = silence(), extension = "wav", generation = "repair-first")
+
+        await("no notice for the repaired copy") { problem() == null }
+    }
+
     private fun live() = container.playbackHub.state.value
+
+    private fun problem() = container.playerConnection.problem.value
 
     private fun tap(command: WidgetCommand, key: BookKey) = WidgetTap(command, key).pendingIntent(app).send()
 
