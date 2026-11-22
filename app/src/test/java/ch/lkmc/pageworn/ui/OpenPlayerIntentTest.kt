@@ -98,6 +98,8 @@ class OpenPlayerIntentTest {
     private companion object {
         const val BACK = "Back"
         const val COLLAPSE = "Collapse player"
-        const val WAIT_MS = 5_000L
+        // The first link of a run composes the whole app cold. On a loaded build machine that took
+        // over 5 s twice, while the same wait took 0.4 to 1.1 s in quiet runs.
+        const val WAIT_MS = 30_000L
     }
 }
