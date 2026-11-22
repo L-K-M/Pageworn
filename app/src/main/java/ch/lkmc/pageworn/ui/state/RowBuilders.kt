@@ -2,7 +2,6 @@ package ch.lkmc.pageworn.ui.state
 
 import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.core.timeline.BookTimeline
-import ch.lkmc.pageworn.core.timeline.Division
 import ch.lkmc.pageworn.data.DownloadedOrder
 import ch.lkmc.pageworn.data.db.BookProgressEntity
 import ch.lkmc.pageworn.data.db.CatalogBookEntity
@@ -92,17 +91,11 @@ object RowBuilders {
         ).let { if (stopped && phase == TransferPhase.FAILED) it.copy(canResume = false) else it }
     }
 
-    /** "Chapter 4 · 2 h 12 min left", "Track 2 · 40 min left" or "2 h 12 min left". */
+    /** "Chapter 4 · 2 h 12 min left", "Track 2 · 40 min left", "Part 13 · 2 h 12 min left". */
     fun progressText(timeline: BookTimeline?, positionMs: Long, durationMs: Long): String {
         val left = Format.hoursMinutes((durationMs - positionMs).coerceAtLeast(0)) + " left"
         if (timeline == null) return left
-        val segment = timeline.segmentAt(positionMs)
-        val label = when (timeline.division) {
-            Division.CHAPTERS -> segment.title
-            Division.TRACKS -> segment.title?.takeIf { it.isNotBlank() } ?: "Track ${segment.index + 1}"
-            Division.WHOLE_BOOK -> null
-        }
-        return if (label == null) left else "$label · $left"
+        return "${PlayerStates.segmentTitle(timeline.division, timeline.segmentAt(positionMs))} · $left"
     }
 
     fun readyRow(

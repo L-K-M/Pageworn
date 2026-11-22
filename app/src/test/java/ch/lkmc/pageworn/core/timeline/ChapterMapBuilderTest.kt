@@ -157,7 +157,8 @@ class ChapterMapBuilderTest {
     }
 
     @Test
-    fun singleFileBookKeepsOneServerChapterAsAChapter() {
+    fun singleFileBookStoresItsOneServerChapter() {
+        // The timeline decides that one chapter around the whole book divides nothing.
         val result = ChapterMapBuilder.build(150_000, listOf(s(0, 150, "Whole")), trackStartsMs = listOf(0L))
         assertThat(result.trackTitles).isNull()
         assertThat(result.chapters.map { it.title }).containsExactly("Whole")

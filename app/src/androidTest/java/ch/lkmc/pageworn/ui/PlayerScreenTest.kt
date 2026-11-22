@@ -1,20 +1,23 @@
 package ch.lkmc.pageworn.ui
 
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsEnabled
-import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasScrollToIndexAction
+import androidx.compose.ui.test.hasStateDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.performTouchInput
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
@@ -24,6 +27,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import ch.lkmc.pageworn.MainActivity
 import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.core.FakeClock
+import ch.lkmc.pageworn.core.progress.StopKind
 import ch.lkmc.pageworn.core.timeline.RawChapter
 import ch.lkmc.pageworn.data.db.ProfileEntity
 import ch.lkmc.pageworn.debug.LocalEditions
@@ -117,6 +121,8 @@ class PlayerScreenTest {
 
     private fun row(title: String) = composeRule.onNode(hasClickAction() and hasText(title))
 
+    private fun scrubber(name: String) = SemanticsMatcher.keyIsDefined(SemanticsActions.SetProgress) and hasContentDescription(name)
+
     private fun downloadedKey(label: String) = hasContentDescription(label) and hasClickAction() and
         hasAnyAncestor(hasScrollToIndexAction())
 
@@ -157,7 +163,7 @@ class PlayerScreenTest {
             awaitLive("back 15 s") { it.positionMs in 118_900..119_100 }
 
             // The scrubber spans the current chapter, 100–150 s: its middle is 125 s.
-            composeRule.onNode(SemanticsMatcher.keyIsDefined(SemanticsActions.SetProgress)).performSemanticsAction(SemanticsActions.SetProgress) { it(0.5f) }
+            composeRule.onNode(scrubber("Chapter position")).performSemanticsAction(SemanticsActions.SetProgress) { it(0.5f) }
             awaitLive("scrubbed to 125 s") { it.positionMs in 124_500..125_500 }
 
             // Speed: chosen in its sheet, applied to the player and kept for the next start.
@@ -170,7 +176,7 @@ class PlayerScreenTest {
     }
 
     @Test
-    fun a24AMultiFileBookListsTracksAndASingleFileHasNoChapters() {
+    fun a24AMultiFileBookListsTracksAndASingleFileListsParts() {
         val tracks = TestApp.publishBoundaryBook(itemId = "tracks-book", title = TRACK_BOOK, chapters = emptyList(), fixtureId = "no-chapters-multi")
         load(tracks, 10_000)
         ActivityScenario.launch(MainActivity::class.java).use {
@@ -192,12 +198,14 @@ class PlayerScreenTest {
         load(single, 10_000)
         ActivityScenario.launch(MainActivity::class.java).use {
             openPlayer(SINGLE_BOOK)
-            val chapters = composeRule.onNode(hasContentDescription("Chapters"))
-            chapters.assertIsNotEnabled()
-            val reason = composeRule.onAllNodes(hasContentDescription("Chapters")).fetchSemanticsNodes().single().config.getOrNull(SemanticsProperties.StateDescription)
-            assertWithMessage("why Chapters is disabled").that(reason).isEqualTo(Copy.NO_CHAPTERS)
+            // Shorter than ten minutes is one part, and still has both scales.
+            composeRule.onNode(scrubber("Part position")).assertIsEnabled()
+            composeRule.onNode(scrubber("Book position")).assertIsEnabled()
+            composeRule.onNode(hasContentDescription("Parts") and hasClickAction()).assertIsEnabled().performClick()
+            assertThat(rowsInOrder(setOf("Part 1"))).containsExactly("Part 1")
+            Espresso.pressBack()
             composeRule.onNode(hasText("Sleep") and hasClickAction()).performClick()
-            awaitNode(hasText("End of book"))
+            awaitNode(hasText("End of part"))
             Espresso.pressBack()
         }
     }
@@ -240,7 +248,46 @@ class PlayerScreenTest {
         }
     }
 
+    @Test
+    fun a24ABookWithoutChaptersHasAScaleForThePartAndOneForTheBook() {
+        // At rest only the stored duration matters, so a short file can stand for 25 minutes.
+        val file = Fixtures.install(SINGLE_FILE).single()
+        val book = TestApp.key("parts-book")
+        runBlocking {
+            LocalEditions.publish(container, book, SINGLE_BOOK, "Fixture Author", listOf(LocalEditions.Track(file, 25 * MINUTE, null)))
+            val plan = checkNotNull(container.editionStore.plan(book))
+            container.progressStore.saveOutsideSession(book, 12 * MINUTE, plan.timeline.durationMs, plan.fingerprint, StopKind.EXACT)
+        }
+        container.settings.setLastActiveBook(book)
+        fun awaitPlace(what: String, range: LongRange) = runBlocking {
+            assertWithMessage(what).that(
+                withTimeout(5_000) { container.database.progress().observe(book.profileId, book.itemId).first { it != null && it.positionMs in range } },
+            ).isNotNull()
+        }
+
+        ActivityScenario.launch(MainActivity::class.java).use {
+            openPlayer(SINGLE_BOOK)
+            awaitNode(scrubber("Part position") and hasStateDescription("2:00 of 10:00"))
+            awaitNode(scrubber("Book position") and hasStateDescription("Book · 12 min of 25 min"))
+            assertThat(composeRule.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsActions.SetProgress)).fetchSemanticsNodes()).hasSize(2)
+
+            // A touch three quarters along the book's scale lands in the part before the last.
+            composeRule.onNode(scrubber("Book position")).performTouchInput { click(Offset(width * 0.75f, centerY)) }
+            awaitPlace("three quarters of the book", 18 * MINUTE..19 * MINUTE + 30_000)
+
+            // The middle of that part's scale is 15 minutes into the book.
+            composeRule.onNode(scrubber("Part position")).performSemanticsAction(SemanticsActions.SetProgress) { it(0.5f) }
+            awaitPlace("the middle of the part", 15 * MINUTE - 1_000..15 * MINUTE + 1_000)
+            awaitNode(scrubber("Book position") and hasStateDescription("Book · 15 min of 25 min"))
+
+            composeRule.onNode(hasContentDescription("Parts") and hasClickAction()).performClick()
+            assertThat(rowsInOrder(setOf("Part 1", "Part 2", "Part 3"))).containsExactly("Part 1", "Part 2", "Part 3").inOrder()
+            awaitNode(hasText("Part 2") and hasStateDescription("Current part"))
+        }
+    }
+
     private companion object {
+        const val MINUTE = 60_000L
         const val BOOK = "Boundary Book"
         const val TRACK_BOOK = "Track Book"
         const val SINGLE_BOOK = "Single File"

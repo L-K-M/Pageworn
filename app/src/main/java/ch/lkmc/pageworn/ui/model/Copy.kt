@@ -4,6 +4,8 @@ import java.util.Locale
 
 /** The listener-facing sentences of docs/01-product.md ("Copy and recovery"), verbatim. */
 object Copy {
+    const val BACK_15 = "Back 15 seconds"
+    const val FORWARD_30 = "Forward 30 seconds"
     const val NO_DOWNLOADS = "Your downloaded books will appear here."
     const val LIBRARY_LOADING = "Loading your library…"
     const val LIBRARY_INCOMPLETE = "Your library didn’t finish loading."
@@ -45,7 +47,6 @@ object Copy {
     const val PLAYBACK_STOPPED = "Playback paused at your last position."
     const val NOTIFICATIONS_DISABLED = "Transfers and playback controls stay available in the app."
     const val NOTHING_IN_CAR = "Download books on your phone to listen here."
-    const val NO_CHAPTERS = "This book has no chapters."
 
     // Actions.
     const val BROWSE_LIBRARY = "Browse library"

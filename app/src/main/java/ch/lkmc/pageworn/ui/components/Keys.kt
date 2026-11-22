@@ -204,7 +204,7 @@ private class TapTimes {
 
 @Composable
 fun SkipKey(back: Boolean, onClick: () -> Unit, enabled: Boolean = true, disabledReason: String? = null) {
-    Key(R.drawable.pw_key_ivory_skip, if (back) R.drawable.pw_inlay_back_15 else R.drawable.pw_inlay_forward_30, if (back) "Back 15 seconds" else "Forward 30 seconds", 80.dp, 44.dp, enabled, disabledReason, starting = false, onClick = onClick)
+    Key(R.drawable.pw_key_ivory_skip, if (back) R.drawable.pw_inlay_back_15 else R.drawable.pw_inlay_forward_30, if (back) Copy.BACK_15 else Copy.FORWARD_30, 80.dp, 44.dp, enabled, disabledReason, starting = false, onClick = onClick)
 }
 
 @Composable

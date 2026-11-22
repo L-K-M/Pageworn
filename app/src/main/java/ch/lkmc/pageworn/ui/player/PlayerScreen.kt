@@ -10,6 +10,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -23,25 +26,18 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.customActions
-import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -68,6 +64,9 @@ import ch.lkmc.pageworn.ui.model.StartAction
 import ch.lkmc.pageworn.ui.theme.PagewornTheme
 
 private enum class PlayerSheet { SPEED, SEGMENTS, SLEEP }
+
+private const val ROWS_ABOVE_CURRENT = 2
+
 /** Preview hook for the documented night sheet; production starts with all sheets closed. */
 val LocalPreviewSleepSheet = staticCompositionLocalOf { false }
 
@@ -99,32 +98,8 @@ fun PlayerScreen(state: PlayerUiState, onCollapse: () -> Unit, onPlayPause: (Key
                 TextAction(Copy.START_OVER, onClick = onStartOver)
             }
             HorizontalDivider(Modifier.padding(top = 14.dp, bottom = 10.dp), color = PagewornTheme.colors.secondaryInk.copy(alpha = .35f))
-            state.segmentLine?.let { Text(it, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.rowTitle) }
-            val duration = (state.segmentEndMs - state.segmentStartMs).coerceAtLeast(0L)
-            val position = (state.positionMs - state.segmentStartMs).coerceIn(0, duration)
-            var fraction by remember(state.face.key, state.segmentStartMs, state.segmentEndMs) { mutableFloatStateOf(if (duration > 0) position.toFloat() / duration else 0f) }
-            var dragging by remember(state.face.key) { mutableStateOf(false) }
-            LaunchedEffect(state.positionMs, state.segmentStartMs, state.segmentEndMs, dragging) {
-                if (!dragging) fraction = if (duration > 0) position.toFloat() / duration else 0f
-            }
-            Slider(
-                value = fraction,
-                onValueChange = { dragging = true; fraction = it },
-                onValueChangeFinished = { onSeekTo(state.segmentStartMs + (fraction * duration).toLong()); dragging = false },
-                enabled = duration > 0 && state.transportEnabled,
-                modifier = Modifier.fillMaxWidth().padding(top = 12.dp).semantics {
-                    stateDescription = state.elapsedText
-                    customActions = if (state.transportEnabled) listOf(
-                        CustomAccessibilityAction("Back 15 seconds") { onSeekTo((state.positionMs - 15_000).coerceAtLeast(state.segmentStartMs)); true },
-                        CustomAccessibilityAction("Forward 30 seconds") { onSeekTo((state.positionMs + 30_000).coerceAtMost(state.segmentEndMs)); true },
-                    ) else emptyList()
-                },
-            )
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(state.elapsedText, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.time)
-                Text(state.remainingText, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.time)
-            }
-            state.bookLine?.let { Text(it, Modifier.padding(top = 12.dp), color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.metadata) }
+            Text(state.segmentLine, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.rowTitle)
+            PlayerScrubbers(state, onSeekTo, Modifier.padding(top = 4.dp))
             Row(Modifier.fillMaxWidth().padding(top = 20.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
                 SkipKey(back = true, onClick = onSkipBack, enabled = state.transportEnabled, disabledReason = state.transportDisabledReason)
                 PlayPauseKey(state.showsPause, state.face.title, 72.dp, starting = state.starting, enabled = state.transportEnabled, disabledReason = state.transportDisabledReason, start = StartAction.of(state.hasPlace, state.finished), onClick = onPlayPause)
@@ -135,7 +110,7 @@ fun PlayerScreen(state: PlayerUiState, onCollapse: () -> Unit, onPlayPause: (Key
                     if (state.speed == 1f) PencilIcon(R.drawable.pw_pencil_speed_1x, null, 28.dp)
                     else Text(Format.speed(state.speed), color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.playerTitle.copy(fontStyle = FontStyle.Italic))
                 }
-                Utility(state.segmentsLabel, state.segmentsLabel, enabled = state.segmentsEnabled, disabledReason = state.segmentsDisabledReason ?: Copy.NO_CHAPTERS, onClick = { sheet = PlayerSheet.SEGMENTS }) { PencilIcon(R.drawable.pw_pencil_chapters, null, 28.dp) }
+                Utility(state.segmentsLabel, state.segmentsLabel, onClick = { sheet = PlayerSheet.SEGMENTS }) { PencilIcon(R.drawable.pw_pencil_chapters, null, 28.dp) }
                 Utility("Sleep", state.sleep.utilityDescription, onClick = { sheet = PlayerSheet.SLEEP }) { PencilIcon(R.drawable.pw_pencil_sleep, null, 28.dp) }
             }
             if (LocalDensity.current.fontScale >= 1.5f) Column(Modifier.fillMaxWidth().padding(top = 18.dp, bottom = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) { utilities() }
@@ -144,15 +119,15 @@ fun PlayerScreen(state: PlayerUiState, onCollapse: () -> Unit, onPlayPause: (Key
     }
     when (sheet) {
         PlayerSheet.SPEED -> ModalBottomSheet(onDismissRequest = { sheet = null }, sheetState = sheetState) { SpeedSheet(state.speed) { onSelectSpeed(it); sheet = null } }
-        PlayerSheet.SEGMENTS -> ModalBottomSheet(onDismissRequest = { sheet = null }, sheetState = sheetState) { SegmentsSheet(state.segmentsLabel, state.segments) { onSelectSegment(it); sheet = null } }
+        PlayerSheet.SEGMENTS -> ModalBottomSheet(onDismissRequest = { sheet = null }, sheetState = sheetState) { SegmentsSheet(state.segmentsLabel, state.segmentName, state.segments) { onSelectSegment(it); sheet = null } }
         PlayerSheet.SLEEP -> ModalBottomSheet(onDismissRequest = { sheet = null }, sheetState = sheetState) { SleepSheet(state.sleep) { onSelectSleep(it); sheet = null } }
         null -> Unit
     }
 }
 
 @Composable
-private fun Utility(label: String, description: String, enabled: Boolean = true, disabledReason: String? = null, onClick: () -> Unit, icon: @Composable () -> Unit) {
-    Column(Modifier.heightIn(min = 72.dp).widthIn(min = 48.dp).clickable(enabled = enabled, role = Role.Button, onClick = onClick).semantics { contentDescription = description; if (!enabled) { disabled(); disabledReason?.let { stateDescription = it } } }.padding(horizontal = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+private fun Utility(label: String, description: String, onClick: () -> Unit, icon: @Composable () -> Unit) {
+    Column(Modifier.heightIn(min = 72.dp).widthIn(min = 48.dp).clickable(role = Role.Button, onClick = onClick).semantics { contentDescription = description }.padding(horizontal = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         icon()
         Text(label, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.ribbonLabel)
     }
@@ -167,15 +142,19 @@ private fun SpeedSheet(selected: Float, onSelect: (Float) -> Unit) {
 }
 
 @Composable
-private fun SegmentsSheet(title: String, segments: List<SegmentRow>, onSelect: (Long) -> Unit) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).verticalScroll(rememberScrollState())) {
+private fun SegmentsSheet(title: String, segmentName: String, segments: List<SegmentRow>, onSelect: (Long) -> Unit) {
+    // A long book has dozens of parts: open on the one playing, with some before it for context.
+    val list = rememberLazyListState((segments.indexOfFirst { it.current } - ROWS_ABOVE_CURRENT).coerceAtLeast(0))
+    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
         Text(title, Modifier.padding(bottom = 12.dp).semantics { heading() }, style = PagewornTheme.type.heading)
-        segments.forEach { segment ->
-            HorizontalDivider(color = PagewornTheme.colors.secondaryInk.copy(alpha = .25f))
-            Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(role = Role.Button) { onSelect(segment.startMs) }.semantics { if (segment.current) stateDescription = "Current chapter" }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (segment.current) Image(painterResource(R.drawable.pw_place_ribbon), null, Modifier.padding(end = 8.dp).size(12.dp, 18.dp))
-                Text(segment.title, Modifier.weight(1f), color = if (segment.generated) PagewornTheme.colors.secondaryInk else PagewornTheme.colors.primaryInk, style = PagewornTheme.type.rowTitle)
-                Text(segment.durationText, Modifier.padding(start = 8.dp), color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.metadata)
+        LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false), list) {
+            items(segments, key = { it.index }) { segment ->
+                HorizontalDivider(color = PagewornTheme.colors.secondaryInk.copy(alpha = .25f))
+                Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(role = Role.Button) { onSelect(segment.startMs) }.semantics { if (segment.current) stateDescription = "Current ${segmentName.lowercase()}" }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    if (segment.current) Image(painterResource(R.drawable.pw_place_ribbon), null, Modifier.padding(end = 8.dp).size(12.dp, 18.dp))
+                    Text(segment.title, Modifier.weight(1f), color = if (segment.generated) PagewornTheme.colors.secondaryInk else PagewornTheme.colors.primaryInk, style = PagewornTheme.type.rowTitle)
+                    Text(segment.durationText, Modifier.padding(start = 8.dp), color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.metadata)
+                }
             }
         }
     }

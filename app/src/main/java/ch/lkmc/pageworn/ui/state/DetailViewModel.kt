@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ch.lkmc.pageworn.AppContainer
 import ch.lkmc.pageworn.core.BookKey
-import ch.lkmc.pageworn.core.timeline.Division
 import ch.lkmc.pageworn.data.db.BookProgressEntity
 import ch.lkmc.pageworn.data.db.CatalogBookEntity
 import ch.lkmc.pageworn.data.db.EditionState
@@ -100,7 +99,6 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
             else -> null
         }
         val position = if (isLive) live.positionMs else i.progress?.positionMs
-        val division = plan?.timeline?.division
         return BookDetailUiState(
             face = BookFace(key, title, authors, cover),
             narrator = edition?.narrators ?: book?.narrators,
@@ -109,11 +107,7 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
             action = action,
             message = message,
             description = edition?.description,
-            segmentsTitle = when (division) {
-                Division.CHAPTERS -> "Chapters"
-                Division.TRACKS -> "Tracks"
-                else -> null
-            },
+            segmentsTitle = plan?.let { PlayerStates.segmentsLabel(it.timeline.division) },
             segments = plan?.let { PlayerStates.segments(it, position) } ?: emptyList(),
             segmentsPlayable = edition != null && edition.state == EditionState.READY,
             canRemove = edition != null,

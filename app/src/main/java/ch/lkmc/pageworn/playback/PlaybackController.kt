@@ -14,7 +14,6 @@ import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.core.Clock
 import ch.lkmc.pageworn.core.progress.ResumeRewind
 import ch.lkmc.pageworn.core.progress.StopKind
-import ch.lkmc.pageworn.core.timeline.Division
 import ch.lkmc.pageworn.data.EditionStore
 import ch.lkmc.pageworn.data.ProgressStore
 import ch.lkmc.pageworn.data.SettingsStore
@@ -553,12 +552,6 @@ class PlaybackController(
         /** A checkpoint at least every five seconds of media advancement; 4 s plus one tick at 2×. */
         const val CHECKPOINT_MEDIA_MS = 4_000L
         const val BOUNDARY_SNAP_MS = 500L
-
-        fun divisionLabel(division: Division): String = when (division) {
-            Division.CHAPTERS -> "End of chapter"
-            Division.TRACKS -> "End of track"
-            Division.WHOLE_BOOK -> "End of book"
-        }
     }
 }
 

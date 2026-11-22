@@ -77,12 +77,13 @@ fun DownloadedPreview() { PagewornTheme { DownloadedExample() } }
 fun DownloadedLargeTypePreview() { PagewornTheme { DownloadedExample() } }
 
 private val player = PlayerUiState(
-    face = orchard, segmentLine = "Chapter 4 · The Gate", segmentStartMs = 0,
-    segmentEndMs = 21 * 60_000L, positionMs = 8 * 60_000L + 20_000L,
+    face = orchard, segmentLine = "Chapter 4 · The Gate", segmentName = "Chapter", segmentStartMs = 119 * 60_000L + 40_000L,
+    segmentEndMs = 140 * 60_000L + 40_000L, positionMs = 128 * 60_000L,
     elapsedText = "8:20", remainingText = "−12:40", bookLine = "Book · 2 h 08 min of 4 h 20 min",
+    bookDurationMs = 260 * 60_000L,
     showsPause = true, transportEnabled = true, speed = 1f,
     sleep = SleepUi(SleepChoice.OFF, "End of chapter", null, "Sleep, off"),
-    segmentsLabel = "Chapters", segmentsEnabled = true, segments = listOf(
+    segmentsLabel = "Chapters", segments = listOf(
         SegmentRow(4, "The Gate", "21 min", false, true, 0),
     ), hasPlace = true,
 )

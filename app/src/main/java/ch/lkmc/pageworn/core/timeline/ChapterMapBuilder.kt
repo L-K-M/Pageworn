@@ -11,7 +11,7 @@ data class RawChapter(val startMs: Long, val endMs: Long?, val title: String?)
  * 2. Embedded markers only when the validated server list is empty.
  * 3. Missing ends use the next valid start or the book end; uncovered audio of a second or more
  *    becomes a generated Opening or Interlude segment, never merged into a neighbour.
- * 4. No markers at all: an empty map, so the edition is divided by track or is one whole-book segment.
+ * 4. No markers at all: an empty map, so the edition is divided by track or into ten-minute parts.
  * 5. A server list with one chapter per track that matches the track bounds is the list Audiobookshelf
  *    builds from the files of a book without markers: no chapters, and its titles become track titles.
  */
