@@ -3,7 +3,9 @@ package ch.lkmc.pageworn.ui
 import android.content.Intent
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
 import ch.lkmc.pageworn.MainActivity
@@ -12,6 +14,7 @@ import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.data.EditionManifest
 import ch.lkmc.pageworn.data.ManifestTrack
 import ch.lkmc.pageworn.data.db.ProfileEntity
+import com.google.common.truth.Truth.assertThat
 import java.io.File
 import kotlinx.coroutines.runBlocking
 import org.junit.Before
@@ -22,7 +25,7 @@ import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** The notification and the widgets open the player again after it was collapsed. */
+/** The links of the notification and the widgets lead there again after the listener left. */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], qualifiers = "w411dp-h891dp-xhdpi")
 class OpenPlayerIntentTest {
@@ -62,11 +65,38 @@ class OpenPlayerIntentTest {
         awaitPlayer()
     }
 
+    @Test
+    fun aBookLinkOpensItsDetailsEachTime() {
+        val intent = MainActivity.openBookIntent(app, key)
+        val activity = Robolectric.buildActivity(MainActivity::class.java, Intent(intent)).setup()
+        awaitDetails()
+
+        compose.onNodeWithText(BACK).performClick()
+        compose.waitUntil(WAIT_MS) { !detailsShown() }
+        activity.newIntent(Intent(intent))
+
+        awaitDetails()
+    }
+
+    @Test
+    fun aLinkToABookThatIsNotHereShowsDownloaded() {
+        val intent = MainActivity.openBookIntent(app, BookKey(key.profileId, "removed"))
+        Robolectric.buildActivity(MainActivity::class.java, intent).setup()
+
+        compose.waitUntil(WAIT_MS) { compose.onAllNodesWithText("Book").fetchSemanticsNodes().isNotEmpty() }
+        assertThat(detailsShown()).isFalse()
+    }
+
+    private fun awaitDetails() = compose.waitUntil(WAIT_MS) { detailsShown() }
+
+    private fun detailsShown() = compose.onAllNodesWithText(BACK).fetchSemanticsNodes().isNotEmpty()
+
     private fun awaitPlayer() = compose.waitUntil(WAIT_MS) { playerShown() }
 
     private fun playerShown() = compose.onAllNodesWithContentDescription(COLLAPSE).fetchSemanticsNodes().isNotEmpty()
 
     private companion object {
+        const val BACK = "Back"
         const val COLLAPSE = "Collapse player"
         const val WAIT_MS = 5_000L
     }

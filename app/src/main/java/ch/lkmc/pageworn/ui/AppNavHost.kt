@@ -28,7 +28,6 @@ import androidx.navigation.compose.rememberNavController
 import ch.lkmc.pageworn.AppContainer
 import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.licences.LicenceNotices
-import ch.lkmc.pageworn.playback.PlayProblem
 import ch.lkmc.pageworn.playback.PlayRefusal
 import ch.lkmc.pageworn.server.LocalNetworkAccess
 import ch.lkmc.pageworn.ui.components.MainScaffold
@@ -36,7 +35,6 @@ import ch.lkmc.pageworn.ui.connect.ConnectScreen
 import ch.lkmc.pageworn.ui.detail.BookDetailScreen
 import ch.lkmc.pageworn.ui.downloaded.DownloadedScreen
 import ch.lkmc.pageworn.ui.library.LibraryScreen
-import ch.lkmc.pageworn.ui.model.Copy
 import ch.lkmc.pageworn.ui.model.Destination
 import ch.lkmc.pageworn.ui.model.UiAction
 import ch.lkmc.pageworn.ui.player.PlayerScreen
@@ -50,8 +48,12 @@ import ch.lkmc.pageworn.ui.state.DetailViewModel
 import ch.lkmc.pageworn.ui.state.DownloadedViewModel
 import ch.lkmc.pageworn.ui.state.LibraryViewModel
 import ch.lkmc.pageworn.ui.state.MainViewModel
+import ch.lkmc.pageworn.ui.state.PlayerStates
 import ch.lkmc.pageworn.ui.state.PlayerViewModel
 import ch.lkmc.pageworn.ui.state.SettingsViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 
 /** Routes: the two sections with the mini-player, the full player, book details and settings. */
 object Routes {
@@ -67,8 +69,11 @@ object Routes {
     fun detail(key: BookKey) = "book/" + android.net.Uri.encode(key.mediaId)
 }
 
+/** One tap on a link to a book's details. Each is a new link, even to the same book. */
+class BookLink(val key: BookKey)
+
 @Composable
-fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, navController: NavHostController = rememberNavController()) {
+fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, openBook: BookLink? = null, navController: NavHostController = rememberNavController()) {
     val main: MainViewModel = viewModel { MainViewModel(container) }
     val player: PlayerViewModel = viewModel { PlayerViewModel(container) }
     val context = LocalContext.current
@@ -115,6 +120,17 @@ fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, na
             main.select(Destination.DOWNLOADED)
         }
     }
+    LaunchedEffect(openBook, decided) {
+        val link = openBook ?: return@LaunchedEffect
+        if (!decided) return@LaunchedEffect
+        // Navigation is main-thread only, and an effect may resume on the database's thread.
+        withContext(Dispatchers.Main.immediate) {
+            // The link can be older than the book's download, or come from another app.
+            val onPhone = container.editionStore.observeEverything().first().any { it.key == link.key }
+            navController.popBackStack(Routes.MAIN, inclusive = false)
+            if (onPhone) navController.navigate(Routes.detail(link.key)) else main.select(Destination.DOWNLOADED)
+        }
+    }
 
     // Navigation's default cross-fade keeps the leaving screen over the arriving one for 700 ms,
     // and it takes the taps meant for what the listener already sees. Screens change at once.
@@ -144,7 +160,7 @@ fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, na
                     }
                 }
                 PlayerScreen(
-                    state = current.copy(playNotice = problem?.takeIf { it.key == current.face.key }?.let(::noticeFor)),
+                    state = current.copy(playNotice = problem?.takeIf { it.key == current.face.key }?.let(PlayerStates::notice)),
                     onCollapse = { navController.popBackStack() },
                     onPlayPause = { player.playPause(current.face.key, it) },
                     onSkipBack = player::skipBack,
@@ -169,7 +185,7 @@ fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, na
             val detail: DetailViewModel = viewModel(key = mediaId) { DetailViewModel(container, key) }
             val state by detail.state.collectAsStateWithLifecycle()
             state?.let {
-                val notice = problem?.takeIf { p -> p.key == key }?.let(::noticeFor)
+                val notice = problem?.takeIf { p -> p.key == key }?.let(PlayerStates::notice)
                 BookDetailScreen(
                     state = if (notice == null) it else it.copy(message = notice),
                     onBack = { navController.popBackStack() },
@@ -252,13 +268,6 @@ fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, na
     }
 }
 
-/** What a refused Play says where it was tapped. A choice is shown in the player instead. */
-private fun noticeFor(problem: PlayProblem): String? = when (problem.refusal) {
-    PlayRefusal.NEEDS_CHOICE -> null
-    PlayRefusal.DAMAGED_COPY -> Copy.DAMAGED_COPY
-    PlayRefusal.DID_NOT_START -> Copy.PLAY_DID_NOT_START
-}
-
 @Composable
 private fun MainRoute(container: AppContainer, main: MainViewModel, player: PlayerViewModel, navController: NavHostController, requestLocalNetwork: ((Boolean) -> Unit) -> Unit) {
     val context = LocalContext.current
@@ -285,7 +294,7 @@ private fun MainRoute(container: AppContainer, main: MainViewModel, player: Play
         miniPlayer = mini,
         onOpenPlayer = { navController.navigate(Routes.PLAYER) { launchSingleTop = true } },
         onMiniPlayPause = { action -> mini?.let { player.playPause(it.face.key, action) } },
-        playNotice = problem?.let(::noticeFor),
+        playNotice = problem?.let(PlayerStates::notice),
         onDismissPlayNotice = player::dismissProblem,
     ) { padding ->
         when (destination) {

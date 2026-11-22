@@ -7,6 +7,8 @@ import ch.lkmc.pageworn.data.db.EditionState
 import ch.lkmc.pageworn.data.db.LocalEditionEntity
 import ch.lkmc.pageworn.playback.EditionPlan
 import ch.lkmc.pageworn.playback.LivePlayback
+import ch.lkmc.pageworn.playback.PlayProblem
+import ch.lkmc.pageworn.playback.PlayRefusal
 import ch.lkmc.pageworn.playback.SleepState
 import ch.lkmc.pageworn.ui.model.BookFace
 import ch.lkmc.pageworn.ui.model.ContinuityChoice
@@ -31,6 +33,13 @@ object PlayerStates {
     }
 
     fun segmentsLabel(division: Division) = "${segmentName(division)}s"
+
+    /** What a refused Play says where it was tapped. A choice is shown in the player instead. */
+    fun notice(problem: PlayProblem): String? = when (problem.refusal) {
+        PlayRefusal.NEEDS_CHOICE -> null
+        PlayRefusal.DAMAGED_COPY -> Copy.DAMAGED_COPY
+        PlayRefusal.DID_NOT_START -> Copy.PLAY_DID_NOT_START
+    }
 
     fun endLabel(division: Division) = "End of ${segmentName(division).lowercase()}"
 
