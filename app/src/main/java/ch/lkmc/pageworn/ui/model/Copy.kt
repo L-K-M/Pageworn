@@ -45,6 +45,8 @@ object Copy {
     const val TOO_MANY_SIGN_INS = "Too many sign-in attempts. Try again in a few minutes."
     const val CLEARTEXT_TRADEOFF = "Pageworn will send your password and books to this address without encryption. Anyone on the same network can read them."
     const val ALLOW_CLEARTEXT = "Allow unencrypted access"
+    const val CLEARTEXT_ALLOWED = "Unencrypted access allowed"
+    fun lastReached(dateText: String) = "Last reached $dateText"
     fun localNetworkNeeded(address: String) = "Pageworn needs local network access to reach $address."
     fun confirmPairing(username: String, libraryName: String?) =
         if (libraryName == null) "Signed in as $username." else "Signed in as $username. This address reaches the server with your library $libraryName."

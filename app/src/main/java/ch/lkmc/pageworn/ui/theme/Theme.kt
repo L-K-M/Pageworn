@@ -33,7 +33,10 @@ data class PagewornColors(
     /** Rims and handles. */
     val brass: Color,
     val dark: Boolean,
-)
+) {
+    /** The outline that bounds a field, which has to stand out from the paper at 3:1. */
+    fun controlEdge(highContrast: Boolean): Color = secondaryInk.copy(alpha = if (highContrast) 1f else CONTROL_EDGE_ALPHA)
+}
 
 data class PagewornTypography(
     val heading: TextStyle,
@@ -120,3 +123,5 @@ fun PagewornTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composab
         MaterialTheme(colorScheme = scheme, content = content)
     }
 }
+
+private const val CONTROL_EDGE_ALPHA = 0.75f

@@ -242,6 +242,11 @@ fun AppNavHost(container: AppContainer, openPlayer: Boolean, openDownloaded: Int
                 onAllowLocalNetwork = { requestLocalNetwork { granted -> if (granted) { if (mode == ConnectMode.LAUNCH_BLOCKED) connect.retry() else connect.continueAddress() } else connect.localNetworkDenied() } },
                 onConfirmPairing = connect::confirmPairing, onCancelPairing = connect::declinePairing,
                 onOpenDownloaded = if (mode == ConnectMode.LAUNCH_BLOCKED) ({ main.select(Destination.DOWNLOADED); main.connectFinished(); navController.popBackStack() }) else null,
+                // Pairing and signing in again were opened from a screen, and lead back to it.
+                onBack = when (mode) {
+                    ConnectMode.ADD, ConnectMode.SIGN_IN -> ({ navController.popBackStack() })
+                    ConnectMode.FIRST, ConnectMode.LAUNCH_BLOCKED -> null
+                },
             )
         }
     }

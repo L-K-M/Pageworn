@@ -150,11 +150,12 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
     val shape = RoundedCornerShape(12.dp)
-    val edge = if (focused || LocalHighContrast.current) colors.primaryInk else colors.secondaryInk.copy(alpha = .25f)
+    val edge = if (focused || LocalHighContrast.current) colors.primaryInk else colors.controlEdge(highContrast = false)
     BasicTextField(
         query,
         onQueryChange,
-        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
+        // The hint leaves once there is a query, so the field carries the name itself.
+        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp).semantics { contentDescription = SEARCH_HINT },
         textStyle = PagewornTheme.type.empty.copy(color = colors.primaryInk),
         cursorBrush = SolidColor(colors.accent),
         interactionSource = interaction,
@@ -167,7 +168,7 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
             ) {
                 PencilIcon(R.drawable.pw_pencil_search, null, 24.dp)
                 Box(Modifier.weight(1f).padding(vertical = 10.dp)) {
-                    if (query.isEmpty()) Text("Search title or author", color = colors.secondaryInk, style = PagewornTheme.type.empty)
+                    if (query.isEmpty()) Text(SEARCH_HINT, color = colors.secondaryInk, style = PagewornTheme.type.empty)
                     field()
                 }
                 if (query.isNotEmpty()) IconButton(onClick = { onQueryChange("") }, modifier = Modifier.size(48.dp)) {
@@ -180,3 +181,5 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
 
 /** Lines a transfer's action up under its title. */
 private val ACTIONS_INDENT = 104.dp
+
+private const val SEARCH_HINT = "Search title or author"

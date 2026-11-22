@@ -62,7 +62,7 @@ fun SettingsScreen(state: SettingsUiState, onBack: () -> Unit, onOpenAddresses: 
         }
     }
     if (state.confirmSignOut) PaperDialog(
-        title = "Sign out?",
+        title = Copy.SIGN_OUT,
         text = Copy.SIGN_OUT_CONFIRM,
         confirm = Copy.SIGN_OUT,
         onConfirm = onConfirmSignOut,

@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -32,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -67,6 +69,7 @@ import ch.lkmc.pageworn.ui.theme.PagewornTheme
 private enum class PlayerSheet { SPEED, SEGMENTS, SLEEP }
 
 private const val ROWS_ABOVE_CURRENT = 2
+private val UTILITY_SHAPE = RoundedCornerShape(12.dp)
 private val UTILITY_ICON = 36.dp
 
 /** Preview hook for the documented night sheet; production starts with all sheets closed. */
@@ -136,7 +139,7 @@ fun PlayerScreen(state: PlayerUiState, onCollapse: () -> Unit, onPlayPause: (Key
 
 @Composable
 private fun Utility(label: String, description: String, target: String? = null, onClick: () -> Unit, icon: @Composable () -> Unit) {
-    Column(Modifier.heightIn(min = 72.dp).widthIn(min = 48.dp).clickable(role = Role.Button, onClick = onClick).semantics { contentDescription = description }.padding(horizontal = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(Modifier.heightIn(min = 72.dp).widthIn(min = 48.dp).clip(UTILITY_SHAPE).clickable(role = Role.Button, onClick = onClick).semantics { contentDescription = description }.padding(horizontal = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         icon()
         Text(label, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.ribbonLabel)
         target?.let { Text(it, color = PagewornTheme.colors.accent, style = PagewornTheme.type.status) }

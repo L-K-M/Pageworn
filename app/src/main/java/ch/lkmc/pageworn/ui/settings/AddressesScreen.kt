@@ -82,11 +82,11 @@ private fun AddressEntry(row: AddressRow, pinned: Boolean, canMoveUp: Boolean, c
             }
             Switch(checked = row.enabled, onCheckedChange = { onToggleEnabled() }, colors = paperSwitchColors(), modifier = Modifier.semantics { contentDescription = "Enable ${row.label}" })
         }
-        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             if (row.isActive) StateMark("In use")
             if (pinned) StateMark("Pinned")
-            if (row.cleartext) Text(Copy.ALLOW_CLEARTEXT, color = colors.secondaryInk, style = type.metadata)
-            row.lastSuccessText?.let { Text(it, color = colors.secondaryInk, style = type.metadata) }
+            if (row.cleartext) Text(Copy.CLEARTEXT_ALLOWED, color = colors.secondaryInk, style = type.metadata)
+            row.lastSuccessText?.let { Text(Copy.lastReached(it), color = colors.secondaryInk, style = type.metadata) }
             row.message?.let { Text(it, color = colors.accent, style = type.status) }
             row.fingerprint?.let { Text(it, color = colors.secondaryInk, style = type.metadata.copy(fontFamily = FontFamily.Monospace)) }
             row.testResult?.let { Text(it, color = colors.primaryInk, style = type.status) }

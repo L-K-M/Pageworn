@@ -32,8 +32,8 @@ import ch.lkmc.pageworn.ui.model.Copy
 import ch.lkmc.pageworn.ui.theme.PagewornTheme
 
 @Composable
-fun ConnectScreen(state: ConnectUiState, onUrlChange: (String) -> Unit, onLabelChange: (String) -> Unit, onAllowCleartextChange: (Boolean) -> Unit, onContinue: () -> Unit, onUsernameChange: (String) -> Unit, onPasswordChange: (String) -> Unit, onSignIn: () -> Unit, onTrust: () -> Unit, onRetry: () -> Unit, onAllowLocalNetwork: () -> Unit, onConfirmPairing: () -> Unit, onCancelPairing: () -> Unit, onOpenDownloaded: (() -> Unit)?) {
-    PaperScreen(state.heading, onBack = null) {
+fun ConnectScreen(state: ConnectUiState, onUrlChange: (String) -> Unit, onLabelChange: (String) -> Unit, onAllowCleartextChange: (Boolean) -> Unit, onContinue: () -> Unit, onUsernameChange: (String) -> Unit, onPasswordChange: (String) -> Unit, onSignIn: () -> Unit, onTrust: () -> Unit, onRetry: () -> Unit, onAllowLocalNetwork: () -> Unit, onConfirmPairing: () -> Unit, onCancelPairing: () -> Unit, onOpenDownloaded: (() -> Unit)?, onBack: (() -> Unit)?) {
+    PaperScreen(state.heading, onBack) {
         when (state.step) {
             ConnectStep.ADDRESS -> {
                 PaperField(state.url, onUrlChange, "Server address", keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri), isError = state.addressError != null)

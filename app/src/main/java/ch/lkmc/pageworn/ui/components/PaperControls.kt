@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -115,11 +116,16 @@ fun PaperCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.()
     )
 }
 
-/** A row that leads somewhere, with a pencilled chevron at its end. */
+/**
+ * A row that leads somewhere, with a pencilled chevron at its end. A row that opens in place passes
+ * [expanded]: the chevron turns and TalkBack hears the state.
+ */
 @Composable
-fun DisclosureRow(label: String, detail: String? = null, turned: Boolean = false, onClick: () -> Unit) {
+fun DisclosureRow(label: String, detail: String? = null, expanded: Boolean? = null, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 64.dp).clickable(role = Role.Button, onClick = onClick).padding(horizontal = 16.dp, vertical = 12.dp),
+        Modifier.fillMaxWidth().heightIn(min = 64.dp)
+            .semantics { expanded?.let { stateDescription = if (it) "Expanded" else "Collapsed" } }
+            .clickable(role = Role.Button, onClick = onClick).padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -127,7 +133,7 @@ fun DisclosureRow(label: String, detail: String? = null, turned: Boolean = false
             Text(label, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.rowTitle)
             detail?.let { Text(it, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.metadata) }
         }
-        PencilIcon(R.drawable.pw_pencil_collapse, null, 20.dp, Modifier.rotate(if (turned) 0f else -QUARTER_TURN))
+        PencilIcon(R.drawable.pw_pencil_collapse, null, 20.dp, Modifier.rotate(if (expanded == true) 0f else -QUARTER_TURN))
     }
 }
 
@@ -184,7 +190,7 @@ fun paperFieldColors(): TextFieldColors {
         unfocusedContainerColor = colors.raisedSheet,
         errorContainerColor = colors.raisedSheet,
         focusedBorderColor = colors.primaryInk,
-        unfocusedBorderColor = colors.secondaryInk.copy(alpha = if (LocalHighContrast.current) 1f else FIELD_EDGE_ALPHA),
+        unfocusedBorderColor = colors.controlEdge(LocalHighContrast.current),
         focusedLabelColor = colors.primaryInk,
     )
 }
@@ -248,5 +254,4 @@ private val LEATHER_LOW = Color(0xFF571712)
 private const val QUARTER_TURN = 90f
 private const val RULE_ALPHA = 0.28f
 private const val CARD_EDGE_ALPHA = 0.18f
-private const val FIELD_EDGE_ALPHA = 0.4f
 private const val DISABLED_ALPHA = 0.45f
