@@ -13,6 +13,7 @@ import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.printToLog
@@ -105,6 +106,8 @@ class ConnectFlowTest {
         click(Copy.BROWSE_LIBRARY)
         shown("Same Title")
 
+        // Newest first puts those two far down, and the list keeps its place: back to its header.
+        composeRule.onNode(hasScrollToIndexAction()).performScrollToIndex(0)
         composeRule.onNodeWithContentDescription("Settings").performClick()
         click(Copy.SIGN_OUT)
         shown(Copy.SIGN_OUT_CONFIRM)
