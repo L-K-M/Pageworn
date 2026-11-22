@@ -219,6 +219,8 @@ class PlaybackController(
     override fun onPositionDiscontinuity(oldPosition: Player.PositionInfo, newPosition: Player.PositionInfo, reason: Int) {
         if (reason == Player.DISCONTINUITY_REASON_SEEK || reason == Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT) {
             // Invalidate samples from before the seek; commit the resolved position once ready there.
+            // From here the player's position is the seek's, also if that seek fails: no pause settles there.
+            pauseSaved = null
             pendingSeek = true
             pendingSeekKind = if (exo.playWhenReady) StopKind.ORDINARY else StopKind.EXACT
             played = false
@@ -511,7 +513,7 @@ class PlaybackController(
         val book = loaded
         // After a failure the player may rest at a failed seek's target; the place is the saved one.
         val held = book != null && playerHolds(book)
-        val position = if (book != null && held && !failed) {
+        val position = if (book != null && held && !failed && exo.playerError == null) {
             book.plan.timeline.clamp(exo.currentPosition)
         } else book?.saved?.positionMs ?: 0L
         val remaining = when (val s = sleep) {
