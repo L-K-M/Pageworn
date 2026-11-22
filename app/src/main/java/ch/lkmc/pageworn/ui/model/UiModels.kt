@@ -151,6 +151,9 @@ data class ReadyBookRow(
     val start: StartAction get() = StartAction.of(hasPlace, badge == ReadyBadge.Finished)
 }
 
+/** What a Play/Pause key showed when it was tapped, which is what the tap does. */
+enum class KeyAction { PLAY, PAUSE }
+
 /** What a play key starts: a book from its beginning, its saved place, or a finished book again. */
 enum class StartAction {
     PLAY, RESUME, REPLAY;

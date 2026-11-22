@@ -111,14 +111,48 @@ class PlayKeyTapTest {
         try {
             ActivityScenario.launch(MainActivity::class.java).use {
                 val key = centre(rowKey("Play", BOOK))
-                tap(key)
-                SystemClock.sleep(DOUBLE_TAP_GAP_MS)
-                tap(key)
+                val lifted = tap(key)
+                awaitNode(rowKey("Pause", BOOK), timeoutMs = 2_000)
+                // While a book starts the second tap is handled late. When the finger lifted is
+                // what makes it a double tap.
+                tap(key, liftedAtMs = lifted + DOUBLE_TAP_GAP_MS)
                 loaderHeld.countDown()
                 awaitLive("playing after a double tap") { it.isPlaying }
             }
         } finally {
             loaderHeld.countDown()
+        }
+    }
+
+    @Test
+    fun aDoubleTapOnPlayIsOnePlayHoweverSoonItIsHeard() {
+        TestApp.publishBoundaryBook()
+        ActivityScenario.launch(MainActivity::class.java).use {
+            val key = centre(rowKey("Play", BOOK))
+            val lifted = tap(key)
+            awaitLive("playing after the first tap") { it.isPlaying }
+            awaitNode(rowKey("Pause", BOOK))
+            tap(key, liftedAtMs = lifted + DOUBLE_TAP_GAP_MS)
+            SystemClock.sleep(SETTLE_MS)
+            awaitLive("still playing after the second tap") { it.isPlaying }
+        }
+    }
+
+    @Test
+    fun aKeyThatStillShowsPlayNeverPauses() {
+        val book = TestApp.publishBoundaryBook()
+        ActivityScenario.launch(MainActivity::class.java).use {
+            val key = centre(rowKey("Play", BOOK))
+            // No frame is drawn between the taps, as on a phone busy starting the player, so the
+            // key under the finger still shows Play.
+            composeRule.mainClock.autoAdvance = false
+            tap(key)
+            awaitLive("playback requested") { it.showsPause(book) }
+            SystemClock.sleep(NOT_A_DOUBLE_TAP_MS)
+            tap(key)
+            SystemClock.sleep(SETTLE_MS)
+            composeRule.mainClock.autoAdvance = true
+            awaitLive("playing after two taps on Play") { it.isPlaying }
         }
     }
 
@@ -284,11 +318,14 @@ class PlayKeyTapTest {
         return composeRule.onNode(matcher).fetchSemanticsNode().boundsInWindow.center
     }
 
-    private fun tap(at: Offset) {
-        val down = SystemClock.uptimeMillis()
-        touch(down, MotionEvent.ACTION_DOWN, at)
-        SystemClock.sleep(TAP_MS)
-        touch(down, MotionEvent.ACTION_UP, at)
+    /** Taps [at], now or with the finger lifting at [liftedAtMs], and returns when it lifted. */
+    private fun tap(at: Offset, liftedAtMs: Long? = null): Long {
+        val down = liftedAtMs?.minus(TAP_MS) ?: SystemClock.uptimeMillis()
+        touch(down, MotionEvent.ACTION_DOWN, at, down)
+        if (liftedAtMs == null) SystemClock.sleep(TAP_MS)
+        val up = liftedAtMs ?: SystemClock.uptimeMillis()
+        touch(down, MotionEvent.ACTION_UP, at, up)
+        return up
     }
 
     private fun drag(from: Offset, to: Offset) {
@@ -301,8 +338,8 @@ class PlayKeyTapTest {
         touch(down, MotionEvent.ACTION_UP, to)
     }
 
-    private fun touch(downTime: Long, action: Int, at: Offset) {
-        val event = MotionEvent.obtain(downTime, SystemClock.uptimeMillis(), action, at.x, at.y, 0)
+    private fun touch(downTime: Long, action: Int, at: Offset, eventTime: Long = SystemClock.uptimeMillis()) {
+        val event = MotionEvent.obtain(downTime, eventTime, action, at.x, at.y, 0)
         event.source = InputDevice.SOURCE_TOUCHSCREEN
         automation.injectInputEvent(event, true)
         event.recycle()
@@ -323,7 +360,9 @@ class PlayKeyTapTest {
         const val SHELF = 9
         const val MIDDLE_ROW = 4
         const val TAP_MS = 40L
-        const val DOUBLE_TAP_GAP_MS = 100L
+        const val DOUBLE_TAP_GAP_MS = 150L
+        const val NOT_A_DOUBLE_TAP_MS = 500L
+        const val SETTLE_MS = 1_000L
         const val SAME_ROW_PX = 30f
         const val FRAME_MS = 16L
         const val DRAG_STEPS = 12

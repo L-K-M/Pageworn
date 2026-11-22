@@ -59,6 +59,7 @@ import ch.lkmc.pageworn.ui.components.TextAction
 import ch.lkmc.pageworn.ui.components.paperBackground
 import ch.lkmc.pageworn.ui.model.Copy
 import ch.lkmc.pageworn.ui.model.Format
+import ch.lkmc.pageworn.ui.model.KeyAction
 import ch.lkmc.pageworn.ui.model.PlayerUiState
 import ch.lkmc.pageworn.ui.model.SegmentRow
 import ch.lkmc.pageworn.ui.model.SleepChoice
@@ -72,7 +73,7 @@ val LocalPreviewSleepSheet = staticCompositionLocalOf { false }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PlayerScreen(state: PlayerUiState, onCollapse: () -> Unit, onPlayPause: () -> Unit, onSkipBack: () -> Unit, onSkipForward: () -> Unit, onSeekTo: (Long) -> Unit, onSelectSpeed: (Float) -> Unit, onSelectSegment: (Long) -> Unit, onSelectSleep: (SleepChoice) -> Unit, onRepair: () -> Unit, onUsePreviousPosition: () -> Unit, onStartOver: () -> Unit) {
+fun PlayerScreen(state: PlayerUiState, onCollapse: () -> Unit, onPlayPause: (KeyAction) -> Unit, onSkipBack: () -> Unit, onSkipForward: () -> Unit, onSeekTo: (Long) -> Unit, onSelectSpeed: (Float) -> Unit, onSelectSegment: (Long) -> Unit, onSelectSleep: (SleepChoice) -> Unit, onRepair: () -> Unit, onUsePreviousPosition: () -> Unit, onStartOver: () -> Unit) {
     val previewSleep = LocalPreviewSleepSheet.current
     var sheet by rememberSaveable(state.face.key.mediaId) { mutableStateOf<PlayerSheet?>(if (previewSleep) PlayerSheet.SLEEP else null) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)

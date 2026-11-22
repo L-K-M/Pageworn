@@ -58,6 +58,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import android.graphics.BitmapFactory
 import ch.lkmc.pageworn.R
 import ch.lkmc.pageworn.ui.model.Destination
+import ch.lkmc.pageworn.ui.model.KeyAction
 import ch.lkmc.pageworn.ui.model.MiniPlayerUi
 import ch.lkmc.pageworn.ui.player.MiniPlayer
 import ch.lkmc.pageworn.ui.theme.LocalHighContrast
@@ -144,7 +145,7 @@ fun BindingFooter(destination: Destination, onSelect: (Destination) -> Unit, mod
 }
 
 @Composable
-fun MainScaffold(destination: Destination, onSelectDestination: (Destination) -> Unit, miniPlayer: MiniPlayerUi?, onOpenPlayer: () -> Unit, onMiniPlayPause: () -> Unit, playNotice: String? = null, onDismissPlayNotice: () -> Unit = {}, content: @Composable (PaddingValues) -> Unit) {
+fun MainScaffold(destination: Destination, onSelectDestination: (Destination) -> Unit, miniPlayer: MiniPlayerUi?, onOpenPlayer: () -> Unit, onMiniPlayPause: (KeyAction) -> Unit, playNotice: String? = null, onDismissPlayNotice: () -> Unit = {}, content: @Composable (PaddingValues) -> Unit) {
     val density = LocalDensity.current
     var miniHeightPx by remember { mutableIntStateOf(0) }
     Column(Modifier.fillMaxSize().paperBackground()) {

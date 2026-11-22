@@ -33,11 +33,12 @@ import ch.lkmc.pageworn.ui.components.paperBackground
 import ch.lkmc.pageworn.ui.model.BookDetailUiState
 import ch.lkmc.pageworn.ui.model.Copy
 import ch.lkmc.pageworn.ui.model.DetailAction
+import ch.lkmc.pageworn.ui.model.KeyAction
 import ch.lkmc.pageworn.ui.model.StartAction
 import ch.lkmc.pageworn.ui.theme.PagewornTheme
 
 @Composable
-fun BookDetailScreen(state: BookDetailUiState, onBack: () -> Unit, onDownload: () -> Unit, onPlayPause: () -> Unit, onRepair: () -> Unit, onPauseTransfer: (String) -> Unit, onResumeTransfer: (String) -> Unit, onCancelTransfer: (String) -> Unit, onSelectSegment: (Long) -> Unit, onRemove: () -> Unit) {
+fun BookDetailScreen(state: BookDetailUiState, onBack: () -> Unit, onDownload: () -> Unit, onPlayPause: (KeyAction) -> Unit, onRepair: () -> Unit, onPauseTransfer: (String) -> Unit, onResumeTransfer: (String) -> Unit, onCancelTransfer: (String) -> Unit, onSelectSegment: (Long) -> Unit, onRemove: () -> Unit) {
     Column(Modifier.fillMaxSize().paperBackground().statusBarsPadding().navigationBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Row(Modifier.fillMaxWidth()) { TextAction("Back", onClick = onBack) }
         BookCover(state.face, 180.dp, showRibbon = state.action is DetailAction.Play)

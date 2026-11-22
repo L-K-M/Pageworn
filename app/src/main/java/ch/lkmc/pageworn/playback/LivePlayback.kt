@@ -46,8 +46,8 @@ data class LivePlayback(
     val starting: BookKey? = null,
 ) {
     /**
-     * Whether [book]'s key shows Pause. A key always does what it shows, so this alone decides both
-     * its face and what a tap on it sends.
+     * Whether [book]'s key shows Pause. A key always does what it shows, so this alone decides its
+     * face, and a tap that arrives after this changed does not undo the tap that changed it.
      */
     fun showsPause(book: BookKey): Boolean =
         if (starting != null) starting == book else key == book && playbackRequested

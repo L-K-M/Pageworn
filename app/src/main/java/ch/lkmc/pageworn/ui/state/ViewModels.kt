@@ -15,6 +15,7 @@ import ch.lkmc.pageworn.playback.PlayProblem
 import ch.lkmc.pageworn.playback.PlayRefusal
 import ch.lkmc.pageworn.ui.model.Destination
 import ch.lkmc.pageworn.ui.model.DownloadedUiState
+import ch.lkmc.pageworn.ui.model.KeyAction
 import ch.lkmc.pageworn.ui.model.MiniPlayerUi
 import ch.lkmc.pageworn.ui.model.PlayerUiState
 import ch.lkmc.pageworn.ui.model.SleepChoice
@@ -98,7 +99,10 @@ class PlayerViewModel(private val container: AppContainer) : ViewModel() {
     private fun currentKey(): BookKey? = player.value?.face?.key
 
     /** [key] is the book of the key that was tapped, never whichever book is shown by now. */
-    fun playPause(key: BookKey) = connection.toggle(key)
+    fun playPause(key: BookKey, action: KeyAction) = when (action) {
+        KeyAction.PLAY -> connection.playFromKey(key)
+        KeyAction.PAUSE -> connection.pauseFromKey(key)
+    }
 
     fun dismissProblem() = connection.dismissProblem()
 

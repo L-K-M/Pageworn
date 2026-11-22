@@ -49,7 +49,7 @@ A tab tap switches destinations immediately and animates the tail over about 140
 
 | Control | Face and mark | Interaction |
 |---|---|---|
-| Full Play/Pause | 72 dp oxblood round key, fine antique-brass rim, ivory triangle or two bars | A tap does what the key shows. Draw Pause as soon as playback is requested, with a short turning arc on the rim while nothing is heard yet. Draw Play when paused, stopped, ended or interrupted by another app’s audio. |
+| Full Play/Pause | 72 dp oxblood round key, fine antique-brass rim, ivory triangle or two bars | A tap does what the key showed under the finger, even when the player has changed since that frame was drawn. A second tap within the system’s double-tap time is the same tap, measured by when the finger lifted. Draw Pause as soon as playback is requested, with a short turning arc on the rim while nothing is heard yet. Draw Play when paused, stopped, ended or interrupted by another app’s audio. |
 | Skip back / forward | Ivory pill key about 44 dp tall at the art’s own 1.8:1 proportion, so roughly 80 × 44 dp, with a dark engraved arrow and 15 / 30 numeral | Skip backward 15 s or forward 30 s. Clamp at the book edges. |
 | Row and mini-player Play/Pause | 30–36 dp oxblood key in at least a 56 dp hit region | Use the same icons and state source as the full player. |
 | Pause transfer | Small ivory key with dark pause bars, within the transfer row | Pauses this download. Accessible name includes the title and the word “download”. |

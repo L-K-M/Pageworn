@@ -3,9 +3,7 @@ package ch.lkmc.pageworn.playback
 import android.content.ComponentName
 import android.content.Context
 import android.os.Bundle
-import android.os.SystemClock
 import android.util.Log
-import android.view.ViewConfiguration
 import androidx.media3.common.MediaItem
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
@@ -64,7 +62,6 @@ class PlayerConnection(
 
     /** The newest Play or Pause tap; an older one no longer reports how it ended. */
     private var newestTap = 0L
-    private var playTappedAtMs = 0L
 
     private val _problem = MutableStateFlow<PlayProblem?>(null)
     val problem: StateFlow<PlayProblem?> = _problem.asStateFlow()
@@ -92,23 +89,21 @@ class PlayerConnection(
     }
 
     /**
-     * A tap on [key]'s key: does what the key showed. Called on the main thread. The second tap of
-     * a double tap on Play, before anything is heard, is the same tap: nobody has heard what it
-     * would pause.
+     * A tap on a key of [key] that showed Play. The screen can trail the player by a frame or more,
+     * so the book may be starting already; that tap must not pause it.
      */
-    fun toggle(key: BookKey) {
-        val live = hub.state.value
-        when {
-            !live.showsPause(key) -> play(key)
-            live.waitsForAudio(key) && SystemClock.uptimeMillis() - playTappedAtMs < ViewConfiguration.getDoubleTapTimeout() -> Unit
-            else -> pause()
-        }
+    fun playFromKey(key: BookKey) {
+        if (!hub.state.value.showsPause(key)) play(key)
+    }
+
+    /** A tap on a key of [key] that showed Pause. It pauses that book and no other. */
+    fun pauseFromKey(key: BookKey) {
+        if (hub.state.value.showsPause(key)) pause()
     }
 
     /** Starts [key] from its saved place, or exactly at [fromMs] (a chapter choice moves the place). */
     fun play(key: BookKey, fromMs: Long? = null) {
         val tap = ++newestTap
-        playTappedAtMs = SystemClock.uptimeMillis()
         _problem.value = null
         hub.expectStart(key)
         scope.launch {

@@ -22,11 +22,12 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import ch.lkmc.pageworn.ui.components.BookCover
 import ch.lkmc.pageworn.ui.components.PlayPauseKey
+import ch.lkmc.pageworn.ui.model.KeyAction
 import ch.lkmc.pageworn.ui.model.MiniPlayerUi
 import ch.lkmc.pageworn.ui.theme.PagewornTheme
 
 @Composable
-fun MiniPlayer(state: MiniPlayerUi, onOpen: () -> Unit, onPlayPause: () -> Unit) {
+fun MiniPlayer(state: MiniPlayerUi, onOpen: () -> Unit, onPlayPause: (KeyAction) -> Unit) {
     Column(Modifier.fillMaxWidth().background(PagewornTheme.colors.raisedSheet)) {
         HorizontalDivider(color = PagewornTheme.colors.secondaryInk.copy(alpha = .25f))
         Row(Modifier.fillMaxWidth().heightIn(min = 72.dp).padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {

@@ -146,7 +146,7 @@ fun AppNavHost(container: AppContainer, openPlayer: Boolean, openDownloaded: Int
                 PlayerScreen(
                     state = current.copy(playNotice = problem?.takeIf { it.key == current.face.key }?.let(::noticeFor)),
                     onCollapse = { navController.popBackStack() },
-                    onPlayPause = { player.playPause(current.face.key) },
+                    onPlayPause = { player.playPause(current.face.key, it) },
                     onSkipBack = player::skipBack,
                     onSkipForward = player::skipForward,
                     onSeekTo = player::seekTo,
@@ -174,7 +174,7 @@ fun AppNavHost(container: AppContainer, openPlayer: Boolean, openDownloaded: Int
                     state = if (notice == null) it else it.copy(message = notice),
                     onBack = { navController.popBackStack() },
                     onDownload = detail::download,
-                    onPlayPause = { player.playPause(key) },
+                    onPlayPause = { player.playPause(key, it) },
                     onRepair = detail::download,
                     onPauseTransfer = detail::pauseTransfer,
                     onResumeTransfer = detail::resumeTransfer,
@@ -279,7 +279,7 @@ private fun MainRoute(container: AppContainer, main: MainViewModel, player: Play
         onSelectDestination = main::select,
         miniPlayer = mini,
         onOpenPlayer = { navController.navigate(Routes.PLAYER) { launchSingleTop = true } },
-        onMiniPlayPause = { mini?.let { player.playPause(it.face.key) } },
+        onMiniPlayPause = { action -> mini?.let { player.playPause(it.face.key, action) } },
         playNotice = problem?.let(::noticeFor),
         onDismissPlayNotice = player::dismissProblem,
     ) { padding ->

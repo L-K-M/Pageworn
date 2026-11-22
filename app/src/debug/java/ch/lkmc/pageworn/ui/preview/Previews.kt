@@ -48,7 +48,7 @@ fun LibraryPreview() {
                 CatalogRow(coast, CatalogAction.Transferring(transfer)),
                 CatalogRow(rain, CatalogAction.Ready(showsPause = false, starting = false, StartAction.PLAY)),
                 CatalogRow(hours, CatalogAction.Download),
-            )), listState = rememberLazyListState(), onQueryChange = {}, onSelectLibrary = {}, onOpenBook = {}, onDownload = {}, onPlayPause = {}, onPauseTransfer = {}, onResumeTransfer = {}, onCancelTransfer = {}, onAction = {}, onOpenSettings = {}, contentPadding = padding)
+            )), listState = rememberLazyListState(), onQueryChange = {}, onSelectLibrary = {}, onOpenBook = {}, onDownload = {}, onPlayPause = { _, _ -> }, onPauseTransfer = {}, onResumeTransfer = {}, onCancelTransfer = {}, onAction = {}, onOpenSettings = {}, contentPadding = padding)
         }
     } }
 }
@@ -63,7 +63,7 @@ private fun DownloadedExample() {
                     ReadyBookRow(orchard, ReadyBadge.InProgress("Chapter 4 · 2 h 12 min left"), hasPlace = true, showsPause = false, starting = false, playable = true),
                     ReadyBookRow(rain, ReadyBadge.New, hasPlace = false, showsPause = false, starting = false, playable = true),
                 ),
-            ), listState = rememberLazyListState(), onOpenBook = {}, onPlayPause = {}, onPauseTransfer = {}, onResumeTransfer = {}, onRetryTransfer = {}, onCancelTransfer = {}, onAction = {}, onOpenSettings = {}, contentPadding = padding)
+            ), listState = rememberLazyListState(), onOpenBook = {}, onPlayPause = { _, _ -> }, onPauseTransfer = {}, onResumeTransfer = {}, onRetryTransfer = {}, onCancelTransfer = {}, onAction = {}, onOpenSettings = {}, contentPadding = padding)
         }
     }
 }

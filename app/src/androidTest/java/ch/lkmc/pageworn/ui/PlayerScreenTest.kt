@@ -233,6 +233,8 @@ class PlayerScreenTest {
             })
             assertThat(replayed.finished).isFalse()
             awaitNode(downloadedKey("Pause $BOOK"))
+            // Clicks are timed by the test's clock, and within a double tap's time are one tap.
+            composeRule.mainClock.advanceTimeBy(NOT_A_DOUBLE_TAP_MS)
             composeRule.onNode(downloadedKey("Pause $BOOK")).performClick()
             awaitLive("paused") { !it.isPlaying }
         }
@@ -244,5 +246,6 @@ class PlayerScreenTest {
         const val SINGLE_BOOK = "Single File"
         const val SINGLE_FILE = "fmt-m4a-aac"
         const val REPLAY = Copy.REPLAY
+        const val NOT_A_DOUBLE_TAP_MS = 500L
     }
 }

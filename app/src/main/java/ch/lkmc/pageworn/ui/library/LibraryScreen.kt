@@ -48,6 +48,7 @@ import ch.lkmc.pageworn.ui.components.TransferIndicator
 import ch.lkmc.pageworn.ui.model.CatalogAction
 import ch.lkmc.pageworn.ui.model.CatalogRow
 import ch.lkmc.pageworn.ui.model.Copy
+import ch.lkmc.pageworn.ui.model.KeyAction
 import ch.lkmc.pageworn.ui.model.LibraryUiState
 import ch.lkmc.pageworn.ui.model.StartAction
 import ch.lkmc.pageworn.ui.model.UiAction
@@ -55,7 +56,7 @@ import ch.lkmc.pageworn.ui.theme.PagewornTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LibraryScreen(state: LibraryUiState, listState: LazyListState, onQueryChange: (String) -> Unit, onSelectLibrary: (String) -> Unit, onOpenBook: (BookKey) -> Unit, onDownload: (BookKey) -> Unit, onPlayPause: (BookKey) -> Unit, onPauseTransfer: (String) -> Unit, onResumeTransfer: (String) -> Unit, onCancelTransfer: (String) -> Unit, onAction: (UiAction) -> Unit, onOpenSettings: () -> Unit, contentPadding: PaddingValues) {
+fun LibraryScreen(state: LibraryUiState, listState: LazyListState, onQueryChange: (String) -> Unit, onSelectLibrary: (String) -> Unit, onOpenBook: (BookKey) -> Unit, onDownload: (BookKey) -> Unit, onPlayPause: (BookKey, KeyAction) -> Unit, onPauseTransfer: (String) -> Unit, onResumeTransfer: (String) -> Unit, onCancelTransfer: (String) -> Unit, onAction: (UiAction) -> Unit, onOpenSettings: () -> Unit, contentPadding: PaddingValues) {
     LazyColumn(state = listState, contentPadding = contentPadding) {
         item(key = "heading") { SectionHeader(state.heading, onOpenSettings) }
         if (state.showSelectorAndSearch) {
@@ -84,7 +85,7 @@ fun LibraryScreen(state: LibraryUiState, listState: LazyListState, onQueryChange
 }
 
 @Composable
-private fun CatalogBookRow(row: CatalogRow, onOpenBook: (BookKey) -> Unit, onDownload: (BookKey) -> Unit, onPlayPause: (BookKey) -> Unit, onPauseTransfer: (String) -> Unit, onResumeTransfer: (String) -> Unit, onCancelTransfer: (String) -> Unit) {
+private fun CatalogBookRow(row: CatalogRow, onOpenBook: (BookKey) -> Unit, onDownload: (BookKey) -> Unit, onPlayPause: (BookKey, KeyAction) -> Unit, onPauseTransfer: (String) -> Unit, onResumeTransfer: (String) -> Unit, onCancelTransfer: (String) -> Unit) {
     val face = row.face
     val compact = LocalDensity.current.fontScale >= 1.5f
     Column(Modifier.fillMaxWidth().semantics { if (row.action is CatalogAction.Ready) stateDescription = "Downloaded" }.padding(horizontal = 20.dp, vertical = 12.dp)) {
@@ -112,10 +113,10 @@ private fun CatalogBookRow(row: CatalogRow, onOpenBook: (BookKey) -> Unit, onDow
 }
 
 @Composable
-private fun CatalogActionView(row: CatalogRow, onDownload: (BookKey) -> Unit, onPlayPause: (BookKey) -> Unit, onPauseTransfer: (String) -> Unit, onResumeTransfer: (String) -> Unit) {
+private fun CatalogActionView(row: CatalogRow, onDownload: (BookKey) -> Unit, onPlayPause: (BookKey, KeyAction) -> Unit, onPauseTransfer: (String) -> Unit, onResumeTransfer: (String) -> Unit) {
     when (val action = row.action) {
         CatalogAction.Download -> IconButton(onClick = { onDownload(row.face.key) }, modifier = Modifier.size(48.dp)) { PencilIcon(R.drawable.pw_pencil_download, "Download ${row.face.title}") }
-        is CatalogAction.Ready -> PlayPauseKey(action.showsPause, row.face.title, 36.dp, starting = action.starting, start = action.start) { onPlayPause(row.face.key) }
+        is CatalogAction.Ready -> PlayPauseKey(action.showsPause, row.face.title, 36.dp, starting = action.starting, start = action.start) { onPlayPause(row.face.key, it) }
         is CatalogAction.Transferring -> {
             val t = action.transfer
             val callback = when { t.canPause -> ({ onPauseTransfer(t.jobId) }); t.canResume -> ({ onResumeTransfer(t.jobId) }); else -> null }

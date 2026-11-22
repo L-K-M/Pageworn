@@ -36,6 +36,7 @@ import ch.lkmc.pageworn.ui.components.TransferIndicator
 import ch.lkmc.pageworn.ui.components.TransferPauseKey
 import ch.lkmc.pageworn.ui.model.Copy
 import ch.lkmc.pageworn.ui.model.DownloadedUiState
+import ch.lkmc.pageworn.ui.model.KeyAction
 import ch.lkmc.pageworn.ui.model.ReadyBadge
 import ch.lkmc.pageworn.ui.model.ReadyBookRow
 import ch.lkmc.pageworn.ui.model.StartAction
@@ -44,7 +45,7 @@ import ch.lkmc.pageworn.ui.model.UiAction
 import ch.lkmc.pageworn.ui.theme.PagewornTheme
 
 @Composable
-fun DownloadedScreen(state: DownloadedUiState, listState: LazyListState, onOpenBook: (BookKey) -> Unit, onPlayPause: (BookKey) -> Unit, onPauseTransfer: (String) -> Unit, onResumeTransfer: (String) -> Unit, onRetryTransfer: (String) -> Unit, onCancelTransfer: (String) -> Unit, onAction: (UiAction) -> Unit, onOpenSettings: () -> Unit, contentPadding: PaddingValues) {
+fun DownloadedScreen(state: DownloadedUiState, listState: LazyListState, onOpenBook: (BookKey) -> Unit, onPlayPause: (BookKey, KeyAction) -> Unit, onPauseTransfer: (String) -> Unit, onResumeTransfer: (String) -> Unit, onRetryTransfer: (String) -> Unit, onCancelTransfer: (String) -> Unit, onAction: (UiAction) -> Unit, onOpenSettings: () -> Unit, contentPadding: PaddingValues) {
     LazyColumn(state = listState, contentPadding = contentPadding) {
         item(key = "heading") { SectionHeader(state.heading, onOpenSettings) }
         state.status?.let { item(key = "status") { StatusLineView(it, onAction) } }
@@ -88,7 +89,7 @@ private fun DownloadTransferRow(row: TransferRow, onOpenBook: (BookKey) -> Unit,
 }
 
 @Composable
-private fun DownloadedBookRow(row: ReadyBookRow, onOpenBook: (BookKey) -> Unit, onPlayPause: (BookKey) -> Unit) {
+private fun DownloadedBookRow(row: ReadyBookRow, onOpenBook: (BookKey) -> Unit, onPlayPause: (BookKey, KeyAction) -> Unit) {
     val compact = LocalDensity.current.fontScale >= 1.5f
     Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -103,8 +104,8 @@ private fun DownloadedBookRow(row: ReadyBookRow, onOpenBook: (BookKey) -> Unit, 
                     is ReadyBadge.RepairNeeded -> { Text("Repair needed", color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status); Text(badge.message, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status) }
                 }
             }
-            if (!compact && row.playable) PlayPauseKey(row.showsPause, row.face.title, 36.dp, starting = row.starting, start = row.start) { onPlayPause(row.face.key) }
+            if (!compact && row.playable) PlayPauseKey(row.showsPause, row.face.title, 36.dp, starting = row.starting, start = row.start) { onPlayPause(row.face.key, it) }
         }
-        if (compact && row.playable) PlayPauseKey(row.showsPause, row.face.title, 36.dp, starting = row.starting, start = row.start) { onPlayPause(row.face.key) }
+        if (compact && row.playable) PlayPauseKey(row.showsPause, row.face.title, 36.dp, starting = row.starting, start = row.start) { onPlayPause(row.face.key, it) }
     }
 }

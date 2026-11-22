@@ -28,6 +28,9 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
@@ -40,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import ch.lkmc.pageworn.R
 import ch.lkmc.pageworn.ui.model.Copy
+import ch.lkmc.pageworn.ui.model.KeyAction
 import ch.lkmc.pageworn.ui.model.StartAction
 import ch.lkmc.pageworn.ui.theme.LocalReducedMotion
 import ch.lkmc.pageworn.ui.theme.PagewornTheme
@@ -52,7 +56,7 @@ fun PencilIcon(resId: Int, contentDescription: String?, size: Dp = 26.dp) {
 }
 
 @Composable
-private fun Key(face: Int, inlay: Int?, title: String, faceWidth: Dp, faceHeight: Dp, enabled: Boolean, disabledReason: String?, starting: Boolean, onClick: () -> Unit) {
+private fun Key(face: Int, inlay: Int?, title: String, faceWidth: Dp, faceHeight: Dp, enabled: Boolean, disabledReason: String?, starting: Boolean, gestures: Modifier = Modifier, onClick: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     val pressed = rememberVisiblePress(interaction)
     val reduced = LocalReducedMotion.current
@@ -68,6 +72,7 @@ private fun Key(face: Int, inlay: Int?, title: String, faceWidth: Dp, faceHeight
                     stateDescription = Copy.STARTING
                 }
             }
+            .then(gestures)
             .clickable(enabled = enabled, role = Role.Button, interactionSource = interaction, indication = null) {
                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 onClick()
@@ -141,22 +146,68 @@ private const val ARC_INSET = 0.15f
 private const val ARC_WIDTH = 0.05f
 
 @Composable
-fun PlayPauseKey(showsPause: Boolean, title: String, size: Dp, starting: Boolean = false, enabled: Boolean = true, disabledReason: String? = null, start: StartAction = StartAction.PLAY, onClick: () -> Unit) {
+fun PlayPauseKey(showsPause: Boolean, title: String, size: Dp, starting: Boolean = false, enabled: Boolean = true, disabledReason: String? = null, start: StartAction = StartAction.PLAY, onClick: (KeyAction) -> Unit) {
     val action = when {
         showsPause -> "Pause"
         start == StartAction.REPLAY -> Copy.REPLAY
         start == StartAction.RESUME -> "Resume"
         else -> "Play"
     }
-    Key(R.drawable.pw_key_oxblood, if (showsPause) R.drawable.pw_inlay_pause else R.drawable.pw_inlay_play, "$action $title", size, size, enabled, disabledReason, starting, onClick)
+    val taps = remember { TapTimes() }
+    Key(
+        R.drawable.pw_key_oxblood,
+        if (showsPause) R.drawable.pw_inlay_pause else R.drawable.pw_inlay_play,
+        "$action $title", size, size, enabled, disabledReason, starting,
+        Modifier.pointerInput(taps) {
+            awaitPointerEventScope {
+                while (true) {
+                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                    if (event.type == PointerEventType.Release) {
+                        event.changes.firstOrNull()?.let { taps.lifted(it.uptimeMillis, viewConfiguration.doubleTapTimeoutMillis) }
+                    }
+                }
+            }
+        },
+    ) {
+        // The second tap of a double tap is the same tap. Otherwise it would undo the first.
+        if (taps.takeRepeat()) return@Key
+        onClick(if (showsPause) KeyAction.PAUSE else KeyAction.PLAY)
+    }
+}
+
+/**
+ * When the finger left the key, by the touch events' own times: while a book starts the main thread
+ * can handle the second of two quick taps long after it was made.
+ */
+private class TapTimes {
+    private var liftMs: Long? = null
+    private var timeoutMs = 0L
+    private var lastTapMs: Long? = null
+
+    fun lifted(atMs: Long, timeoutMs: Long) {
+        liftMs = atMs
+        this.timeoutMs = timeoutMs
+    }
+
+    /**
+     * Whether the click being handled repeats the tap before it. A click without a finger, as from
+     * TalkBack or a keyboard, never does, and neither does a touch that slid off before it lifted.
+     */
+    fun takeRepeat(): Boolean {
+        val lifted = liftMs ?: return false
+        liftMs = null
+        val repeats = lastTapMs?.let { lifted - it < timeoutMs } == true
+        lastTapMs = lifted
+        return repeats
+    }
 }
 
 @Composable
 fun SkipKey(back: Boolean, onClick: () -> Unit, enabled: Boolean = true, disabledReason: String? = null) {
-    Key(R.drawable.pw_key_ivory_skip, if (back) R.drawable.pw_inlay_back_15 else R.drawable.pw_inlay_forward_30, if (back) "Back 15 seconds" else "Forward 30 seconds", 80.dp, 44.dp, enabled, disabledReason, starting = false, onClick)
+    Key(R.drawable.pw_key_ivory_skip, if (back) R.drawable.pw_inlay_back_15 else R.drawable.pw_inlay_forward_30, if (back) "Back 15 seconds" else "Forward 30 seconds", 80.dp, 44.dp, enabled, disabledReason, starting = false, onClick = onClick)
 }
 
 @Composable
 fun TransferPauseKey(title: String, onClick: () -> Unit) {
-    Key(R.drawable.pw_transfer_pause, null, "Pause download of $title", 36.dp, 36.dp, true, null, starting = false, onClick)
+    Key(R.drawable.pw_transfer_pause, null, "Pause download of $title", 36.dp, 36.dp, true, null, starting = false, onClick = onClick)
 }
