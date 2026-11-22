@@ -50,7 +50,7 @@ fun BookDetailScreen(state: BookDetailUiState, onBack: () -> Unit, onDownload: (
             when (val action = state.action) {
                 DetailAction.Download -> Button(onClick = onDownload, modifier = Modifier.heightIn(min = 48.dp).semantics { contentDescription = "Download ${state.face.title}" }) { Text(Copy.DOWNLOAD) }
                 DetailAction.DownloadDisabled, DetailAction.Unsupported -> Button(onClick = {}, enabled = false, modifier = Modifier.heightIn(min = 48.dp).semantics { contentDescription = "Download ${state.face.title}"; stateDescription = state.message ?: if (action == DetailAction.Unsupported) Copy.UNSUPPORTED_FORMAT else Copy.DOWNLOAD_DISABLED }) { Text(Copy.DOWNLOAD) }
-                is DetailAction.Play -> PlayPauseKey(action.isPlaying, state.face.title, 72.dp, start = action.start, onClick = onPlayPause)
+                is DetailAction.Play -> PlayPauseKey(action.showsPause, state.face.title, 72.dp, starting = action.starting, start = action.start, onClick = onPlayPause)
                 DetailAction.Repair -> Button(onClick = onRepair, modifier = Modifier.heightIn(min = 48.dp).semantics { contentDescription = "Repair download of ${state.face.title}" }) { Text(Copy.REPAIR_DOWNLOAD) }
                 is DetailAction.Transferring -> {
                     val t = action.transfer

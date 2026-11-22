@@ -1,5 +1,6 @@
 package ch.lkmc.pageworn.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,6 +31,7 @@ import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
+import ch.lkmc.pageworn.ui.model.Copy
 import ch.lkmc.pageworn.ui.model.EmptyState
 import ch.lkmc.pageworn.ui.model.Format
 import ch.lkmc.pageworn.ui.model.StatusLine
@@ -56,6 +58,18 @@ fun StatusLineView(line: StatusLine, onAction: (UiAction) -> Unit) {
             Text(line.text, Modifier.weight(1f).padding(start = if (line.showsProgress) 8.dp else 0.dp).semantics { liveRegion = LiveRegionMode.Polite }, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status)
         }
         if (line.action != null && line.actionLabel != null) TextAction(line.actionLabel) { onAction(line.action) }
+    }
+}
+
+/** Why the last tap on Play started nothing, on the paper just above the mini-player. */
+@Composable
+fun PlayNotice(text: String, onDismiss: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().background(PagewornTheme.colors.raisedSheet).padding(start = 20.dp, end = 12.dp, top = 4.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(text, Modifier.weight(1f).semantics { liveRegion = LiveRegionMode.Polite }, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status)
+        TextAction(Copy.DISMISS, onClick = onDismiss)
     }
 }
 

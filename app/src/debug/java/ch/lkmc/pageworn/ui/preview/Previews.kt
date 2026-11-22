@@ -42,11 +42,11 @@ private fun DemoArt(content: @Composable () -> Unit) {
 @Composable
 fun LibraryPreview() {
     PagewornTheme { DemoArt {
-        MainScaffold(Destination.LIBRARY, {}, MiniPlayerUi(orchard, "Chapter 4 · The Gate", false, true), {}, {}) { padding ->
+        MainScaffold(Destination.LIBRARY, {}, MiniPlayerUi(orchard, "Chapter 4 · The Gate", showsPause = false, starting = false, enabled = true), {}, {}) { padding ->
             LibraryScreen(state = LibraryUiState(rows = listOf(
-                CatalogRow(orchard, CatalogAction.Ready(false, StartAction.RESUME)),
+                CatalogRow(orchard, CatalogAction.Ready(showsPause = false, starting = false, StartAction.RESUME)),
                 CatalogRow(coast, CatalogAction.Transferring(transfer)),
-                CatalogRow(rain, CatalogAction.Ready(false, StartAction.PLAY)),
+                CatalogRow(rain, CatalogAction.Ready(showsPause = false, starting = false, StartAction.PLAY)),
                 CatalogRow(hours, CatalogAction.Download),
             )), listState = rememberLazyListState(), onQueryChange = {}, onSelectLibrary = {}, onOpenBook = {}, onDownload = {}, onPlayPause = {}, onPauseTransfer = {}, onResumeTransfer = {}, onCancelTransfer = {}, onAction = {}, onOpenSettings = {}, contentPadding = padding)
         }
@@ -56,12 +56,12 @@ fun LibraryPreview() {
 @Composable
 private fun DownloadedExample() {
     DemoArt {
-        MainScaffold(Destination.DOWNLOADED, {}, MiniPlayerUi(orchard, "Chapter 4 · The Gate", false, true), {}, {}) { padding ->
+        MainScaffold(Destination.DOWNLOADED, {}, MiniPlayerUi(orchard, "Chapter 4 · The Gate", showsPause = false, starting = false, enabled = true), {}, {}) { padding ->
             DownloadedScreen(state = DownloadedUiState(
                 transfers = listOf(TransferRow(coast, transfer)),
                 books = listOf(
-                    ReadyBookRow(orchard, ReadyBadge.InProgress("Chapter 4 · 2 h 12 min left"), true, false, true),
-                    ReadyBookRow(rain, ReadyBadge.New, false, false, true),
+                    ReadyBookRow(orchard, ReadyBadge.InProgress("Chapter 4 · 2 h 12 min left"), hasPlace = true, showsPause = false, starting = false, playable = true),
+                    ReadyBookRow(rain, ReadyBadge.New, hasPlace = false, showsPause = false, starting = false, playable = true),
                 ),
             ), listState = rememberLazyListState(), onOpenBook = {}, onPlayPause = {}, onPauseTransfer = {}, onResumeTransfer = {}, onRetryTransfer = {}, onCancelTransfer = {}, onAction = {}, onOpenSettings = {}, contentPadding = padding)
         }
@@ -80,7 +80,7 @@ private val player = PlayerUiState(
     face = orchard, segmentLine = "Chapter 4 · The Gate", segmentStartMs = 0,
     segmentEndMs = 21 * 60_000L, positionMs = 8 * 60_000L + 20_000L,
     elapsedText = "8:20", remainingText = "−12:40", bookLine = "Book · 2 h 08 min of 4 h 20 min",
-    isPlaying = true, transportEnabled = true, speed = 1f,
+    showsPause = true, transportEnabled = true, speed = 1f,
     sleep = SleepUi(SleepChoice.OFF, "End of chapter", null, "Sleep, off"),
     segmentsLabel = "Chapters", segmentsEnabled = true, segments = listOf(
         SegmentRow(4, "The Gate", "21 min", false, true, 0),

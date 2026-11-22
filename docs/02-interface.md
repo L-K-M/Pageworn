@@ -41,19 +41,21 @@ Start on a 4 dp grid. Outer margins are 16–24 dp, cover-to-copy gap 12 dp, row
 
 **Two permanent bookmarks.** Flax is always **Library**, on the leading side. Oxblood is always **Downloaded**, on the trailing side. In a left-to-right locale this puts Library on the left. Use two equal-width stationary selection regions. Render the fabric about 112–128 dp wide, with enough room for the localized label. In the resting position show about 44 dp of fabric. Move the selected tail and its label 8 dp farther out. Its hit region remains fixed. Expose the selected state to TalkBack. Give the selected label a slightly heavier weight so the state is clear even with reduced motion. Long text can wrap and increase the binding band height.
 
+Screens also change at once, with no cross-fade: a screen that is leaving must never take the tap meant for the one the listener already sees (Navigation’s default fade held taps for 700 ms). The mini-player takes every touch on its own area, so none falls through to the list beneath.
+
 A tab tap switches destinations immediately and animates the tail over about 140 ms. No pull gesture is required. Preserve scroll and search per destination. Hide the bottom binding on the full player, details and modal sheets; system Back returns to the originating screen. At wide sizes, keep tabs at the foot of the library pane and use the second pane for details when space permits.
 
 ## Playback controls
 
 | Control | Face and mark | Interaction |
 |---|---|---|
-| Full Play/Pause | 72 dp oxblood round key, fine antique-brass rim, ivory triangle or two bars | One tap toggles through the media controller. Draw Pause when audio is playing and Play when paused. |
+| Full Play/Pause | 72 dp oxblood round key, fine antique-brass rim, ivory triangle or two bars | A tap does what the key shows. Draw Pause as soon as playback is requested, with a short turning arc on the rim while nothing is heard yet. Draw Play when paused, stopped, ended or interrupted by another app’s audio. |
 | Skip back / forward | Ivory pill key about 44 dp tall at the art’s own 1.8:1 proportion, so roughly 80 × 44 dp, with a dark engraved arrow and 15 / 30 numeral | Skip backward 15 s or forward 30 s. Clamp at the book edges. |
-| Row and mini-player Play/Pause | 30–36 dp oxblood key in at least a 48 dp hit region | Use the same icons and state source as the full player. |
+| Row and mini-player Play/Pause | 30–36 dp oxblood key in at least a 56 dp hit region | Use the same icons and state source as the full player. |
 | Pause transfer | Small ivory key with dark pause bars, within the transfer row | Pauses this download. Accessible name includes the title and the word “download”. |
 | Lower utility row | 24–28 dp pencil mark and a typeset label for Speed, Chapters or Tracks, and Sleep | Open accessible sheets. Speed displays the actual multiplier. Active sleep mode exposes its target or time remaining. The Chapters utility reads Tracks for a multi-file edition without chapter marks. For a single undivided file it stays in place, disabled, with the reason “This book has no chapters.” |
 
-On press, depress the face visually by about 1–2 dp, tighten its lower shadow, then release. Trigger one subtle haptic for an accepted transport tap when the user’s device settings allow it. Keep the glyph aligned with the key. Media-session callbacks govern the visible playing state. Audio focus loss, sleep expiry and notification actions must update all instances together.
+On press, depress the face visually by about 1–2 dp, tighten its lower shadow, then release. Keep a press visible for a tenth of a second, however short the tap. Trigger one subtle haptic for an accepted transport tap when the user’s device settings allow it. Keep the glyph aligned with the key. A Play tap shows Pause at once, and the media session confirms or withdraws it. The second tap of a double tap, before anything is heard, is the same tap. Every other tap ends in the state its key showed or in a message on the screen. Media-session callbacks govern the visible playing state after that. Audio focus loss, sleep expiry and notification actions must update all instances together.
 
 For the player, center a cover around 200–224 dp on a regular-height phone. Below it place the live book title, author, chapter name, chapter slider, chapter elapsed/remaining, and whole-book elapsed/total. A visible thumb, adjustable semantics and ± controls make seeking discoverable. Then place the three transport keys, followed by the pencil utilities. Collapse artwork first on short screens. All control rows can scroll into view.
 

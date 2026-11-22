@@ -5,6 +5,7 @@ import ch.lkmc.pageworn.core.timeline.Division
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 
 /** The sleep request the playback service holds. */
 sealed interface SleepState {
@@ -34,14 +35,50 @@ data class LivePlayback(
     /** Set after a playback failure: the place is saved and the transport is disabled until repair. */
     val failed: Boolean = false,
     val ended: Boolean = false,
-)
+    /** The player holds [key]'s item; false while a chosen book is still being handed to it. */
+    val held: Boolean = false,
+    /**
+     * Playback is requested and nothing in the player blocks it (not idle, ended or suppressed): the
+     * condition under which Media3's own controls show Pause.
+     */
+    val playbackRequested: Boolean = false,
+    /** A book whose Play was tapped and whose start the session has not reported yet. */
+    val starting: BookKey? = null,
+) {
+    /**
+     * Whether [book]'s key shows Pause. A key always does what it shows, so this alone decides both
+     * its face and what a tap on it sends.
+     */
+    fun showsPause(book: BookKey): Boolean =
+        if (starting != null) starting == book else key == book && playbackRequested
+
+    /** [book] shows Pause but is not heard yet: its key shows that it is starting. */
+    fun waitsForAudio(book: BookKey): Boolean = showsPause(book) && !(key == book && isPlaying)
+
+    /** This state without its moving clock, for lists that draw only each book's key. */
+    fun transportOnly(): LivePlayback = copy(positionMs = 0, sleepRemainingMs = null)
+}
 
 class PlaybackHub {
     private val _state = MutableStateFlow(LivePlayback())
     val state: StateFlow<LivePlayback> = _state.asStateFlow()
 
+    /** The session's state. It ends the expectation of a start that it reports. */
     fun publish(state: LivePlayback) {
-        _state.value = state
+        _state.update { previous ->
+            val starting = previous.starting?.takeUnless { it == state.key && state.held && (state.playbackRequested || state.failed) }
+            state.copy(starting = starting)
+        }
+    }
+
+    /** A Play tap: its key shows Pause at once, before the session has answered. */
+    fun expectStart(key: BookKey) {
+        _state.update { it.copy(starting = key) }
+    }
+
+    /** A Pause tap, or a start that did not happen. */
+    fun endStart() {
+        _state.update { it.copy(starting = null) }
     }
 
     fun clear() {

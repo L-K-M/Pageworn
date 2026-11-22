@@ -9,7 +9,10 @@ import ch.lkmc.pageworn.core.progress.StopKind
 import ch.lkmc.pageworn.core.timeline.BookTimeline
 import ch.lkmc.pageworn.data.db.BookProgressEntity
 import ch.lkmc.pageworn.data.db.LocalEditionEntity
+import ch.lkmc.pageworn.playback.BookPlayer
 import ch.lkmc.pageworn.playback.EditionPlan
+import ch.lkmc.pageworn.playback.PlayProblem
+import ch.lkmc.pageworn.playback.PlayRefusal
 import ch.lkmc.pageworn.ui.model.Destination
 import ch.lkmc.pageworn.ui.model.DownloadedUiState
 import ch.lkmc.pageworn.ui.model.MiniPlayerUi
@@ -29,6 +32,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.ConcurrentHashMap
 
 /** Caches edition plans (timeline, files, cover) by generation for row labels and the player. */
@@ -48,9 +53,19 @@ class PlayerViewModel(private val container: AppContainer) : ViewModel() {
     private val plans = PlanCache(container)
     private val connection get() = container.playerConnection
 
-    private val shownKey: Flow<BookKey?> =
-        combine(container.playbackHub.state.map { it.key }.distinctUntilChanged(), container.settings.lastActiveBook) { live, last -> live ?: last }
-            .distinctUntilChanged()
+    /** Why the last tap on Play started nothing. */
+    val problem: StateFlow<PlayProblem?> = connection.problem
+
+    private val shownKey: Flow<BookKey?> = combine(
+        container.playbackHub.state.map { it.starting ?: it.key }.distinctUntilChanged(),
+        container.settings.lastActiveBook,
+        problem,
+    ) { active, last, problem ->
+        problem?.takeIf { it.refusal == PlayRefusal.NEEDS_CHOICE }?.key ?: active ?: last
+    }.distinctUntilChanged()
+
+    /** Moves of a resting book's place, one after another: a skip reads the place it moves. */
+    private val restingMoves = Mutex()
 
     private data class Shown(val plan: EditionPlan, val edition: LocalEditionEntity?, val progress: BookProgressEntity?)
 
@@ -82,48 +97,59 @@ class PlayerViewModel(private val container: AppContainer) : ViewModel() {
 
     private fun currentKey(): BookKey? = player.value?.face?.key
 
-    fun togglePlayPause() {
+    /** [key] is the book of the key that was tapped, never whichever book is shown by now. */
+    fun playPause(key: BookKey) = connection.toggle(key)
+
+    fun dismissProblem() = connection.dismissProblem()
+
+    fun skipBack() {
         val key = currentKey() ?: return
-        viewModelScope.launch { connection.playPause(key) }
+        if (isLoaded(key)) connection.skipBack() else moveRestingPlace(key) { it - BookPlayer.SEEK_BACK_MS }
     }
 
-    fun playPause(key: BookKey) {
-        viewModelScope.launch { connection.playPause(key) }
+    fun skipForward() {
+        val key = currentKey() ?: return
+        if (isLoaded(key)) connection.skipForward() else moveRestingPlace(key) { it + BookPlayer.SEEK_FORWARD_MS }
     }
-
-    fun skipBack() = launchIfLoaded { connection.skipBack() }
-    fun skipForward() = launchIfLoaded { connection.skipForward() }
 
     fun seekTo(positionMs: Long) {
         val key = currentKey() ?: return
-        viewModelScope.launch {
-            if (container.playbackHub.state.value.key == key) {
-                connection.seekTo(positionMs)
-            } else {
-                // Moving the place of a resting book: an exact stop.
-                val plan = container.editionStore.anyPlan(key) ?: return@launch
-                container.progressStore.saveOutsideSession(key, plan.timeline.clamp(positionMs), plan.timeline.durationMs, plan.fingerprint, StopKind.EXACT)
+        if (isLoaded(key)) connection.seekTo(positionMs) else moveRestingPlace(key) { positionMs }
+    }
+
+    private fun isLoaded(key: BookKey) = container.playbackHub.state.value.key == key
+
+    /** Moving the place of a resting book: an exact stop, and at the book's end the finished state. */
+    private fun moveRestingPlace(key: BookKey, target: (Long) -> Long) {
+        container.appScope.launch {
+            restingMoves.withLock {
+                val plan = container.editionStore.anyPlan(key) ?: return@withLock
+                val from = container.progressStore.read(key)?.positionMs ?: 0L
+                val to = plan.timeline.clamp(target(from))
+                container.progressStore.saveOutsideSession(
+                    key, to, plan.timeline.durationMs, plan.fingerprint, StopKind.EXACT,
+                    finished = plan.timeline.isAtEnd(to),
+                )
             }
         }
     }
 
     fun selectSegment(startMs: Long) {
         val key = currentKey() ?: return
-        viewModelScope.launch { connection.playFrom(key, startMs) }
+        connection.play(key, startMs)
     }
 
     /** A chapter row in a book's details starts that book there. */
-    fun playFrom(key: BookKey, startMs: Long) {
-        viewModelScope.launch { connection.playFrom(key, startMs) }
-    }
+    fun playFrom(key: BookKey, startMs: Long) = connection.play(key, startMs)
 
     fun setSpeed(speed: Float) {
         container.settings.setSpeed(speed)
-        viewModelScope.launch { connection.setSpeed(speed) }
+        connection.setSpeed(speed)
     }
 
     fun setSleep(choice: SleepChoice) {
-        viewModelScope.launch { connection.setSleep(choice) }
+        val key = currentKey() ?: return
+        connection.setSleep(key, choice)
     }
 
     private val transferActions = TransferActions(container)
@@ -143,11 +169,6 @@ class PlayerViewModel(private val container: AppContainer) : ViewModel() {
             container.progressStore.saveOutsideSession(key, position, plan.timeline.durationMs, plan.fingerprint, StopKind.EXACT)
         }
     }
-
-    private fun launchIfLoaded(block: suspend () -> Unit) {
-        if (container.playbackHub.state.value.key == null) return
-        viewModelScope.launch { block() }
-    }
 }
 
 class DownloadedViewModel(private val container: AppContainer) : ViewModel() {
@@ -158,13 +179,25 @@ class DownloadedViewModel(private val container: AppContainer) : ViewModel() {
     fun resumeTransfer(jobId: String) = actions.resume(jobId)
     fun cancelTransfer(jobId: String) = actions.cancel(jobId)
 
+    private val showings = MutableStateFlow(0)
+
+    /** Downloaded came on screen: the order catches up with what was played meanwhile. */
+    fun onShown() {
+        showings.value++
+    }
+
+    // The order on screen and the showing it belongs to; only the one collector of [state] uses them.
+    private var heldOrder: List<BookKey> = emptyList()
+    private var orderedFor = -1
+
     val state: StateFlow<DownloadedUiState> = combine(
         container.editionStore.observeEverything(),
-        container.database.progress().observeEverything(),
+        combine(container.database.progress().observeEverything(), showings) { progress, showing -> progress to showing },
         container.database.transfers().observeActive(),
         container.playbackHub.state,
         container.notices.downloadedStatus,
-    ) { editions, progress, transfers, live, status ->
+    ) { editions, (progress, showing), transfers, live, status ->
+        if (showing != orderedFor) heldOrder = emptyList()
         val (transferRows, bookRows) = RowBuilders.downloadedRows(
             editions = editions,
             dirOf = { container.editionFiles.published(it.generationId) },
@@ -172,7 +205,10 @@ class DownloadedViewModel(private val container: AppContainer) : ViewModel() {
             timelines = plans.timelines(editions),
             transfers = transfers,
             live = live,
+            heldOrder = heldOrder,
         )
+        heldOrder = bookRows.map { it.face.key }
+        orderedFor = showing
         DownloadedUiState(
             transfers = transferRows,
             books = bookRows,

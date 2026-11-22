@@ -53,6 +53,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import android.graphics.BitmapFactory
 import ch.lkmc.pageworn.R
@@ -143,16 +144,20 @@ fun BindingFooter(destination: Destination, onSelect: (Destination) -> Unit, mod
 }
 
 @Composable
-fun MainScaffold(destination: Destination, onSelectDestination: (Destination) -> Unit, miniPlayer: MiniPlayerUi?, onOpenPlayer: () -> Unit, onMiniPlayPause: () -> Unit, content: @Composable (PaddingValues) -> Unit) {
+fun MainScaffold(destination: Destination, onSelectDestination: (Destination) -> Unit, miniPlayer: MiniPlayerUi?, onOpenPlayer: () -> Unit, onMiniPlayPause: () -> Unit, playNotice: String? = null, onDismissPlayNotice: () -> Unit = {}, content: @Composable (PaddingValues) -> Unit) {
     val density = LocalDensity.current
     var miniHeightPx by remember { mutableIntStateOf(0) }
     Column(Modifier.fillMaxSize().paperBackground()) {
         Box(Modifier.fillMaxWidth().weight(1f).statusBarsPadding()) {
-            val bottom = if (miniPlayer == null) 0.dp else with(density) { miniHeightPx.toDp() }
+            val covered = miniPlayer != null || playNotice != null
+            val bottom = if (covered) with(density) { miniHeightPx.toDp() } else 0.dp
             content(PaddingValues(bottom = bottom))
-            if (miniPlayer != null) {
-                Box(Modifier.align(Alignment.BottomCenter).onSizeChanged { miniHeightPx = it.height }) {
-                    MiniPlayer(miniPlayer, onOpenPlayer, onMiniPlayPause)
+            if (covered) {
+                // It lies on the list: without a pointer input of its own, a touch on its margins
+                // falls through to the row beneath.
+                Column(Modifier.align(Alignment.BottomCenter).pointerInput(Unit) {}.onSizeChanged { miniHeightPx = it.height }) {
+                    playNotice?.let { PlayNotice(it, onDismissPlayNotice) }
+                    miniPlayer?.let { MiniPlayer(it, onOpenPlayer, onMiniPlayPause) }
                 }
             }
         }

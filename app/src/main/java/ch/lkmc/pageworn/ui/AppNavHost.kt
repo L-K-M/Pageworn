@@ -4,16 +4,21 @@ import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
@@ -23,12 +28,15 @@ import androidx.navigation.compose.rememberNavController
 import ch.lkmc.pageworn.AppContainer
 import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.licences.LicenceNotices
+import ch.lkmc.pageworn.playback.PlayProblem
+import ch.lkmc.pageworn.playback.PlayRefusal
 import ch.lkmc.pageworn.server.LocalNetworkAccess
 import ch.lkmc.pageworn.ui.components.MainScaffold
 import ch.lkmc.pageworn.ui.connect.ConnectScreen
 import ch.lkmc.pageworn.ui.detail.BookDetailScreen
 import ch.lkmc.pageworn.ui.downloaded.DownloadedScreen
 import ch.lkmc.pageworn.ui.library.LibraryScreen
+import ch.lkmc.pageworn.ui.model.Copy
 import ch.lkmc.pageworn.ui.model.Destination
 import ch.lkmc.pageworn.ui.model.UiAction
 import ch.lkmc.pageworn.ui.player.PlayerScreen
@@ -92,6 +100,14 @@ fun AppNavHost(container: AppContainer, openPlayer: Boolean, openDownloaded: Int
         if (openPlayer) navController.navigate(Routes.PLAYER) { launchSingleTop = true }
     }
 
+    val problem by player.problem.collectAsStateWithLifecycle()
+    val shownBook by player.player.collectAsStateWithLifecycle()
+    val choosing = problem?.key?.takeIf { problem?.refusal == PlayRefusal.NEEDS_CHOICE && shownBook?.face?.key == it }
+    LaunchedEffect(choosing) {
+        // A book that cannot start until the listener chooses where opens on that choice.
+        if (choosing != null) navController.navigate(Routes.PLAYER) { launchSingleTop = true }
+    }
+
     val decided by main.decided.collectAsStateWithLifecycle()
     LaunchedEffect(openDownloaded, decided) {
         if (openDownloaded > 0 && decided) {
@@ -100,7 +116,16 @@ fun AppNavHost(container: AppContainer, openPlayer: Boolean, openDownloaded: Int
         }
     }
 
-    NavHost(navController, startDestination = Routes.MAIN) {
+    // Navigation's default cross-fade keeps the leaving screen over the arriving one for 700 ms,
+    // and it takes the taps meant for what the listener already sees. Screens change at once.
+    NavHost(
+        navController,
+        startDestination = Routes.MAIN,
+        enterTransition = { EnterTransition.None },
+        exitTransition = { ExitTransition.None },
+        popEnterTransition = { EnterTransition.None },
+        popExitTransition = { ExitTransition.None },
+    ) {
         composable(Routes.MAIN) {
             MainRoute(container, main, player, navController, requestLocalNetwork)
         }
@@ -111,10 +136,17 @@ fun AppNavHost(container: AppContainer, openPlayer: Boolean, openDownloaded: Int
             if (current == null) {
                 if (loaded) LaunchedEffect(Unit) { navController.popBackStack() }
             } else {
+                val activity = LocalActivity.current
+                DisposableEffect(current.face.key) {
+                    onDispose {
+                        val choiceLeft = player.problem.value?.let { it.refusal == PlayRefusal.NEEDS_CHOICE && it.key == current.face.key } == true
+                        if (choiceLeft && activity?.isChangingConfigurations != true) player.dismissProblem()
+                    }
+                }
                 PlayerScreen(
-                    state = current,
+                    state = current.copy(playNotice = problem?.takeIf { it.key == current.face.key }?.let(::noticeFor)),
                     onCollapse = { navController.popBackStack() },
-                    onPlayPause = player::togglePlayPause,
+                    onPlayPause = { player.playPause(current.face.key) },
                     onSkipBack = player::skipBack,
                     onSkipForward = player::skipForward,
                     onSeekTo = player::seekTo,
@@ -137,8 +169,9 @@ fun AppNavHost(container: AppContainer, openPlayer: Boolean, openDownloaded: Int
             val detail: DetailViewModel = viewModel(key = mediaId) { DetailViewModel(container, key) }
             val state by detail.state.collectAsStateWithLifecycle()
             state?.let {
+                val notice = problem?.takeIf { p -> p.key == key }?.let(::noticeFor)
                 BookDetailScreen(
-                    state = it,
+                    state = if (notice == null) it else it.copy(message = notice),
                     onBack = { navController.popBackStack() },
                     onDownload = detail::download,
                     onPlayPause = { player.playPause(key) },
@@ -214,6 +247,13 @@ fun AppNavHost(container: AppContainer, openPlayer: Boolean, openDownloaded: Int
     }
 }
 
+/** What a refused Play says where it was tapped. A choice is shown in the player instead. */
+private fun noticeFor(problem: PlayProblem): String? = when (problem.refusal) {
+    PlayRefusal.NEEDS_CHOICE -> null
+    PlayRefusal.DAMAGED_COPY -> Copy.DAMAGED_COPY
+    PlayRefusal.DID_NOT_START -> Copy.PLAY_DID_NOT_START
+}
+
 @Composable
 private fun MainRoute(container: AppContainer, main: MainViewModel, player: PlayerViewModel, navController: NavHostController, requestLocalNetwork: ((Boolean) -> Unit) -> Unit) {
     val context = LocalContext.current
@@ -228,13 +268,20 @@ private fun MainRoute(container: AppContainer, main: MainViewModel, player: Play
     val openBook = { key: BookKey -> navController.navigate(Routes.detail(key)) }
     val openSettings = { navController.navigate(Routes.SETTINGS) }
     LaunchedEffect(destination) { if (destination == Destination.LIBRARY) library.firstVisible() }
+    LifecycleStartEffect(destination) {
+        if (destination == Destination.DOWNLOADED) downloaded.onShown()
+        onStopOrDispose {}
+    }
+    val problem by player.problem.collectAsStateWithLifecycle()
 
     MainScaffold(
         destination = destination,
         onSelectDestination = main::select,
         miniPlayer = mini,
         onOpenPlayer = { navController.navigate(Routes.PLAYER) { launchSingleTop = true } },
-        onMiniPlayPause = player::togglePlayPause,
+        onMiniPlayPause = { mini?.let { player.playPause(it.face.key) } },
+        playNotice = problem?.let(::noticeFor),
+        onDismissPlayNotice = player::dismissProblem,
     ) { padding ->
         when (destination) {
             Destination.LIBRARY -> {

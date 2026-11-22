@@ -103,8 +103,8 @@ private fun DownloadedBookRow(row: ReadyBookRow, onOpenBook: (BookKey) -> Unit, 
                     is ReadyBadge.RepairNeeded -> { Text("Repair needed", color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status); Text(badge.message, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status) }
                 }
             }
-            if (!compact && row.playable) PlayPauseKey(row.isPlaying, row.face.title, 36.dp, start = row.start) { onPlayPause(row.face.key) }
+            if (!compact && row.playable) PlayPauseKey(row.showsPause, row.face.title, 36.dp, starting = row.starting, start = row.start) { onPlayPause(row.face.key) }
         }
-        if (compact && row.playable) PlayPauseKey(row.isPlaying, row.face.title, 36.dp, start = row.start) { onPlayPause(row.face.key) }
+        if (compact && row.playable) PlayPauseKey(row.showsPause, row.face.title, 36.dp, starting = row.starting, start = row.start) { onPlayPause(row.face.key) }
     }
 }

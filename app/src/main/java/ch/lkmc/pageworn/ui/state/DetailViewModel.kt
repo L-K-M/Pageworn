@@ -63,7 +63,11 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
 
     /** Removes the downloaded audio; the saved place stays (docs/03-android-and-data.md). */
     fun remove() {
-        viewModelScope.launch { container.editionStore.remove(key) }
+        // Not the screen's scope: leaving details must not stop between releasing and removing.
+        container.appScope.launch {
+            container.playerConnection.releaseBook(key)
+            container.editionStore.remove(key)
+        }
     }
 
     private fun build(i: Inputs, plan: EditionPlan?, live: LivePlayback): BookDetailUiState? {
@@ -84,7 +88,7 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
         val action = when {
             i.transfer != null -> DetailAction.Transferring(RowBuilders.transferUi(i.transfer))
             edition?.state == EditionState.REPAIR_NEEDED -> DetailAction.Repair
-            edition != null -> DetailAction.Play(StartAction.of(hasPlace, finished = i.progress?.finished == true), isPlaying = isLive && live.isPlaying)
+            edition != null -> DetailAction.Play(StartAction.of(hasPlace, finished = i.progress?.finished == true), live.showsPause(key), live.waitsForAudio(key))
             i.profile?.canDownload == false -> DetailAction.DownloadDisabled
             else -> DetailAction.Download
         }

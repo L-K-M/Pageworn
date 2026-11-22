@@ -3,89 +3,189 @@ package ch.lkmc.pageworn.playback
 import android.content.ComponentName
 import android.content.Context
 import android.os.Bundle
+import android.os.SystemClock
+import android.util.Log
+import android.view.ViewConfiguration
 import androidx.media3.common.MediaItem
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
 import ch.lkmc.pageworn.core.BookKey
+import ch.lkmc.pageworn.data.EditionStore
+import ch.lkmc.pageworn.data.ProgressStore
 import ch.lkmc.pageworn.ui.model.SleepChoice
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.guava.await
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+
+/** Why a tap on Play started nothing. Each has something on screen to show for it. */
+enum class PlayRefusal {
+    /** The audio changed since the place was saved: the listener chooses where to start first. */
+    NEEDS_CHOICE,
+
+    /** The copy on the phone is missing, short or marked for repair. */
+    DAMAGED_COPY,
+
+    /** The session or the system did not start playback, for example during a call. */
+    DID_NOT_START,
+}
+
+data class PlayProblem(val key: BookKey, val refusal: PlayRefusal)
 
 /**
- * The UI's command path to the playback service: one media controller, connected on demand and
- * released when the activity stops. Live state is observed through [PlaybackHub], which the service
- * publishes from the same player the system surfaces see.
+ * The UI's command path to the playback service: one media controller, connected on demand. Live
+ * state is observed through [PlaybackHub], which the service publishes from the same player the
+ * system surfaces see.
+ *
+ * Every tap is carried out in tap order, in a scope that outlives the screen it was made on, and
+ * ends either in the state its key promised or in a [problem].
  */
-class PlayerConnection(private val context: Context, private val hub: PlaybackHub) {
+class PlayerConnection(
+    private val context: Context,
+    private val hub: PlaybackHub,
+    private val editions: EditionStore,
+    private val progress: ProgressStore,
+) {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var controller: MediaController? = null
-    private val mutex = Mutex()
+    private val connecting = Mutex()
+    private val commands = Mutex()
 
-    private suspend fun connected(): MediaController = mutex.withLock {
-        controller?.takeIf { it.isConnected } ?: MediaController.Builder(
-            context,
-            SessionToken(context, ComponentName(context, PlaybackService::class.java)),
-        ).buildAsync().await().also { controller = it }
+    /** The newest Play or Pause tap; an older one no longer reports how it ended. */
+    private var newestTap = 0L
+    private var playTappedAtMs = 0L
+
+    private val _problem = MutableStateFlow<PlayProblem?>(null)
+    val problem: StateFlow<PlayProblem?> = _problem.asStateFlow()
+
+    private suspend fun connected(): MediaController = connecting.withLock {
+        controller?.takeIf { it.isConnected } ?: run {
+            controller?.release()
+            MediaController.Builder(
+                context,
+                SessionToken(context, ComponentName(context, PlaybackService::class.java)),
+            ).buildAsync().await().also { controller = it }
+        }
     }
 
     fun release() {
         controller?.release()
         controller = null
+        newestTap++
+        _problem.value = null
+        hub.endStart()
     }
 
-    /** Play or pause [key]: resumes it from its saved place (with the rewind) if another book is loaded. */
-    suspend fun playPause(key: BookKey) {
+    fun dismissProblem() {
+        _problem.value = null
+    }
+
+    /**
+     * A tap on [key]'s key: does what the key showed. Called on the main thread. The second tap of
+     * a double tap on Play, before anything is heard, is the same tap: nobody has heard what it
+     * would pause.
+     */
+    fun toggle(key: BookKey) {
+        val live = hub.state.value
+        when {
+            !live.showsPause(key) -> play(key)
+            live.waitsForAudio(key) && SystemClock.uptimeMillis() - playTappedAtMs < ViewConfiguration.getDoubleTapTimeout() -> Unit
+            else -> pause()
+        }
+    }
+
+    /** Starts [key] from its saved place, or exactly at [fromMs] (a chapter choice moves the place). */
+    fun play(key: BookKey, fromMs: Long? = null) {
+        val tap = ++newestTap
+        playTappedAtMs = SystemClock.uptimeMillis()
+        _problem.value = null
+        hub.expectStart(key)
+        scope.launch {
+            val refusal = inOrder<PlayRefusal?>(PlayRefusal.DID_NOT_START) { start(key, fromMs) }
+            val started = refusal == null && withTimeoutOrNull(START_TIMEOUT_MS) {
+                hub.state.first { it.key == key && it.held && (it.playbackRequested || it.failed) }
+            } != null
+            if (tap != newestTap) return@launch
+            // The problem first, so the book it names stays shown.
+            if (!started) _problem.value = PlayProblem(key, refusal ?: PlayRefusal.DID_NOT_START)
+            hub.endStart()
+        }
+    }
+
+    fun pause() {
+        newestTap++
+        _problem.value = null
+        hub.endStart()
+        launchInOrder { connected().pause() }
+    }
+
+    private suspend fun start(key: BookKey, fromMs: Long?): PlayRefusal? {
         val c = connected()
         val live = hub.state.value
-        if (live.key == key && c.currentMediaItem?.mediaId == key.mediaId && !live.failed) {
-            if (c.playWhenReady) c.pause() else c.play()
-        } else {
+        if (live.key == key && !live.failed && c.currentMediaItem?.mediaId == key.mediaId) {
+            if (fromMs != null) c.seekTo(fromMs)
+            c.play()
+            return null
+        }
+        // The session refuses these too, but a controller is never told of a rejected item: the
+        // Play queued behind it would go to whatever book the player held before.
+        if (!editions.checkBeforeOpening(key)) return PlayRefusal.DAMAGED_COPY
+        if (fromMs == null && progress.read(key)?.pendingContinuityChoice == true) return PlayRefusal.NEEDS_CHOICE
+        val item = MediaItem.Builder().setMediaId(key.mediaId).build()
+        if (fromMs == null) c.setMediaItem(item) else c.setMediaItem(item, fromMs)
+        c.prepare()
+        c.play()
+        return null
+    }
+
+    fun seekTo(positionMs: Long) = launchInOrder { connected().seekTo(positionMs) }
+
+    fun skipBack() = launchInOrder { connected().seekBack() }
+
+    fun skipForward() = launchInOrder { connected().seekForward() }
+
+    fun setSpeed(speed: Float) = launchInOrder { connected().setPlaybackSpeed(speed) }
+
+    /** Sets sleep for [key]. A book at rest is loaded paused first, so the timer has a book to stop. */
+    fun setSleep(key: BookKey, choice: SleepChoice) = launchInOrder {
+        val c = connected()
+        if (hub.state.value.key != key) {
+            if (choice == SleepChoice.OFF || !editions.checkBeforeOpening(key)) return@launchInOrder
+            if (progress.read(key)?.pendingContinuityChoice == true) return@launchInOrder
+            c.pause()
             c.setMediaItem(MediaItem.Builder().setMediaId(key.mediaId).build())
             c.prepare()
-            c.play()
+            // A custom command overtakes queued player commands: wait until the player has the book.
+            withTimeoutOrNull(START_TIMEOUT_MS) { hub.state.first { it.key == key && it.held } } ?: return@launchInOrder
+        }
+        c.sendCustomCommand(SessionCommand(PagewornCommands.SET_SLEEP, Bundle.EMPTY), sleepArguments(choice)).await()
+    }
+
+    /** Pauses and unloads [key] and waits for its readers to go, so its audio can be removed. */
+    suspend fun releaseBook(key: BookKey) = withContext(Dispatchers.Main.immediate) {
+        commands.withLock {
+            if (hub.state.value.key != key) return@withLock
+            val c = connected()
+            c.pause()
+            c.stop()
+            c.clearMediaItems()
+            withTimeoutOrNull(START_TIMEOUT_MS) { hub.state.first { it.key != key } }
+            Unit
         }
     }
 
-    suspend fun togglePlayPause() {
-        val c = connected()
-        if (c.mediaItemCount == 0) {
-            hub.state.value.key?.let { playPause(it) }
-            return
-        }
-        if (c.playWhenReady) c.pause() else c.play()
-    }
-
-    suspend fun pause() {
-        connected().pause()
-    }
-
-    /** Loads [key] if needed and starts at [positionMs] exactly (a chapter choice moves the place). */
-    suspend fun playFrom(key: BookKey, positionMs: Long) {
-        val c = connected()
-        if (c.currentMediaItem?.mediaId == key.mediaId && !hub.state.value.failed) {
-            c.seekTo(positionMs)
-            c.play()
-        } else {
-            c.setMediaItem(MediaItem.Builder().setMediaId(key.mediaId).build(), positionMs)
-            c.prepare()
-            c.play()
-        }
-    }
-
-    suspend fun seekTo(positionMs: Long) {
-        connected().seekTo(positionMs)
-    }
-
-    suspend fun skipBack() = connected().seekBack()
-
-    suspend fun skipForward() = connected().seekForward()
-
-    suspend fun setSpeed(speed: Float) {
-        connected().setPlaybackSpeed(speed)
-    }
-
-    suspend fun setSleep(choice: SleepChoice) {
+    private fun sleepArguments(choice: SleepChoice): Bundle {
         val args = Bundle()
         when (choice) {
             SleepChoice.OFF -> args.putString(PagewornCommands.ARG_SLEEP_MODE, PagewornCommands.SLEEP_OFF)
@@ -103,15 +203,28 @@ class PlayerConnection(private val context: Context, private val hub: PlaybackHu
                 )
             }
         }
-        connected().sendCustomCommand(SessionCommand(PagewornCommands.SET_SLEEP, Bundle.EMPTY), args).await()
+        return args
     }
 
-    /** Stops the book and releases its edition so its audio can be removed. */
-    suspend fun releaseBook(key: BookKey) {
-        if (hub.state.value.key != key) return
-        val c = connected()
-        c.pause()
-        c.stop()
-        c.clearMediaItems()
+    private fun launchInOrder(command: suspend () -> Unit) {
+        scope.launch { inOrder(Unit) { command() } }
+    }
+
+    private suspend fun <T> inOrder(onFailure: T, command: suspend () -> T): T = commands.withLock {
+        try {
+            command()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            Log.w(TAG, "playback command failed", failure)
+            onFailure
+        }
+    }
+
+    private companion object {
+        const val TAG = "PagewornPlayback"
+
+        /** Longer than a cold service start and the lookup of the book's files. */
+        const val START_TIMEOUT_MS = 5_000L
     }
 }

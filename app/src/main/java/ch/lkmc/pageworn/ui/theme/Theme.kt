@@ -27,6 +27,8 @@ data class PagewornColors(
     val secondaryInk: Color,
     val accent: Color,
     val inkOnAccent: Color,
+    /** The inlay ivory of the keys, which are the same by day and night. */
+    val inkOnKey: Color,
     val cloth: Color,
     val dark: Boolean,
 )
@@ -62,8 +64,8 @@ private val typography = PagewornTypography(
     time = TextStyle(fontFamily = FontFamily.Default, fontSize = 14.sp, lineHeight = 20.sp, fontFeatureSettings = "tnum"),
 )
 
-private val day = PagewornColors(Color(0xFFF3EBD9), Color(0xFFFAF5E9), Color(0xFF30251E), Color(0xFF625243), Color(0xFF833828), Color(0xFFF3EBD9), Color(0xFF233831), false)
-private val night = PagewornColors(Color(0xFF201C19), Color(0xFF29231F), Color(0xFFF2E7D4), Color(0xFFC4B49F), Color(0xFFF0A489), Color(0xFF201C19), Color(0xFF172722), true)
+private val day = PagewornColors(Color(0xFFF3EBD9), Color(0xFFFAF5E9), Color(0xFF30251E), Color(0xFF625243), Color(0xFF833828), Color(0xFFF3EBD9), Color(0xFFF3EBD9), Color(0xFF233831), false)
+private val night = PagewornColors(Color(0xFF201C19), Color(0xFF29231F), Color(0xFFF2E7D4), Color(0xFFC4B49F), Color(0xFFF0A489), Color(0xFF201C19), Color(0xFFF3EBD9), Color(0xFF172722), true)
 
 private val LocalColors = staticCompositionLocalOf { day }
 private val LocalType = staticCompositionLocalOf { typography }

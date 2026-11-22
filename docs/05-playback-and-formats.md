@@ -55,6 +55,10 @@ For each row, record a redistributable or generated fixture ID, extension, conta
 
 ## Transport, progress and completion
 
+- A Play key shows Pause when playback is requested and nothing blocks it, which is the rule of Media3’s `Util.shouldShowPlayButton`: not idle, not ended, not suppressed. The same fact decides what a tap sends. (Observed on API 37: deciding the face by `isPlaying` and the action by `playWhenReady` turned a second tap during a start, and any Play during a transient interruption, into a pause.)
+- Carry out the interface’s commands in tap order, outside the screen’s scope. Before handing over a book, check what the session would refuse (a damaged copy, a pending continuity choice) and show it: Media3 does not tell a controller of a rejected item, and the Play queued behind it would go to the previous book. Report a start that the session has not confirmed within five seconds.
+- The skips, both scrubbers and Sleep also work on a book at rest: a skip or a seek moves its saved place as an exact stop, and Sleep loads the book paused and arms the timer.
+- Scan an MP3’s frame index through a read window and keep the last few in memory. A ten-hour file has about 1.4 million frames, and a seek and read for each held the start of playback for seconds.
 - Start new books at zero and resumed books at the stored global offset, less the [resume rewind](#resume-rewind). Support 15-second rewind, 30-second advance, Play/Pause, whole chapter selection, and the chapter scrubber. Clamp skips at the book edges. The slider spans the book when it has no chapter or track divisions.
 - Provide 0.75×, 1×, 1.25×, 1.5×, 1.75× and 2×. Persist the last selected speed. Progress stays in media time at all speeds. Sleep duration uses elapsed wall time.
 - Persist on explicit seek, pause and other checkpoints in the [storage contract](03-android-and-data.md). The maximum intended loss after unexpected process death during continuous playback is five seconds on the book timeline at every supported speed, plus the measured seek error when playback resumes. A deliberate pause or completed seek should resume within the format’s measured seek tolerance.

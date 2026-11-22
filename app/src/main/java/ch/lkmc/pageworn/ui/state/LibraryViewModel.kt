@@ -27,8 +27,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -82,7 +84,9 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
                 db.editions().observeAll(s.profile.profileId),
                 db.transfers().observeActive(),
                 db.progress().observeAll(s.profile.profileId),
-                container.playbackHub.state,
+                // The rows draw keys only: the position that moves four times a second would rebuild
+                // every row of a large library on the main thread each time.
+                container.playbackHub.state.map { it.transportOnly() }.distinctUntilChanged(),
             ) { editions, transfers, progress, live -> LocalState(editions, transfers, progress, live) }
         }
     }

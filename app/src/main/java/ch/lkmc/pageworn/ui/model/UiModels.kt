@@ -96,7 +96,7 @@ sealed interface CatalogAction {
     data class Transferring(val transfer: TransferUi) : CatalogAction
 
     /** A locally ready book: Play, Resume or Replay key and an accessible "Downloaded" state. */
-    data class Ready(val isPlaying: Boolean, val start: StartAction) : CatalogAction
+    data class Ready(val showsPause: Boolean, val starting: Boolean, val start: StartAction) : CatalogAction
 
     data object RepairNeeded : CatalogAction
 }
@@ -142,7 +142,10 @@ data class ReadyBookRow(
     val badge: ReadyBadge,
     /** A saved position exists: draw the place ribbon. */
     val hasPlace: Boolean,
-    val isPlaying: Boolean,
+    /** The key shows Pause, and a tap on it pauses. */
+    val showsPause: Boolean,
+    /** Pause is shown but no audio is heard yet. */
+    val starting: Boolean,
     val playable: Boolean,
 ) {
     val start: StartAction get() = StartAction.of(hasPlace, badge == ReadyBadge.Finished)
@@ -177,7 +180,8 @@ data class MiniPlayerUi(
     val face: BookFace,
     /** Chapter or track label, e.g. "Chapter 4 · The Gate". */
     val subtitle: String?,
-    val isPlaying: Boolean,
+    val showsPause: Boolean,
+    val starting: Boolean,
     val enabled: Boolean,
     val disabledReason: String? = null,
     val start: StartAction = StartAction.PLAY,
@@ -223,8 +227,12 @@ data class PlayerUiState(
     val remainingText: String,
     /** "Book · 2 h 08 min of 4 h 20 min"; null when the slider already spans the book. */
     val bookLine: String?,
-    val isPlaying: Boolean,
+    val showsPause: Boolean,
+    val starting: Boolean = false,
     val transportEnabled: Boolean,
+    val transportDisabledReason: String? = null,
+    /** Why the last tap on Play started nothing, below the title block. */
+    val playNotice: String? = null,
     /** Audio stopped during playback: message and Repair download below the title block. */
     val failureMessage: String? = null,
     val speed: Float,
@@ -246,7 +254,7 @@ sealed interface DetailAction {
     data object DownloadDisabled : DetailAction
     data object Unsupported : DetailAction
     data class Transferring(val transfer: TransferUi) : DetailAction
-    data class Play(val start: StartAction, val isPlaying: Boolean) : DetailAction
+    data class Play(val start: StartAction, val showsPause: Boolean, val starting: Boolean) : DetailAction
     data object Repair : DetailAction
 }
 

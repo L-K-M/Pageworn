@@ -7,6 +7,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
+import androidx.media3.common.util.Util
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.PlayerMessage
 import ch.lkmc.pageworn.core.BookKey
@@ -113,7 +114,9 @@ class PlaybackController(
             clippedAtMs = null
         }
         if (outgoing != null && outgoing.key == key && !failed) {
-            val start = explicitStartMs?.let { outgoing.plan.timeline.clamp(it) } ?: exo.currentPosition
+            val start = explicitStartMs?.let { outgoing.plan.timeline.clamp(it) }
+                // Asked again before the player took the book: its position is still another item's.
+                ?: if (playerHolds(outgoing)) exo.currentPosition else outgoing.saved?.positionMs ?: 0L
             if (explicitStartMs == null) startResolved = false
             else retargetSleepAfterSeek(start)
             return playableItem(outgoing.plan) to start
@@ -201,6 +204,12 @@ class PlaybackController(
         publish()
     }
 
+    override fun onEvents(player: Player, events: Player.Events) {
+        // Delivered once the session's own listener has the change, so what the UI is told never
+        // runs ahead of what controllers are told.
+        if (events.containsAny(Player.EVENT_PLAY_WHEN_READY_CHANGED, Player.EVENT_PLAYBACK_SUPPRESSION_REASON_CHANGED)) publish()
+    }
+
     override fun onPositionDiscontinuity(oldPosition: Player.PositionInfo, newPosition: Player.PositionInfo, reason: Int) {
         if (reason == Player.DISCONTINUITY_REASON_SEEK || reason == Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT) {
             // Invalidate samples from before the seek; commit the resolved position once ready there.
@@ -231,8 +240,8 @@ class PlaybackController(
             editions.release(book.plan.generationId)
             loaded = null
             failed = false
-            publish()
         }
+        publish()
     }
 
     override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
@@ -476,7 +485,8 @@ class PlaybackController(
     private fun publish() {
         val book = loaded
         // After a failure the player may rest at a failed seek's target; the place is the saved one.
-        val position = if (book != null && playerHolds(book) && !failed) {
+        val held = book != null && playerHolds(book)
+        val position = if (book != null && held && !failed) {
             book.plan.timeline.clamp(exo.currentPosition)
         } else book?.saved?.positionMs ?: 0L
         val remaining = when (val s = sleep) {
@@ -488,8 +498,11 @@ class PlaybackController(
             LivePlayback(
                 key = book?.key,
                 plan = book?.plan,
-                isPlaying = exo.isPlaying,
+                // While a chosen book is handed over, the audio still heard is the previous book's.
+                isPlaying = held && exo.isPlaying,
                 playWhenReady = exo.playWhenReady,
+                held = held,
+                playbackRequested = !Util.shouldShowPlayButton(exo),
                 positionMs = position,
                 speed = exo.playbackParameters.speed,
                 sleep = sleep,

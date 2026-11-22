@@ -33,7 +33,7 @@ Pageworn v1 serves audiobooks. Ebooks, podcasts, streaming, remote playback, cro
 
 - First install opens connection setup, and the first sign-in opens Library. With a saved profile, remember the last main section. If the catalog is unreachable and local books exist, a cold launch opens Downloaded. If it is unreachable and neither local books nor a cached catalog exist, the launch opens connection setup showing the unreachable-server state with Retry. It shows the local-network copy instead when a denied permission blocks a paired address, and the certificate-changed copy when a changed certificate blocks one. Downloaded always renders from local state alone. A network probe never blocks, delays or replaces the local list.
 - A warm start preserves the current screen, scrolling position, and open player. Changing connectivity never takes the listener away from a book.
-- Sort Downloaded by last-listened time descending, then by download completion time descending for never-played books, then by title and stable item ID. Keep finished books available until removed. Library defaults to title order and uses stable item IDs during refresh.
+- Sort Downloaded by last-listened time descending, then by download completion time descending for never-played books, then by title and stable item ID. Hold that order while the list is on screen, so a book that starts stays under the finger that started it. Sort again when the section is next shown or its set of books changes. Keep finished books available until removed. Library defaults to title order and uses stable item IDs during refresh.
 - Distinguish **Downloaded** (file availability) from **Finished** (reading progress). Both can be true. A listener can replay a finished book.
 - One profile owns one collection of local data. An expired login or a sign-out affects only new network work. Opening a previously downloaded book requires no successful server request.
 
@@ -70,6 +70,8 @@ Pageworn v1 serves audiobooks. Ebooks, podcasts, streaming, remote playback, cro
 | Audio removed locally | “Download removed. Your place is saved.” | Download again from details |
 | Damaged local copy | “This copy couldn’t be opened.” | Repair download, preserving progress |
 | Audio stopped during playback | “Playback paused at your last position.” | Repair download, preserving progress, or choose another book |
+| Play started nothing | “Couldn’t start playback. Another app may be using audio.” Shown above the mini-player, in the player or in details, wherever the book was tapped. | Play again, or Dismiss |
+| Changed audio awaits a choice | “Choose where to start.” as the disabled transport’s reason, beside the previous position and the new duration. A Play on that book opens the player on this choice. | Use previous position, or Start over |
 | Notifications disabled | “Transfers and playback controls stay available in the app.” | Enable notifications, or use Downloaded |
 | Nothing downloaded, in the car | “Download books on your phone to listen here.” | None on the car screen |
 

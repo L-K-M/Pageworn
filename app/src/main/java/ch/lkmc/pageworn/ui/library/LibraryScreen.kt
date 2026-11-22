@@ -115,7 +115,7 @@ private fun CatalogBookRow(row: CatalogRow, onOpenBook: (BookKey) -> Unit, onDow
 private fun CatalogActionView(row: CatalogRow, onDownload: (BookKey) -> Unit, onPlayPause: (BookKey) -> Unit, onPauseTransfer: (String) -> Unit, onResumeTransfer: (String) -> Unit) {
     when (val action = row.action) {
         CatalogAction.Download -> IconButton(onClick = { onDownload(row.face.key) }, modifier = Modifier.size(48.dp)) { PencilIcon(R.drawable.pw_pencil_download, "Download ${row.face.title}") }
-        is CatalogAction.Ready -> PlayPauseKey(action.isPlaying, row.face.title, 36.dp, start = action.start) { onPlayPause(row.face.key) }
+        is CatalogAction.Ready -> PlayPauseKey(action.showsPause, row.face.title, 36.dp, starting = action.starting, start = action.start) { onPlayPause(row.face.key) }
         is CatalogAction.Transferring -> {
             val t = action.transfer
             val callback = when { t.canPause -> ({ onPauseTransfer(t.jobId) }); t.canResume -> ({ onResumeTransfer(t.jobId) }); else -> null }

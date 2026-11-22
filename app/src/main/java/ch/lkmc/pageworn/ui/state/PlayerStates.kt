@@ -93,12 +93,15 @@ object PlayerStates {
     ): PlayerUiState {
         val timeline = plan.timeline
         val isLive = live.key == plan.key
-        val finished = progress?.finished == true && !(isLive && live.isPlaying)
+        val finished = progress?.finished == true && !live.showsPause(plan.key)
         val position = timeline.clamp(if (isLive) live.positionMs else progress?.positionMs ?: 0L)
         val segment = timeline.segmentAt(position)
         val whole = timeline.division == Division.WHOLE_BOOK
         val failure = failureReason(plan, edition, live)
         val failed = failure != null
+        val showsPause = live.showsPause(plan.key)
+        // Until the listener has chosen where changed audio starts, there is no place to play from.
+        val choiceNeeded = progress?.pendingContinuityChoice == true && !showsPause
         return PlayerUiState(
             face = face(plan),
             narrator = edition?.narrators,
@@ -109,8 +112,10 @@ object PlayerStates {
             elapsedText = Format.clock(position - segment.startMs),
             remainingText = Format.remaining(segment.endMs - position),
             bookLine = if (whole) null else Format.bookLine(position, timeline.durationMs),
-            isPlaying = isLive && live.isPlaying,
-            transportEnabled = !failed,
+            showsPause = showsPause,
+            starting = live.waitsForAudio(plan.key),
+            transportEnabled = !failed && !choiceNeeded,
+            transportDisabledReason = failure ?: Copy.CHOOSE_START.takeIf { choiceNeeded },
             failureMessage = failure,
             speed = live.speed,
             sleep = sleep(live, timeline.division),
@@ -134,6 +139,6 @@ object PlayerStates {
         val finished = progress?.finished == true
         // The same rule as the full player, so both keys name the same next action.
         val hasPlace = !finished && progress != null && (progress.positionMs > 0 || isLive)
-        return MiniPlayerUi(face(plan), subtitle, isLive && live.isPlaying, enabled = failure == null, disabledReason = failure, start = StartAction.of(hasPlace, finished))
+        return MiniPlayerUi(face(plan), subtitle, live.showsPause(plan.key), live.waitsForAudio(plan.key), enabled = failure == null, disabledReason = failure, start = StartAction.of(hasPlace, finished))
     }
 }

@@ -1,19 +1,32 @@
 package ch.lkmc.pageworn.ui.components
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
@@ -30,6 +43,8 @@ import ch.lkmc.pageworn.ui.model.Copy
 import ch.lkmc.pageworn.ui.model.StartAction
 import ch.lkmc.pageworn.ui.theme.LocalReducedMotion
 import ch.lkmc.pageworn.ui.theme.PagewornTheme
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 
 @Composable
 fun PencilIcon(resId: Int, contentDescription: String?, size: Dp = 26.dp) {
@@ -37,14 +52,22 @@ fun PencilIcon(resId: Int, contentDescription: String?, size: Dp = 26.dp) {
 }
 
 @Composable
-private fun Key(face: Int, inlay: Int?, title: String, faceWidth: Dp, faceHeight: Dp, enabled: Boolean, disabledReason: String?, onClick: () -> Unit) {
+private fun Key(face: Int, inlay: Int?, title: String, faceWidth: Dp, faceHeight: Dp, enabled: Boolean, disabledReason: String?, starting: Boolean, onClick: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
+    val pressed = rememberVisiblePress(interaction)
     val reduced = LocalReducedMotion.current
     val haptic = LocalHapticFeedback.current
     Box(
-        Modifier.size(width = maxOf(48.dp, faceWidth), height = maxOf(48.dp, faceHeight))
-            .semantics { contentDescription = title; if (!enabled) { disabled(); disabledReason?.let { stateDescription = it } } }
+        Modifier.size(width = maxOf(MIN_KEY_TARGET, faceWidth), height = maxOf(MIN_KEY_TARGET, faceHeight))
+            .semantics {
+                contentDescription = title
+                if (!enabled) {
+                    disabled()
+                    disabledReason?.let { stateDescription = it }
+                } else if (starting) {
+                    stateDescription = Copy.STARTING
+                }
+            }
             .clickable(enabled = enabled, role = Role.Button, interactionSource = interaction, indication = null) {
                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 onClick()
@@ -54,27 +77,86 @@ private fun Key(face: Int, inlay: Int?, title: String, faceWidth: Dp, faceHeight
         Box(Modifier.size(faceWidth, faceHeight).graphicsLayer { translationY = if (pressed && !reduced) 2.dp.toPx() else 0f }.alpha(if (enabled) 1f else .45f), contentAlignment = Alignment.Center) {
             Image(painterResource(face), null, Modifier.size(faceWidth, faceHeight))
             if (inlay != null) Image(painterResource(inlay), null, Modifier.size(faceWidth * .43f, faceHeight * .43f))
+            if (starting) StartingArc(minOf(faceWidth, faceHeight))
         }
     }
 }
 
+/**
+ * Whether the key is drawn depressed. A quick tap in a scrolling list presses and releases within
+ * one frame, so a press stays visible for a moment after the finger leaves.
+ */
 @Composable
-fun PlayPauseKey(isPlaying: Boolean, title: String, size: Dp, enabled: Boolean = true, disabledReason: String? = null, start: StartAction = StartAction.PLAY, onClick: () -> Unit) {
+private fun rememberVisiblePress(interaction: MutableInteractionSource): Boolean {
+    var pressed by remember { mutableStateOf(false) }
+    LaunchedEffect(interaction) {
+        interaction.interactions.collectLatest {
+            when (it) {
+                is PressInteraction.Press -> pressed = true
+                is PressInteraction.Release, is PressInteraction.Cancel -> {
+                    delay(MIN_PRESS_VISIBLE_MS)
+                    pressed = false
+                }
+            }
+        }
+    }
+    return pressed
+}
+
+/** A turning arc on the rim while a book that was started is not heard yet. */
+@Composable
+private fun StartingArc(size: Dp) {
+    var due by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(STARTING_ARC_AFTER_MS)
+        due = true
+    }
+    if (!due) return
+    val color = PagewornTheme.colors.inkOnKey
+    val angle = if (LocalReducedMotion.current) 0f else {
+        val turn = rememberInfiniteTransition(label = "starting")
+        turn.animateFloat(0f, FULL_TURN, infiniteRepeatable(tween(STARTING_TURN_MS, easing = LinearEasing)), label = "arc").value
+    }
+    Canvas(Modifier.size(size)) {
+        val inset = this.size.minDimension * ARC_INSET
+        drawArc(
+            color,
+            startAngle = angle - 90f,
+            sweepAngle = ARC_SWEEP,
+            useCenter = false,
+            topLeft = Offset(inset, inset),
+            size = Size(this.size.width - inset * 2, this.size.height - inset * 2),
+            style = Stroke(this.size.minDimension * ARC_WIDTH, cap = StrokeCap.Round),
+        )
+    }
+}
+
+private val MIN_KEY_TARGET = 56.dp
+private const val MIN_PRESS_VISIBLE_MS = 100L
+private const val STARTING_ARC_AFTER_MS = 350L
+private const val STARTING_TURN_MS = 900
+private const val FULL_TURN = 360f
+private const val ARC_SWEEP = 80f
+private const val ARC_INSET = 0.15f
+private const val ARC_WIDTH = 0.05f
+
+@Composable
+fun PlayPauseKey(showsPause: Boolean, title: String, size: Dp, starting: Boolean = false, enabled: Boolean = true, disabledReason: String? = null, start: StartAction = StartAction.PLAY, onClick: () -> Unit) {
     val action = when {
-        isPlaying -> "Pause"
+        showsPause -> "Pause"
         start == StartAction.REPLAY -> Copy.REPLAY
         start == StartAction.RESUME -> "Resume"
         else -> "Play"
     }
-    Key(R.drawable.pw_key_oxblood, if (isPlaying) R.drawable.pw_inlay_pause else R.drawable.pw_inlay_play, "$action $title", size, size, enabled, disabledReason, onClick)
+    Key(R.drawable.pw_key_oxblood, if (showsPause) R.drawable.pw_inlay_pause else R.drawable.pw_inlay_play, "$action $title", size, size, enabled, disabledReason, starting, onClick)
 }
 
 @Composable
 fun SkipKey(back: Boolean, onClick: () -> Unit, enabled: Boolean = true, disabledReason: String? = null) {
-    Key(R.drawable.pw_key_ivory_skip, if (back) R.drawable.pw_inlay_back_15 else R.drawable.pw_inlay_forward_30, if (back) "Back 15 seconds" else "Forward 30 seconds", 80.dp, 44.dp, enabled, disabledReason, onClick)
+    Key(R.drawable.pw_key_ivory_skip, if (back) R.drawable.pw_inlay_back_15 else R.drawable.pw_inlay_forward_30, if (back) "Back 15 seconds" else "Forward 30 seconds", 80.dp, 44.dp, enabled, disabledReason, starting = false, onClick)
 }
 
 @Composable
 fun TransferPauseKey(title: String, onClick: () -> Unit) {
-    Key(R.drawable.pw_transfer_pause, null, "Pause download of $title", 36.dp, 36.dp, true, null, onClick)
+    Key(R.drawable.pw_transfer_pause, null, "Pause download of $title", 36.dp, 36.dp, true, null, starting = false, onClick)
 }

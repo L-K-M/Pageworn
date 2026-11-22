@@ -74,7 +74,7 @@ class AppContainer(private val app: PagewornApp) {
     val editionFiles: EditionFiles by lazy { EditionFiles(File(app.filesDir, "audio")) }
     val editionStore: EditionStore by lazy { EditionStore(database, editionFiles, liveClock) }
     val playbackHub = PlaybackHub()
-    val playerConnection: PlayerConnection by lazy { PlayerConnection(app, playbackHub) }
+    val playerConnection: PlayerConnection by lazy { PlayerConnection(app, playbackHub, editionStore, progressStore) }
     val notices: AppNotices by lazy { AppNotices(settings) }
 
     /** Where the player's progress writes go. Tests may hold a write back to deliver it late. */

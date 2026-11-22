@@ -37,11 +37,13 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontStyle
@@ -87,6 +89,9 @@ fun PlayerScreen(state: PlayerUiState, onCollapse: () -> Unit, onPlayPause: () -
                 Text(it, Modifier.padding(top = 8.dp), color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status)
                 TextAction(Copy.REPAIR_DOWNLOAD, onClick = onRepair)
             }
+            state.playNotice?.let {
+                Text(it, Modifier.padding(top = 8.dp).semantics { liveRegion = LiveRegionMode.Polite }, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status)
+            }
             state.continuityChoice?.let {
                 Text("Previous position: ${it.previousPositionText} · New duration: ${it.newDurationText}", Modifier.padding(top = 8.dp), color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status)
                 TextAction(Copy.USE_PREVIOUS_POSITION, onClick = onUsePreviousPosition)
@@ -120,9 +125,9 @@ fun PlayerScreen(state: PlayerUiState, onCollapse: () -> Unit, onPlayPause: () -
             }
             state.bookLine?.let { Text(it, Modifier.padding(top = 12.dp), color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.metadata) }
             Row(Modifier.fillMaxWidth().padding(top = 20.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-                SkipKey(back = true, onClick = onSkipBack, enabled = state.transportEnabled, disabledReason = state.failureMessage)
-                PlayPauseKey(state.isPlaying, state.face.title, 72.dp, enabled = state.transportEnabled, disabledReason = state.failureMessage, start = StartAction.of(state.hasPlace, state.finished), onClick = onPlayPause)
-                SkipKey(back = false, onClick = onSkipForward, enabled = state.transportEnabled, disabledReason = state.failureMessage)
+                SkipKey(back = true, onClick = onSkipBack, enabled = state.transportEnabled, disabledReason = state.transportDisabledReason)
+                PlayPauseKey(state.showsPause, state.face.title, 72.dp, starting = state.starting, enabled = state.transportEnabled, disabledReason = state.transportDisabledReason, start = StartAction.of(state.hasPlace, state.finished), onClick = onPlayPause)
+                SkipKey(back = false, onClick = onSkipForward, enabled = state.transportEnabled, disabledReason = state.transportDisabledReason)
             }
             @Composable fun utilities() {
                 Utility("Speed", "Playback speed, ${Format.spokenSpeed(state.speed)}", onClick = { sheet = PlayerSheet.SPEED }) {
