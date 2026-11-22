@@ -43,6 +43,7 @@
                     style="@style/Widget.Pageworn.Title"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:importantForAccessibility="no"
                     android:text="The Night Orchard"
                     tools:ignore="HardcodedText" />
 
@@ -58,6 +59,7 @@
                         style="@style/Widget.Pageworn.Segment"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
+                        android:importantForAccessibility="no"
                         android:layout_weight="1"
                         android:text="The Gate"
                         tools:ignore="HardcodedText" />
@@ -93,6 +95,7 @@
                     style="@style/Widget.Pageworn.Notice"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:importantForAccessibility="no"
                     android:layout_marginTop="2dp"
                     android:visibility="gone" />
             </LinearLayout>

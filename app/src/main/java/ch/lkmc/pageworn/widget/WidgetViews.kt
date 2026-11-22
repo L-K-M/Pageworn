@@ -185,8 +185,8 @@ class WidgetViews(private val context: Context, private val openPlayer: PendingI
 
     /** The widget is one target beside its keys, so it reads out everything it shows. */
     private fun spoken(state: ReadingWidgetState): String {
-        val place = state.notice ?: "${state.segmentName}: ${state.segmentLine}, ${state.segmentLeft}. ${state.bookLine}"
-        return listOfNotNull(state.face.title, state.face.author, place).joinToString(". ")
+        val place = "${state.segmentName}: ${state.segmentLine}, ${state.segmentLeft}. ${state.bookLine}"
+        return listOfNotNull(state.face.title, state.face.author, state.notice?.trimEnd('.'), place).joinToString(". ")
     }
 
     private fun openBook(book: BookKey): PendingIntent =

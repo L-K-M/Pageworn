@@ -108,7 +108,7 @@ Where the copy table names two actions for a status line or empty state, the fir
 
 The widgets are the same book on the home screen: paper, page edges over green cloth, bound covers with the place ribbon and the app’s own keys. They follow the phone’s day and night. Android’s launchers cannot load the bundled Spectral, so live widget text uses the system serif. Cover lettering is drawn by the app and keeps Spectral.
 
-**Now reading** shows the player’s book: the one starting, loaded or last played. Without one on the phone it shows the first book of Downloaded. Its arrangement follows its size and the system’s font scale.
+**Now reading** shows the player’s book, as the player picks it: one that waits for a choice of where to start, otherwise the one starting, loaded or last played. Without one on the phone it shows the first book of Downloaded. Its arrangement follows its size and the system’s font scale.
 
 | Arrangement | Least size at normal type | Shows |
 |---|---|---|
@@ -128,7 +128,7 @@ Each least height grows with the type. At a font scale of 1.5 and more, the play
 - A failed start replaces the progress with “Couldn’t start playback. Another app may be using audio.” and keeps Play. On the smallest arrangement, and on a shelf too short for titles, that message takes the covers’ place.
 - While a book plays, the chapter bar moves in 30-second steps and the book bar each minute. A new segment, transport change or problem shows at once. A book at rest shows its exact place. There are no running clocks.
 - Without downloads, each widget says “Your downloaded books will appear here.” and opens the app.
-- Every key is at least 48 × 48 dp and is named. Now reading reads out the title, author, segment and book position as one target.
+- Every key is at least 48 × 48 dp and is named. Now reading reads out the title, author, any notice, segment and book position as one target.
 - The widgets ask to stay off the lock screen, because they show what is being listened to.
 
 ## Accessibility and acceptance

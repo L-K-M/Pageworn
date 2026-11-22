@@ -28,7 +28,8 @@ class BookshelfWidget : PaperWidgetProvider()
 /**
  * A key on a widget. The launcher delivers it with ten seconds in which the app may start its
  * playback service in the foreground with while-in-use access, which Android 17 requires for audio.
- * So the command begins before this returns, and the process is held until it has ended.
+ * So the command begins before this returns, and the process is held while it runs, for as long as
+ * a broadcast may.
  */
 class WidgetActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -41,7 +42,7 @@ class WidgetActionReceiver : BroadcastReceiver() {
 
 private val Context.container: AppContainer get() = (applicationContext as PagewornApp).container
 
-/** Keeps the process until [work] has ended and the widgets show its result. */
+/** Keeps the process until [work] has ended and the widgets show its result, or the time is up. */
 private fun finishAfterPublishing(
     container: AppContainer,
     // Null when a receiver is called directly rather than by a broadcast.

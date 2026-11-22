@@ -6,7 +6,9 @@ import android.util.SizeF
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.ProgressBar
 import android.widget.RemoteViews
+import android.widget.TextView
 import androidx.test.core.app.ApplicationProvider
 import ch.lkmc.pageworn.PagewornApp
 import ch.lkmc.pageworn.R
@@ -124,6 +126,38 @@ class WidgetViewsTest {
     }
 
     @Test
+    fun aFailedStartIsReadOutWithThePlaceItLeaves() {
+        val root = measured(views.reading(reading(Copy.PLAY_DID_NOT_START), ReadingLayout.PLAYER), ReadingLayout.PLAYER.minimum(1f))
+
+        val spoken = root.findViewById<View>(android.R.id.background).contentDescription.toString()
+        assertThat(spoken).contains(Copy.PLAY_DID_NOT_START)
+        assertThat(spoken).doesNotContain("..")
+        assertThat(spoken).contains("Book · 2 h 08 min of 4 h 20 min")
+    }
+
+    @Test
+    fun nowReadingIsOneSpokenTargetBesideItsKeys() {
+        for (layout in ReadingLayout.entries) {
+            for (notice in listOf(null, Copy.PLAY_DID_NOT_START)) {
+                val root = measured(views.reading(reading(notice), layout), layout.minimum(1f))
+                for (view in descendants(root).filter { (it is TextView && it.text.isNotEmpty()) || it is ProgressBar }) {
+                    assertWithMessage("$layout ${app.resources.getResourceEntryName(view.id)}")
+                        .that(view.importantForAccessibility).isEqualTo(View.IMPORTANT_FOR_ACCESSIBILITY_NO)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun theSizesShareOnePictureOfEachBook() {
+        fun pictures(remote: RemoteViews): List<*> =
+            ReflectionHelpers.getField(ReflectionHelpers.getField<Any>(remote, "mBitmapCache"), "mBitmaps")
+
+        assertThat(pictures(views.shelf(shelf(null)))).hasSize(WidgetStates.SHELF_BOOKS)
+        assertThat(pictures(views.reading(reading()))).hasSize(1)
+    }
+
+    @Test
     fun theLauncherPicksAnArrangementByTheWidgetsSize() {
         val sized = views.reading(reading())
 
@@ -198,6 +232,9 @@ class WidgetViewsTest {
             assertWithMessage("$where: ${target.contentDescription} height").that(shown.height()).isAtLeast(minimum)
         }
     }
+
+    private fun descendants(view: View): List<View> =
+        listOf(view) + ((view as? ViewGroup)?.let { group -> (0 until group.childCount).flatMap { descendants(group.getChildAt(it)) } }.orEmpty())
 
     private fun tapTargets(view: View): List<View> {
         if (view.visibility != View.VISIBLE) return emptyList()

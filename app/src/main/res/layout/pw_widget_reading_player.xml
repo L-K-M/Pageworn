@@ -50,6 +50,7 @@
                         style="@style/Widget.Pageworn.Title"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:importantForAccessibility="no"
                         android:text="The Night Orchard"
                         tools:ignore="HardcodedText" />
 
@@ -65,6 +66,7 @@
                             style="@style/Widget.Pageworn.Segment"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
+                            android:importantForAccessibility="no"
                             android:layout_weight="1"
                             android:text="The Gate"
                             tools:ignore="HardcodedText" />
@@ -74,6 +76,7 @@
                             style="@style/Widget.Pageworn.Meta"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
+                            android:importantForAccessibility="no"
                             android:layout_marginStart="8dp"
                             android:text="13 min left"
                             tools:ignore="HardcodedText" />
@@ -84,6 +87,7 @@
                         style="@style/Widget.Pageworn.Notice"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:importantForAccessibility="no"
                         android:layout_marginTop="3dp"
                         android:maxLines="3"
                         android:visibility="gone" />
@@ -110,6 +114,7 @@
                     style="@style/Widget.Pageworn.Meta"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:importantForAccessibility="no"
                     android:layout_marginTop="4dp"
                     android:text="Book · 2 h 08 min of 4 h 20 min"
                     tools:ignore="HardcodedText" />
