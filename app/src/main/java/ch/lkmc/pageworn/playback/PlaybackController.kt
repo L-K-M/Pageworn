@@ -69,6 +69,9 @@ class PlaybackController(
     private var lastCommittedPosition = C.TIME_UNSET
     private var wasPlaying = false
 
+    /** The save of the last pause, for as long as it is the book's latest one. */
+    private var pauseSaved: Saved? = null
+
     /** Stop kind for the pause the controller itself is about to cause (a timer). */
     private var pauseCause: StopKind? = null
 
@@ -87,6 +90,7 @@ class PlaybackController(
 
     fun release() {
         tickJob?.cancel()
+        saveSettledPause()
         checkpointIfPlaying()
         loaded?.let { editions.release(it.plan.generationId) }
         loaded = null
@@ -109,6 +113,7 @@ class PlaybackController(
         val outgoing = loaded
         if (outgoing != null && outgoing.key != key) {
             // Book switch: checkpoint the old book now, release its timer and reader.
+            saveSettledPause()
             checkpointIfPlaying()
             clearSleep()
             clippedAtMs = null
@@ -198,7 +203,9 @@ class PlaybackController(
         } else if (wasPlaying && exo.playbackState != Player.STATE_ENDED && exo.playerError == null) {
             val kind = pauseCause ?: StopKind.ORDINARY
             pauseCause = null
+            val before = loaded?.saved
             checkpoint(kind, listened = true)
+            pauseSaved = loaded?.saved?.takeIf { it !== before }
         }
         wasPlaying = isPlaying
         publish()
@@ -351,6 +358,24 @@ class PlaybackController(
         if (exo.isPlaying) checkpoint(StopKind.ORDINARY, listened = true)
     }
 
+    /**
+     * The player reports where audio really stopped a moment after it reports the pause, up to
+     * about 120 ms on. Moves the pause's place there and keeps how it stopped.
+     */
+    private fun saveSettledPause() {
+        val book = loaded ?: return
+        val paused = pauseSaved ?: return
+        if (book.saved !== paused || exo.isPlaying) {
+            pauseSaved = null
+            return
+        }
+        if (pendingSeek || !playerHolds(book)) return
+        val settled = book.plan.timeline.clamp(exo.currentPosition)
+        if (settled == paused.positionMs) return
+        save(settled, paused.stopKind, listened = true)
+        pauseSaved = book.saved
+    }
+
     private fun save(positionMs: Long, kind: StopKind, finished: Boolean = false, listened: Boolean) {
         val book = loaded ?: return
         val position = book.plan.timeline.clamp(positionMs)
@@ -372,6 +397,7 @@ class PlaybackController(
                     save(position, StopKind.ORDINARY, listened = true)
                 }
             }
+            saveSettledPause()
             expireSleepIfDue()
             publish()
         }
