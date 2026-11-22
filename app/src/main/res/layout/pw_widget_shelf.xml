@@ -24,7 +24,11 @@
                 android:id="@+id/widget_notice"
                 style="@style/Widget.Pageworn.Notice"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="36dp"
+                android:autoSizeMaxTextSize="12sp"
+                android:autoSizeMinTextSize="7dp"
+                android:autoSizeTextType="uniform"
+                android:gravity="center_vertical"
                 android:paddingHorizontal="12dp"
                 android:paddingTop="1dp"
                 android:visibility="gone" />

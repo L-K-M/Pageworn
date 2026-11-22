@@ -108,6 +108,7 @@ class WidgetViewsTest {
             views.reading(reading(), layout).reapply(app, (shown as ViewGroup).getChildAt(0))
 
             assertWithMessage("$layout key").that(shown.findViewById<View>(R.id.widget_toggle).isDrawn()).isTrue()
+            shown.findViewById<View>(R.id.widget_title)?.let { assertWithMessage("$layout title").that(it.isDrawn()).isTrue() }
             assertWithMessage("$layout cover").that(shown.findViewById<View>(R.id.widget_cover).isDrawn()).isTrue()
             assertWithMessage("$layout notice").that(shown.findViewById<View>(R.id.widget_notice).isDrawn()).isFalse()
         }
@@ -133,6 +134,32 @@ class WidgetViewsTest {
         assertThat(spoken).contains(Copy.PLAY_DID_NOT_START)
         assertThat(spoken).doesNotContain("..")
         assertThat(spoken).contains("Book · 2 h 08 min of 4 h 20 min")
+    }
+
+    /** API 31 scales large type linearly, and API 34 less for the larger sizes. */
+    @Test
+    @Config(sdk = [31, 34])
+    fun everyNoticeShowsWholeWordsAndLines() {
+        for (fontScale in FONT_SCALES) {
+            RuntimeEnvironment.setFontScale(fontScale)
+            for (notice in listOf(Copy.PLAY_DID_NOT_START, Copy.DAMAGED_COPY, Copy.CHOOSE_START)) {
+                for (layout in ReadingLayout.entries) {
+                    val state = reading(notice).copy(key = key.takeIf { notice == Copy.PLAY_DID_NOT_START })
+                    val root = measured(views.reading(state, layout), layout.minimum(fontScale))
+                    assertReadsWhole(root, notice, "$layout at $fontScale")
+                }
+            }
+            // A book that waits for a choice says so on its own key on the shelf.
+            for (notice in listOf(Copy.PLAY_DID_NOT_START, Copy.DAMAGED_COPY)) {
+                for (layout in ShelfLayout.entries) {
+                    val root = measured(views.shelf(shelf(notice), layout), layout.minimum(fontScale))
+                    assertReadsWhole(root, notice, "$layout at $fontScale")
+                }
+            }
+            for (size in listOf(SizeF(110f, 57f), SizeF(110f, 118f), SizeF(250f, 57f))) {
+                assertReadsWhole(measured(views.reading(null), size), Copy.NO_DOWNLOADS, "empty $size at $fontScale")
+            }
+        }
     }
 
     @Test
@@ -233,6 +260,29 @@ class WidgetViewsTest {
         }
     }
 
+    /** The whole notice, or its whole first sentence where there is no room for both. */
+    private fun assertReadsWhole(root: View, notice: String, where: String) {
+        val view = root.findViewById<TextView>(R.id.widget_notice)
+        val text = view.text.toString()
+        val at = "$where: $text"
+        assertWithMessage(at).that(text).isAnyOf(notice, notice.substringBefore(". ").removeSuffix(".") + ".")
+
+        val lines = view.layout
+        val last = minOf(lines.lineCount, view.maxLines) - 1
+        assertWithMessage("$at ends early").that(lines.getLineEnd(last)).isEqualTo(text.length)
+        assertWithMessage("$at is shortened").that(lines.getEllipsisCount(last)).isEqualTo(0)
+        val room = view.height - view.compoundPaddingTop - view.compoundPaddingBottom
+        assertWithMessage("$at is cut through a line").that(lines.getLineBottom(last)).isAtMost(room + ROUNDING_PX)
+        val shown = Rect()
+        assertWithMessage("$at is on screen").that(view.getGlobalVisibleRect(shown)).isTrue()
+        assertWithMessage("$at is inside the widget").that(shown.height()).isAtLeast(view.height - ROUNDING_PX)
+        for (line in 0 until last) {
+            val end = lines.getLineEnd(line)
+            val splits = !text[end - 1].isWhitespace() && !text[end].isWhitespace()
+            assertWithMessage("$at breaks inside a word after ${text.take(end)}, ${view.textSize} px in ${view.width}").that(splits).isFalse()
+        }
+    }
+
     private fun descendants(view: View): List<View> =
         listOf(view) + ((view as? ViewGroup)?.let { group -> (0 until group.childCount).flatMap { descendants(group.getChildAt(it)) } }.orEmpty())
 
@@ -246,5 +296,6 @@ class WidgetViewsTest {
     private companion object {
         val FONT_SCALES = listOf(0.85f, 1f, 1.3f, 2f)
         const val MIN_TARGET_DP = 48f
+        const val ROUNDING_PX = 2
     }
 }

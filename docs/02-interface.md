@@ -125,7 +125,8 @@ Each least height grows with the type. At a font scale of 1.5 and more, the play
 - A key does what it shows, for the book it was drawn for. A widget gets no touch times, so Play/Pause keeps its action for one double-tap timeout after a tap: the second tap of a double tap is the same tap.
 - A tap beside the keys opens the player. For a book that is not the player’s, and for a cover on the shelf, it opens that book’s details. A link to a book that left the phone opens Downloaded.
 - A book that cannot play has no key. Now reading gives the player’s reason and leads there. The shelf shows “Repair” or “Choose” and leads to details.
-- A failed start replaces the progress with “Couldn’t start playback. Another app may be using audio.” and keeps Play. On the smallest arrangement, and on a shelf too short for titles, that message takes the covers’ place.
+- A failed start replaces the progress with “Couldn’t start playback. Another app may be using audio.” and keeps Play. On the smallest arrangement, and on a shelf too short for titles, that message takes the covers’ place. On the strip and square it takes the title’s place too.
+- A notice never stops inside a line or a word. The tall arrangement shows it whole, as do the player arrangement below a font scale of 1.2 and a shelf of three or more books. The others show its first sentence, in smaller type where the room asks for it. All read out the whole notice.
 - While a book plays, the chapter bar moves in 30-second steps and the book bar each minute. A new segment, transport change or problem shows at once. A book at rest shows its exact place. There are no running clocks.
 - Without downloads, each widget says “Your downloaded books will appear here.” and opens the app.
 - Every key is at least 48 × 48 dp and is named. Now reading reads out the title, author, any notice, segment and book position as one target.

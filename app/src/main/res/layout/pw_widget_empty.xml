@@ -21,11 +21,13 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:autoSizeMaxTextSize="15sp"
-            android:autoSizeMinTextSize="9sp"
+            android:autoSizeMinTextSize="7dp"
             android:autoSizeTextType="uniform"
+            android:breakStrategy="simple"
             android:gravity="center"
-            android:maxLines="4"
-            android:padding="10dp"
+            android:maxLines="3"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="2dp"
             android:textColor="@color/widget_secondary" />
     </FrameLayout>
 

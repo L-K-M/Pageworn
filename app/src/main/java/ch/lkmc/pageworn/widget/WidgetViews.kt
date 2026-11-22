@@ -30,6 +30,12 @@ enum class ReadingLayout(
     TALL(R.layout.pw_widget_reading_tall, 310f, 148f, 112f);
 
     fun minimum(fontScale: Float) = SizeF(minWidth, fixedHeight + textHeight * fontScale)
+
+    fun showsWholeNotice(fontScale: Float) = this == TALL || (this == PLAYER && fontScale < WHOLE_NOTICE_TYPE)
+
+    private companion object {
+        const val WHOLE_NOTICE_TYPE = 1.2f
+    }
 }
 
 /** Bookshelf's arrangements: as many books as the width holds, with titles where the height allows. */
@@ -43,7 +49,10 @@ enum class ShelfLayout(val books: Int, val titles: Boolean) {
         if (titles) TITLED_HEIGHT + TITLE_HEIGHT * fontScale else HEIGHT,
     )
 
+    fun showsWholeNotice() = books >= WHOLE_NOTICE_BOOKS
+
     private companion object {
+        const val WHOLE_NOTICE_BOOKS = 3
         const val FIRST_BOOK_WIDTH = 110f
         const val BOOK_WIDTH = 70f
         const val LABEL_WIDTH = 24f
@@ -74,6 +83,7 @@ class WidgetViews(private val context: Context, private val openPlayer: PendingI
 
     fun reading(state: ReadingWidgetState, layout: ReadingLayout): RemoteViews {
         val views = RemoteViews(context.packageName, layout.layout)
+        val fontScale = context.resources.configuration.fontScale
         val book = state.face.key
         val open = if (state.destination == WidgetDestination.PLAYER) openPlayer else openBook(book)
         views.setOnClickPendingIntent(android.R.id.background, open)
@@ -90,7 +100,7 @@ class WidgetViews(private val context: Context, private val openPlayer: PendingI
         views.setTextViewText(R.id.widget_segment, if (waiting) Copy.STARTING else state.segmentLine)
         views.setTextViewText(R.id.widget_segment_left, state.segmentLeft)
         // Beside large type the time left would take the chapter's name.
-        val roomForTimeLeft = layout != ReadingLayout.PLAYER || context.resources.configuration.fontScale < LARGE_TYPE
+        val roomForTimeLeft = layout != ReadingLayout.PLAYER || fontScale < LARGE_TYPE
         views.setViewVisibility(R.id.widget_segment_left, visibleIf(roomForTimeLeft))
         views.setTextViewText(R.id.widget_book_line, state.bookLine)
         views.setProgressBar(R.id.widget_segment_bar, WidgetStates.PERMILLE, state.segmentPermille, false)
@@ -99,7 +109,11 @@ class WidgetViews(private val context: Context, private val openPlayer: PendingI
         val hasNotice = state.notice != null
         for (line in PROGRESS_VIEWS) views.setViewVisibility(line, visibleIf(!hasNotice))
         views.setViewVisibility(R.id.widget_notice, visibleIf(hasNotice))
-        views.setTextViewText(R.id.widget_notice, state.notice.orEmpty())
+        val notice = state.notice?.let { if (layout.showsWholeNotice(fontScale)) it else firstSentence(it) }
+        views.setTextViewText(R.id.widget_notice, notice.orEmpty())
+        // A short arrangement's notice needs the title's lines. Its cover still names the book.
+        val noticeTakesTitle = hasNotice && (layout == ReadingLayout.STRIP || layout == ReadingLayout.SQUARE)
+        views.setViewVisibility(R.id.widget_title, visibleIf(!noticeTakesTitle))
 
         val key = state.key
         for (control in KEY_VIEWS) views.setViewVisibility(control, visibleIf(key != null))
@@ -117,7 +131,8 @@ class WidgetViews(private val context: Context, private val openPlayer: PendingI
         val spoken = listOfNotNull(context.getString(R.string.widget_bookshelf), state.notice).joinToString(". ")
         views.setContentDescription(android.R.id.background, spoken)
         views.setViewVisibility(R.id.widget_notice, visibleIf(state.notice != null))
-        views.setTextViewText(R.id.widget_notice, state.notice.orEmpty())
+        val notice = state.notice?.let { if (layout.showsWholeNotice()) it else firstSentence(it) }
+        views.setTextViewText(R.id.widget_notice, notice.orEmpty())
         // A short shelf has room for its books or for why one did not start.
         views.setViewVisibility(R.id.widget_books, visibleIf(state.notice == null || layout.titles))
 
@@ -188,6 +203,9 @@ class WidgetViews(private val context: Context, private val openPlayer: PendingI
         val place = "${state.segmentName}: ${state.segmentLine}, ${state.segmentLeft}. ${state.bookLine}"
         return listOfNotNull(state.face.title, state.face.author, state.notice?.trimEnd('.'), place).joinToString(". ")
     }
+
+    /** What happened, without the likely reason. The whole notice is still read out. */
+    private fun firstSentence(notice: String) = notice.substringBefore(". ").removeSuffix(".") + "."
 
     private fun openBook(book: BookKey): PendingIntent =
         activity(MainActivity.openBookIntent(context, book))
