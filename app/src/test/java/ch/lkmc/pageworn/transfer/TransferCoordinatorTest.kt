@@ -36,6 +36,7 @@ import java.io.File
 import java.io.RandomAccessFile
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -115,6 +116,14 @@ class TransferCoordinatorTest {
         assertThat(files.published(edition!!.generationId).isDirectory).isTrue()
         assertThat(db.editions().tracks(edition.generationId)).isNotEmpty()
     }
+
+    /** Paused is saved a moment before the copy is cancelled. Data released in between is all copied. */
+    private suspend fun awaitPauseReachedTheCopy(id: String, run: Job) = withTimeout(5_000) {
+        while (job(id).state != TransferState.PAUSED || run.descendants().none { it.isCancelled }) yield()
+    }
+
+    private fun Job.descendants(): Sequence<Job> = children.flatMap { sequenceOf(it) + it.descendants() }
+
     private suspend fun drive(id: String, limit: Int = 8) {
         repeat(limit) {
             if (job(id).state == TransferState.COMPLETE) return
@@ -410,7 +419,7 @@ class TransferCoordinatorTest {
         val running = launch(Dispatchers.Default) { coordinator.runDue() }
         withTimeout(5_000) { gate.reached.await() }
         val pausing = launch(Dispatchers.Default) { coordinator.pause(id) }
-        withTimeout(5_000) { while (job(id).state != TransferState.PAUSED) yield() }
+        awaitPauseReachedTheCopy(id, running)
         gate.release.complete(Unit)
         pausing.join()
         running.join()
@@ -656,7 +665,7 @@ class TransferCoordinatorTest {
         val running = launch(Dispatchers.Default) { coordinator.runDue() }
         withTimeout(5_000) { gate.reached.await() }
         val pausing = launch(Dispatchers.Default) { coordinator.pause(id) }
-        withTimeout(5_000) { while (job(id).state != TransferState.PAUSED) yield() }
+        awaitPauseReachedTheCopy(id, running)
         gate.release.complete(Unit)
         pausing.join()
         running.join()
