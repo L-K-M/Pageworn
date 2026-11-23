@@ -184,6 +184,22 @@ BookDetailScreen lays out the entire chapter list in a scrolling column. Compare
 
 **Acceptance.** The main action reads as the same hardware family as the transport keys, and reduced-motion devices see no movement.
 
+### Keep the place ribbon peek within 6-10 dp
+
+**Evidence.** `BookCover` sizes the ribbon peek as `max(size * 0.11f, 8.dp)`: about 18.5 dp on the 168 dp detail cover and 22 dp on a 200 dp player cover, while the asset guide caps the peek at 6-10 dp. The oversized ribbon hangs far below large covers and dominates the artwork.
+
+**First change.** Clamp the peek to the specified band regardless of cover size and keep only the ribbon width proportional.
+
+**Acceptance.** The row, detail and player ribbons all peek within 6-10 dp, and the saved-place mark still reads as part of the book.
+
+### Keep the transfer pause key at large text
+
+**Evidence.** At 150% text `DownloadedScreen` replaces the ivory transfer pause key with a plain text "Pause" action, although the asset guide prefers shrinking drawn art before replacing controls. The drawn control language disappears exactly at the size the design checks.
+
+**Prototype.** Keep the 32 dp ivory key in its 48 dp target beside or below the metadata at compact sizes, and let the action row wrap without replacing it.
+
+**Acceptance.** A paused download can be paused from both Library and Downloaded at 100% and 200% text with the same visual control, and the row does not overflow a 320 dp screen.
+
 ## Accessibility and small polish
 
 - **Merge the player utilities' semantics.** Speed, Chapters/Tracks/Parts and Sleep set a content description on the clickable column without merging descendants, so TalkBack may visit the label, value and icon separately after the description.
