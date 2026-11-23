@@ -46,6 +46,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.After
 import org.junit.Assume.assumeTrue
 import org.junit.Before
@@ -99,6 +100,7 @@ class SleepPlaybackTest {
 
     private suspend fun withLockedScreen(block: suspend () -> Unit) {
         shell("input keyevent KEYCODE_SLEEP")
+        var lockedCheckPassed = false
         try {
             withTimeout(8_000) {
                 while (power.isInteractive || !keyguard.isKeyguardLocked) delay(30)
@@ -106,13 +108,16 @@ class SleepPlaybackTest {
             block()
             assertThat(power.isInteractive).isFalse()
             assertThat(keyguard.isKeyguardLocked).isTrue()
+            lockedCheckPassed = true
         } finally {
             shell("input keyevent KEYCODE_WAKEUP")
             shell("wm dismiss-keyguard")
             // The dismiss is asynchronous. Let it finish before the next test locks the screen.
-            withTimeout(8_000) {
+            val dismissed = withTimeoutOrNull(8_000) {
                 while (!power.isInteractive || keyguard.isKeyguardLocked) delay(30)
+                true
             }
+            if (lockedCheckPassed) assertWithMessage("Keyguard dismissed after test").that(dismissed).isTrue()
         }
     }
 

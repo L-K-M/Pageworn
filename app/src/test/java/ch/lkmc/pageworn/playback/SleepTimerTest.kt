@@ -29,6 +29,7 @@ import java.lang.reflect.Proxy
 import java.time.Instant
 import java.time.ZoneId
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestScope
 import org.junit.After
@@ -110,6 +111,17 @@ class SleepTimerTest {
         start()
 
         assertThat(hub.state.value.sleep).isEqualTo(SleepState.Off)
+    }
+
+    @Test
+    fun releasingTheControllerStopsItsWorkWithoutCancellingTheScope() {
+        val parent = checkNotNull(ticks.coroutineContext[Job])
+
+        controller.release()
+        ticks.testScheduler.runCurrent()
+
+        assertThat(parent.isActive).isTrue()
+        assertThat(parent.children.toList()).isEmpty()
     }
 
     @Test

@@ -84,6 +84,7 @@ class PlaybackController(
     private var clippedAtMs: Long? = null
     private var failed = false
     private var tickJob: Job? = null
+    private val sleepSettingsJob: Job
 
     /** A start of playback whose timer starts once the player holds the book and plays it. */
     private var timerOnPlaying = false
@@ -99,11 +100,12 @@ class PlaybackController(
         exo.addListener(this)
         exo.setPlaybackSpeed(settings.speed.value)
         tickJob = scope.launch { tickLoop() }
-        scope.launch { sleepSettings.settings.collect(::onSleepSettings) }
+        sleepSettingsJob = scope.launch { sleepSettings.settings.collect(::onSleepSettings) }
     }
 
     fun release() {
         tickJob?.cancel()
+        sleepSettingsJob.cancel()
         stopFade()
         saveSettledPause()
         checkpointIfPlaying()

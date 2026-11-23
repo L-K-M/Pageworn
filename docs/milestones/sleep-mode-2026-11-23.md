@@ -44,7 +44,7 @@ Environment: Media3 1.11.1, compile and target API 37. Emulator `pw-api37` (API 
 - Real touches with screenshots on the same emulator: Settings shows the Sleep timer row. The page added a 90-minute preset, switched on the window, and closed the time picker with Cancel. The player sheet listed the new preset. Choosing 15 minutes at rest showed "15 min". Play showed a live countdown read as "Sleep, 14 minutes 55 seconds remaining", and Pause returned to "Sleep, on, 15 minutes".
 
 - Follow-up on API 31 (Android 12, image `SE1A.220630.001.A1`, build `9056438`): `SleepPlaybackTest` 14 of 14, with A08 run separately in airplane mode. `PlaybackFailureTest` 7 of 7, `SystemControlsTest` 5 of 5, `PlayKeyTapTest` 11 of 11, and the four A12b and A16e restart steps passed in separate processes. The first run failed two keyguard assertions. The rerun passed after the helper waited for each dismissal to finish before the next lock.
-- Follow-up JVM run: `scripts/build.sh` passed 320 tests, including regressions for a stale stop after reboot and sleep-window edges that meet or cross during daylight-saving changes.
+- Follow-up JVM run: `scripts/build.sh` passed 321 tests. Regressions cover stale stops after a reboot, sleep-window edges that meet or cross during daylight-saving changes, and cancellation of the sleep-settings collector at controller release.
 
 ## 4. Pending
 

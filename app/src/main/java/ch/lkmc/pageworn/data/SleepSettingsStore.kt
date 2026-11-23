@@ -42,6 +42,7 @@ data class SleepSettings(
  */
 class SleepSettingsStore(context: Context, private val clock: Clock, private val zone: () -> ZoneId = { ZoneId.systemDefault() }) {
     private val prefs = context.getSharedPreferences("pageworn-sleep", Context.MODE_PRIVATE)
+    // Without a boot count, a saved stop cannot safely be identified as recent.
     private val bootCount = Settings.Global.getInt(context.contentResolver, Settings.Global.BOOT_COUNT, UNKNOWN_BOOT)
     private val lock = Any()
 
