@@ -63,9 +63,20 @@ class CatalogRowMessageTest {
         assertThat(RowBuilders.catalogRowMessage(CatalogRow(face, CatalogAction.Download))).isNull()
     }
 
-    private fun row(phase: TransferPhase, stateText: String, message: String? = null) = CatalogRow(
+    @Test
+    fun blankPartsNeverLeaveDanglingSeparators() {
+        assertThat(RowBuilders.catalogRowMessage(row(TransferPhase.PAUSED, "", "Paused"))).isEqualTo("Paused")
+        assertThat(RowBuilders.catalogRowMessage(row(TransferPhase.PAUSED, "Paused", ""))).isEqualTo("Paused")
+    }
+
+    @Test
+    fun theRowMessageWinsOverTheTransferMessage() {
+        assertThat(RowBuilders.catalogRowMessage(row(TransferPhase.FAILED, "Download stopped", "Transfer detail", rowMessage = "Row detail"))).isEqualTo("Download stopped · Row detail")
+    }
+
+    private fun row(phase: TransferPhase, stateText: String, message: String? = null, rowMessage: String? = message) = CatalogRow(
         face,
         CatalogAction.Transferring(TransferUi("job", phase, 1, 2, stateText, message, canPause = true, canResume = false, canRetry = false, canCancel = true)),
-        message,
+        rowMessage,
     )
 }
