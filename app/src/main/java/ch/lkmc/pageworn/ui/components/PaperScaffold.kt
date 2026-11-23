@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -160,7 +161,9 @@ fun BindingFooter(destination: Destination, onSelect: (Destination) -> Unit, mod
                 }
             }
         }
-        Box(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
+        // Keep cloth below the bookmarks even when Android reports no navigation inset.
+        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
     }
 }
 
