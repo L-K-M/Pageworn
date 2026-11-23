@@ -21,20 +21,17 @@ open; check its state before relying on one. Anything not listed here is still o
 - **Say that a removal keeps the place.** PR #60. The long-unused `AUDIO_REMOVED` copy now appears under the detail action until a download starts or an edition returns.
 - **Bound the plan cache.** PR #45 turns `PlanCache` into an access-ordered LRU of 16 generations instead of an unbounded map.
 - **Coarsen Downloaded's live position.** PR #42 floors a playing row's place to the minute and skips unchanged live states, replacing the four-per-second rebuild of every row. A second approach in PR #43 was closed as a duplicate once #42 merged.
-- PR #48 overlaps PR #35 (transfer state text); keep one when they merge.
+- **Name the state of every library transfer.** PR #48 pairs the Library progress icon with the state word at every text size, so paused and waiting downloads no longer read as bare rings. PR #35 described the same change and can be closed as a duplicate.
 
 ### Open pull requests
 
 - **Keep chapter work off the playback tick.** PR #34. `PlayerStates.player` now carries the timeline's own segment list and current index instead of formatting every chapter row four times a second; the lazy sheet formats only visible rows. The regression test asserts two live states share one list while the index advances.
-- **Name the state of every library transfer.** PR #35. Library rows pair the progress icon with the state word at every text size, not only from 150 percent, so paused and waiting downloads no longer read as bare rings.
 - **Protect writes during cover cache eviction.** PR #25 limits eviction to published thumbnails and reclaims abandoned temporary files on the next process's first write.
 - **Return from missing book details.** PRs #27 and #32 distinguish loading from a missing book. An API 37 removal test checks the return to Downloaded and the saved place.
 - **Retry a download in place.** PR #28 adds Retry to Library and details while retaining Pause and Cancel where available.
 - **Bound cover decoding.** PR #30 samples against the longer edge across Compose, cached remote art and widgets. A 256 × 8192 portrait decodes to 8 × 256 for a 128 px target.
 - **Keep an end-of-chapter sleep stop exact.** PR #44. ExoPlayer reports the pause inline but `isPlaying` false later, so the pause checkpoint could store an ordinary stop over the exact boundary and turn a rested resume into a ten-second rewind. The controller arms the exact pause kind before pausing; the regression test defers that callback and fails on the old code.
 - **Read covers and file checks off the main thread.** PR #49. The System UI resumption control no longer reads up to 2 MB of cover bytes on the main thread, and opening a book verifies track sizes on the IO dispatcher rather than during media-item resolution.
-- **Keep an incomplete first load in the status line.** PR #52. The staged rows stay browsable and Retry sits between the heading block and the rows, rather than in the centred empty-state form.
-- **Disable detail Download after a refusal.** PR #54. An unsupported format or a per-book download denial replaces the primary action with the specified disabled action while the refusal lasts. The pre-tap verdict below remains open.
 - **Show a remote book's description on its details page.** PR #55. The pinned minified listing already carries `media.metadata.description` (verified against the captured v2.38.0 fixtures), so the catalog now stores it (`catalog_book`/`catalog_staging`, schema 3) and details fall back to it when no downloaded edition snapshots its own copy. The HTML-only fallback is stripped to plain text in both parse paths.
 - **Project progress to what Library rows draw.** PR #61. Library rows use only hasPlace/finished, so the view model now projects `BookProgressEntity` to that pair with `distinctUntilChanged`; a moving position no longer re-maps every row of a large library on each checkpoint. Downloaded rows still read exact positions.
 - **Clear stale cover art during a source change.** PR #26 resets the Compose bitmap when the artwork source changes. The API 37 regression checks the cloth placeholder while a replacement is delayed.
