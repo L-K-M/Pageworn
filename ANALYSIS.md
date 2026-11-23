@@ -1,6 +1,6 @@
 # Pageworn improvement backlog
 
-These tasks build on the offline-first player, its paper surfaces, Spectral titles and oxblood place ribbon. The November 2026 review used the implementation at `9e4be6d`, the gallery images and a synthetic library on an API 37 emulator. Each task includes a way to decide whether the change helps.
+These tasks build on the offline-first player, its paper surfaces, Spectral titles and oxblood place ribbon. The November 2026 review used the implementation at `9e4be6d`, later main revisions, the gallery images and a synthetic library on an API 37 emulator. Each task includes a way to decide whether the change helps.
 
 ## Implemented in open pull requests
 
@@ -11,8 +11,26 @@ These tasks build on the offline-first player, its paper surfaces, Spectral titl
 - **Retry a download in place.** PR #28 adds Retry to Library and details while retaining Pause and Cancel where available.
 - **Mark a saved place on the details cover.** PR #29 shows the ribbon for Resume and leaves fresh and finished books unmarked.
 - **Bound cover decoding.** PR #30 samples against the longer edge across Compose, cached remote art and widgets. A 256 × 8192 portrait decodes to 8 × 256 for a 128 px target.
+- **Keep an end-of-chapter sleep stop exact.** PR #44. ExoPlayer reports the pause inline but `isPlaying` false later, so the pause checkpoint could store an ordinary stop over the exact boundary and turn a rested resume into a ten-second rewind. The controller arms the exact pause kind before pausing; the regression test defers that callback and fails on the old code.
+- **Read covers and file checks off the main thread.** PR #49. The System UI resumption control no longer reads up to 2 MB of cover bytes on the main thread, and opening a book verifies track sizes on the IO dispatcher rather than during media-item resolution.
 
 ## Listening and browsing performance
+
+### Publish only when live state changes
+
+**Evidence.** `PlaybackController.tickLoop` calls `publish()` every 250 ms, and the player and mini-player combine the hub state directly. At rest every visible field is unchanged, yet a new `LivePlayback` and a new `PlayerUiState` are built four times a second. PR #34 removed the per-tick chapter formatting, but the publish and the surrounding state construction remain.
+
+**First change.** Compare the candidate state with the last published one and skip equal ticks. Keep immediate publishes for `starting`, `held`, failure, sleep arming and countdown changes, which are event-driven. Be careful that a settled pause still publishes once after its place moves.
+
+**Acceptance.** A paused book with a sheet closed produces no player-state emissions while idle; playing position, the sleep countdown and every transport transition still appear immediately.
+
+### Decode paper and cloth tiles once
+
+**Evidence.** `paperBackground()` and `BindingFooter` decode their texture with `BitmapFactory.decodeResource` behind `remember(context)`, so each usage has its own copy and a screen recreation decodes again. The tiles are small, but the textures are constant for the process lifetime.
+
+**First change.** Hold decoded `ImageBitmap`s in a process-wide cache keyed by resource id, or provide them through a composition local from the activity. Keep high-contrast handling unchanged.
+
+**Acceptance.** Repeated navigation and rotation do not re-decode; high contrast still drops both textures.
 
 ### Bound thumbnail cache bookkeeping
 
@@ -30,7 +48,7 @@ BookDetailScreen lays out the entire chapter list in a scrolling column. Compare
 
 **Evidence.** `ExactSeekMp3Extractor.index` lazily scans every frame of a VBR file the first time it opens, on the extractor's init call. A multi-hour file can delay the first Play after the starting arc is drawn. The scan is cached by path, length and mtime.
 
-**First change.** Measure preparation time for a long VBR book on a cold cache, then move the scan off the playback thread or keep the starting state until the index is ready. Keep exact late seeks.
+**First change.** Measure preparation time for a long VBR book on a cold cache, then move the scan off the playback thread or keep the starting state until the index is ready. Keep exact late seeks. The five-second start report in `PlayerConnection` can fire while this scan runs, so the two changes should agree on what “started” means.
 
 **Acceptance.** The first Play of a long VBR file shows its starting state immediately, and a seek near the end still lands within the format matrix tolerance.
 
@@ -39,6 +57,24 @@ BookDetailScreen lays out the entire chapter list in a scrolling column. Compare
 **Evidence.** `PlanCache` keeps an edition plan for every generation it has seen and never evicts. Plans are small, but a long-lived install accumulates one per download, repair and replacement.
 
 **First change.** Tie entries to the published generation, clear them when an edition is removed, or bound the map. No behavior change is needed beyond memory.
+
+## Playback correctness
+
+### Decide how a seek made during playback records its stop
+
+**Evidence.** `onPositionDiscontinuity` sets the pending seek's stop kind to `ORDINARY` while `playWhenReady` is true and `EXACT` while paused (`PlaybackController.kt`). The resume-rewind table only names moving the position while paused as exact, but the following bullet says a seek, skip, scrub or chapter choice makes the next start exact “whatever stopped the book before”. A listener who scrubs during playback, pauses, leaves for an hour and returns currently gets a ten-second rewind.
+
+**First change.** Settle the rule with the owner or a test: either record `EXACT` for every deliberate move, or document that a move made while playing keeps the ordinary rewind. Add a regression test that seeks during playback, pauses, rests past the threshold and starts again.
+
+**Acceptance.** The documented rule and the stored `stopKind` agree, and a deliberate chapter choice still never rewinds.
+
+### Do not flash the empty state before Room emits
+
+**Evidence.** `DownloadedViewModel.state` starts as an empty `DownloadedUiState`, so the no-downloads empty state can appear for a frame before Room emits, even on a phone full of books. `LibraryUiState` has the same shape. This is cosmetic but visible on a cold launch.
+
+**First change.** Suppress the empty state until the first editions/transfers emission, or seed the initial state from a quick local read. Keep the true empty state immediate when there really is nothing.
+
+**Acceptance.** A cold launch with downloads never shows the no-downloads sentence; a phone with none still does.
 
 ## Details correctness
 
@@ -84,19 +120,20 @@ BookDetailScreen lays out the entire chapter list in a scrolling column. Compare
 
 **Acceptance.** Opening one remote book makes at most one metadata request for its revision, starts no transfer and leaves Download reachable. Revisiting it offline shows the cached prose. A missing description leaves a tidy page, and a response for the previous book never appears under the current title.
 
-## Playback investigation and design experiment
+### Remove a download from its Downloaded row
 
-### Verify the track-boundary stop with audio output
+**Evidence.** Remove lives in details; the product brief lists remove under Downloaded. A listener who wants to free space opens a book, scans past its description and chapters, then finds the action at the bottom.
 
-The November 22 owner report records A10d reaching 92,967 ms at a 90,000 ms stop, while the saved place was exactly 90,000 ms and no byte of track B was read. A later widget run passed without audio output. The November 23 sleep-mode report records the API 31 failure suite passing, with the output configuration unspecified.
+**Prototype.** A row overflow or long-press action calling the existing removal path, with the same confirmation the plan wants for destructive actions and the same preservation of the saved place. Keep the busy transfer rows distinct.
 
-Run `PlaybackFailureTest#a10dATrackThatCannotOpenEndsPlaybackAtItsBoundary` on API 31 with audio output enabled, then with it disabled. Record controller position, last audible sample or sink event, reads from B and durable position. If the difference reproduces, establish which clock diverged before adjusting the controller or the test. Use the existing 90,500 ms controller limit.
+**Acceptance.** Removing from the row frees the audio, keeps the place and returns to a correct list order; a cancelled transfer is unaffected.
 
-### Let a listener undo a misplaced whole-book seek
+## Accessibility and small polish
 
-A small movement on the book scrubber can cross hours of audio. Prototype a transient “Return to 2:14:36” action after a whole-book drag commits. A pencil tick can show the departure point without reusing the saved-place ribbon. Compare the text action alone with text plus tick.
-
-Test an accidental seek, an intentional seek, repeated scrubs and switching books. Undo must return once to the last departure point, preserve play or pause, and never seek a different book. Check discoverability with TalkBack and agree on the lifetime with listeners before persisting any new state.
+- **Merge the player utilities' semantics.** Speed, Chapters/Tracks/Parts and Sleep set a content description on the clickable column without merging descendants, so TalkBack may visit the label, value and icon separately after the description.
+- **Reserve the mini-player's height.** `MainScaffold` measures the mini-player with `onSizeChanged` and applies bottom padding afterwards, so the list can jump for one frame when it appears or disappears. The measured heights are known (60/68 dp), so reserve them directly.
+- **Keep the progress ring decorative.** The compact transfer ring repeats its percentage in visible text and semantics; the ring itself should stay cleared for TalkBack so the row reads once.
+- **Check focus indicators over texture at high contrast.** The reports claim the 3:1 focus check; repeat it over the textured paper and cloth with the final composite.
 
 ## Delight candidates
 
@@ -105,6 +142,14 @@ Test an accidental seek, an intentional seek, repeated scrubs and switching book
 - A pressed shadow and haptic on the bookmark tabs, matching the keys.
 - A short ribbon pulse on the mini-player when a new segment begins.
 - A faint cloth spine shadow behind the standing covers on the Bookshelf widget.
+- Per-book playback speed, with the global setting as the default for a new book.
+- Local-only listening insights: time listened this week, a finished shelf, a day streak. No telemetry, nothing leaves the phone.
+- Pencil bookmarks or short clips at the current position, listed in details and seekable, distinct from the single saved place.
+- The live sleep countdown on the Now reading widget while a timer runs, keeping the no-running-clocks rule elsewhere.
+- Pull-to-refresh in Library, mapped to the existing refresh action.
+- A Quick Settings tile that turns Sleep on with the chosen length or off through the existing session command.
+- A launcher shortcut that resumes the last book at its saved place.
+- A real dark theme later, adjusting every colour and material rather than swapping tokens.
 
 ## Test reliability
 
@@ -113,3 +158,9 @@ Test an accidental seek, an intentional seek, repeated scrubs and switching book
 During a full JVM run, `AddressSessionTest.fiveConcurrentUnauthorizedCallsShareOneRefresh` failed its all-success assertion once and passed when rerun alone. The test waits up to five seconds inside the mock server for five old-token requests. Its assertion hides which request failed and why.
 
 Capture the redacted result category for each synthetic request, the latch timeout result, refresh count and arrival order. Repeat under parallel test load. If the barrier races a client timeout, coordinate the fixture deterministically. If renewal itself races, fix the session and retain a reproducer. Acceptance requires five successful calls, one refresh and one rotated token pair, with credentials excluded from logs.
+
+### Make late renderer callbacks explicit in controller tests
+
+PR #44 added a fake player whose `isPlaying` change arrives after the application-thread pause, which is what a device does. Reuse that technique for other ordering-sensitive cases: a failure arriving during the fade, a seek completing after a pause, a timer expiring during a transient interruption, and the case where no `isPlaying` callback follows at all.
+
+**Acceptance.** Every stop-kind and volume assertion observes the final persisted state, not merely the first write Room emits.
