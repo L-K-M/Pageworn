@@ -69,9 +69,9 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
             val removalIsNewest = removed && i.edition == null && i.transfer == null
             val refusalHere = refusal?.takeIf { it.key == key && !removalIsNewest }
             when {
-                // A refusal about this book's transfer or edition is newer and actionable, and
-                // outranks the removal confirmation. Once the book is gone, the removal is the
-                // newest fact.
+                // A refusal about this book is newer and actionable while the book still
+                // exists, and outranks the removal confirmation. Once the book is gone, the
+                // removal is the newest fact.
                 refusalHere != null -> {
                     // Only the primary Download action gives way. A playable, transferring or
                     // repairing book keeps its own control and carries the message beside it.

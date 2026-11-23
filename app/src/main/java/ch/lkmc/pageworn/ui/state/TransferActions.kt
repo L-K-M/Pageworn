@@ -61,7 +61,7 @@ data class DownloadRefusal(
     val key: BookKey,
     val text: String,
     val onRow: Boolean,
-    /** Replaces a detail page's primary action while this refusal lasts, when it must be disabled. */
+    /** Replaces a detail page's enabled Download action while this refusal lasts, when the refusal must be disabled. */
     val disabledAction: DetailAction? = null,
 )
 
