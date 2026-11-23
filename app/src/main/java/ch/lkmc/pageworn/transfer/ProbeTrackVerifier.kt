@@ -1,7 +1,7 @@
 package ch.lkmc.pageworn.transfer
 
 import ch.lkmc.pageworn.formats.FormatMatrix
-import ch.lkmc.pageworn.formats.MediaProbe
+import ch.lkmc.pageworn.formats.TrackProbe
 import java.io.File
 
 /**
@@ -9,9 +9,11 @@ import java.io.File
  * cannot open, or one in a format the matrix records as unsupported, stops the job as an
  * unsupported manifest does, whatever its file name says.
  */
-class ProbeTrackVerifier(private val probe: MediaProbe) : TrackVerifier {
-    override suspend fun verify(file: File, extension: String): TrackCheck {
-        if (FormatMatrix.recordedUnsupported(extension, null)) return TrackCheck.Unsupported("$extension is unsupported")
+class ProbeTrackVerifier(private val probe: TrackProbe) : TrackVerifier {
+    override suspend fun verify(file: File, extension: String, codec: String?): TrackCheck {
+        // The manifest's codec decides container rules such as MP3 frames inside CAF, which the
+        // format matrix records as playable. Without it every CAF file would stop here.
+        if (FormatMatrix.recordedUnsupported(extension, codec)) return TrackCheck.Unsupported("$extension is unsupported")
         val result = probe.probe(file)
         val duration = result.durationMs
         if (!result.playable || duration == null) return TrackCheck.Unsupported(result.error ?: "not playable")
