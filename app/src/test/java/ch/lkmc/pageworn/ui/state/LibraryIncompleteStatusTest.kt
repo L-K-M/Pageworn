@@ -2,6 +2,7 @@ package ch.lkmc.pageworn.ui.state
 
 import android.os.Looper
 import androidx.test.core.app.ApplicationProvider
+import ch.lkmc.pageworn.AppContainer
 import ch.lkmc.pageworn.PagewornApp
 import ch.lkmc.pageworn.data.db.CatalogStagingEntity
 import ch.lkmc.pageworn.data.db.LibraryEntity
@@ -32,10 +33,11 @@ import org.robolectric.annotation.Config
 class LibraryIncompleteStatusTest {
     private val screen = CoroutineScope(Job() + Dispatchers.Main)
     private lateinit var library: LibraryViewModel
+    private lateinit var container: AppContainer
 
     @Before
     fun setUp() {
-        val container = ApplicationProvider.getApplicationContext<PagewornApp>().container
+        container = ApplicationProvider.getApplicationContext<PagewornApp>().container
         runBlocking {
             val db = container.database
             db.profiles().upsert(
@@ -48,7 +50,12 @@ class LibraryIncompleteStatusTest {
                     startedAt = 1, state = RefreshState.FAILED, firstLoad = true,
                 ),
             )
-            db.catalog().stage(
+        }
+    }
+
+    private fun seedStagedRow() {
+        runBlocking {
+            container.database.catalog().stage(
                 listOf(
                     CatalogStagingEntity(
                         refreshId = "attempt", itemId = "orchard", title = "The Night Orchard",
@@ -58,6 +65,9 @@ class LibraryIncompleteStatusTest {
                 ),
             )
         }
+    }
+
+    private fun startLibrary() {
         library = LibraryViewModel(container)
         screen.launch { library.state.collect {} }
     }
@@ -69,6 +79,8 @@ class LibraryIncompleteStatusTest {
 
     @Test
     fun aFailedFirstLoadShowsTheStatusLineAboveItsRows() {
+        seedStagedRow()
+        startLibrary()
         val state = await("the incomplete status") {
             it.selectedLibraryId == SHELF && it.status?.text == Copy.LIBRARY_INCOMPLETE
         }
@@ -76,6 +88,18 @@ class LibraryIncompleteStatusTest {
         assertThat(state.status?.action).isEqualTo(UiAction.RETRY)
         assertThat(state.empty).isNull()
         assertThat(state.rows.map { it.face.title }).containsExactly("The Night Orchard")
+    }
+
+    @Test
+    fun aFailedFirstLoadWithNoStagedRowsShowsOnlyTheStatusLine() {
+        startLibrary()
+        val state = await("the incomplete status") {
+            it.selectedLibraryId == SHELF && it.status?.text == Copy.LIBRARY_INCOMPLETE
+        }
+
+        assertThat(state.status?.action).isEqualTo(UiAction.RETRY)
+        assertThat(state.empty).isNull()
+        assertThat(state.rows).isEmpty()
     }
 
     private fun await(what: String, condition: (ch.lkmc.pageworn.ui.model.LibraryUiState) -> Boolean): ch.lkmc.pageworn.ui.model.LibraryUiState {
