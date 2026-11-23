@@ -24,8 +24,9 @@ class ProbeTrackVerifier(private val probe: TrackProbe) : TrackVerifier {
         if (result.codecs != null && FormatMatrix.recordedUnsupported(extension, result.codecs)) {
             return TrackCheck.Unsupported("${listOfNotNull(extension, result.codecs).joinToString("/")} is unsupported")
         }
-        // The server's codec name stays on the track; the probe proves the file opens and reads the
-        // markers it carries, which the chapter map uses when the server's list is unusable.
-        return TrackCheck.Playable(duration, codec = null, chapters = result.chapters)
+        // Publish the codec the file actually carries, falling back to the manifest only when the
+        // probe could not name one. The probe also reads the embedded markers below, which the
+        // chapter map uses when the server's list is unusable.
+        return TrackCheck.Playable(duration, codec = result.codecs ?: codec, chapters = result.chapters)
     }
 }

@@ -62,5 +62,17 @@ class ProbeTrackVerifierTest {
         assertThat(result).isInstanceOf(TrackCheck.Unsupported::class.java)
     }
 
+    @Test
+    fun theProbedCodecIsTheOnePublished() = runTest {
+        val verifier = ProbeTrackVerifier(TrackProbe {
+            MediaProbe.Result(playable = true, durationMs = 90_000, sampleMimeType = "audio/ogg", codecs = "opus", error = null)
+        })
+
+        val result = verifier.verify(File("book.ogg"), "ogg", "vorbis")
+
+        assertThat(result).isInstanceOf(TrackCheck.Playable::class.java)
+        assertThat((result as TrackCheck.Playable).codec).isEqualTo("opus")
+    }
+
     private fun playable() = MediaProbe.Result(true, 90_000, "audio/mpeg", "mp3", null)
 }
