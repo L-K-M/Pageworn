@@ -2,7 +2,7 @@
 
 ## What opening Pageworn should feel like
 
-A listener leaves home halfway through an audiobook. On the train they open Pageworn, tap the book they were listening to, and hear the last few words again before the story goes on. That evening, they set **End of chapter**, lock the phone, and fall asleep. In the morning the ribbon still marks the point where playback stopped.
+A listener leaves home halfway through an audiobook. On the train they open Pageworn, tap the book they were listening to, and hear the last few words again before the story goes on. That evening, they turn on Sleep with **End of chapter**, lock the phone, and fall asleep. In the morning the ribbon still marks the point where playback stopped.
 
 ## Release scope
 
@@ -14,7 +14,7 @@ A listener leaves home halfway through an audiobook. On the train they open Page
 | Download-only playback | The player accepts a locally committed book. A tap on a remote book’s cover opens details with **Download**. Partial transfers offer progress, pause, resume and cancel. |
 | Progress by book | Keep an independent position for every book on this device. Survive app death, a switch to another book, address changes, and removal and re-download of the same edition. |
 | Format and chapter coverage | Play single- and multi-file audiobooks in every format that the server accepts and Android’s player can play. A book in a format the phone cannot play says so and starts no download. Use the book’s chapter map across file boundaries. A book without chapter marks remains playable. |
-| Sleep | Offer 15, 30, 45 and 60 minutes, end of chapter, and off. Expiry pauses and saves the position. After a timed stop, a book that has rested five minutes or more starts five minutes earlier. |
+| Sleep | A mode with Off, the listener's presets (15, 30, 45 and 60 minutes by default) or end of chapter. While it is on, every start of playback stops after the chosen time, fading out over the last three seconds and saving the position. An optional daily window turns it on and off automatically. After a timed stop, a book that has rested five minutes or more starts five minutes earlier. |
 | Resume after a rest | A book that has rested five minutes or more resumes ten seconds before its saved position. A timed sleep stop takes the five minutes of the Sleep row instead. A stop at the end of a chapter resumes exactly, and so does a position the listener moved while the book was paused. |
 | Multiple addresses | Configure human-readable aliases such as Home and Tailscale. Show the address used for the last successful connection and offer a manual choice. An address uses HTTPS, HTTPS with a certificate the listener has confirmed, or explicitly allowed HTTP. Downloads run on any network, including mobile data. |
 | In the car | Android Auto lists the downloaded books, most recently played first. A tap resumes the book. |
@@ -28,7 +28,7 @@ Pageworn v1 serves audiobooks. Ebooks, podcasts, streaming, remote playback, cro
 1. **First book.** Enter a server address, sign in, choose a book in Library, and tap Download. Leave the screen. Open the completion notification or find the book under Downloaded. The first Play starts at the beginning.
 2. **A second route home.** Add the Tailscale URL for the same account and server. Leave home during a download. The app renegotiates the transfer through a paired reachable address and finishes one local copy. When continuation cannot be verified, restart the current file from byte zero; the saved playback position is unaffected.
 3. **Two books on the go.** Pause book A, play book B, then return to A. A resumes from its saved whole-book position, ten seconds earlier once it has rested five minutes. Remove A’s audio to free space. Re-download the same edition and resume at the saved position.
-4. **Bedtime.** From the player, choose End of chapter. Lock the phone. At the boundary, audio stops, progress is committed, and the timer clears. Pressing Play the next morning continues from the boundary. After a timed sleep instead, that Play continues from five minutes before the stop.
+4. **Bedtime.** From the player, turn on Sleep with **End of chapter**. Lock the phone. At the boundary, audio fades out and stops, progress is committed, and the timer clears. Pressing Play the next morning continues from the boundary and starts a fresh timer. After a timed sleep instead, that Play continues from five minutes before the stop.
 
 ## Launch and state priorities
 
