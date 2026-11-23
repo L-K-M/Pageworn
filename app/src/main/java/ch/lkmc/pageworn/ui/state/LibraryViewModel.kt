@@ -82,11 +82,12 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
-    private val requests = combine(scope, queries, container.settings.librarySort) { s, q, sort -> Triple(s, q, sort) }
+    /** The settled search alone drives the catalog observer, so typing does not restart it. */
+    private val searching = queries.map { it.searching }.distinctUntilChanged()
 
-    private val listing = requests.flatMapLatest { (s, q, sort) ->
+    private val listing = combine(scope, searching, container.settings.librarySort, ::Triple).flatMapLatest { (s, q, sort) ->
         val library = s?.selected ?: return@flatMapLatest flowOf(CatalogListing(emptyList(), ListingStatus.READY, null, sort))
-        container.catalog.observeListing(s.profile.profileId, library.libraryId, q.searching.trim(), sort)
+        container.catalog.observeListing(s.profile.profileId, library.libraryId, q.trim(), sort)
     }
 
     private val local = scope.flatMapLatest { s ->
@@ -196,7 +197,8 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
             listing.status == ListingStatus.FILLING -> null
             listing.status == ListingStatus.INCOMPLETE -> EmptyState(Copy.LIBRARY_INCOMPLETE, UiAction.RETRY, Copy.RETRY)
             searching.isNotBlank() -> EmptyState(Copy.NO_SEARCH_RESULTS, UiAction.CLEAR_SEARCH, Copy.CLEAR_SEARCH)
-            published -> EmptyState(Copy.EMPTY_LIBRARY, UiAction.CHECK_AGAIN, Copy.CHECK_AGAIN)
+            // A pending or typed query must not borrow the empty-library prompt.
+            published && q.isBlank() -> EmptyState(Copy.EMPTY_LIBRARY, UiAction.CHECK_AGAIN, Copy.CHECK_AGAIN)
             else -> null
         }
         return LibraryUiState(
