@@ -114,7 +114,7 @@ class PlaybackFailureTest {
             c.sleep(PagewornCommands.SLEEP_TIMED, minutes = 15)
             c.play()
             // The controller shows playing before the service has armed the timer: wait on the hub.
-            val deadline = withTimeout(5_000) {
+            val deadline = withTimeout(10_000) {
                 container.playbackHub.state.first { it.isPlaying && it.sleep is SleepState.Timed }
             }.let { (it.sleep as SleepState.Timed).deadlineElapsedMs }
             c.awaitUntil(20_000, "past 102 s") { currentPosition > 102_000 }

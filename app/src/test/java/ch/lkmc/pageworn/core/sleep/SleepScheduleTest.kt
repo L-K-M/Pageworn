@@ -117,4 +117,15 @@ class SleepScheduleTest {
         assertThat(edge.atMillis).isEqualTo(utc("2026-10-25T00:30:00Z"))
         assertThat(edge.turnsOn).isTrue()
     }
+
+    @Test
+    fun isInsideAgreesWithTheEdgesWhenAStartIsSkipped() {
+        // 29 March 2026 skips 02:00 to 03:00 in Zurich, so a 02:30 start falls at 03:30.
+        val window = SleepWindow(2 * 60 + 30, 7 * 60)
+        val beforeTheMovedStart = utc("2026-03-29T01:15:00Z") // 03:15 local
+
+        assertThat(SleepSchedule.latestEdge(window, beforeTheMovedStart, zone).turnsOn).isFalse()
+        assertThat(SleepSchedule.isInside(window, beforeTheMovedStart, zone)).isFalse()
+        assertThat(SleepSchedule.isInside(window, utc("2026-03-29T01:30:00Z"), zone)).isTrue()
+    }
 }

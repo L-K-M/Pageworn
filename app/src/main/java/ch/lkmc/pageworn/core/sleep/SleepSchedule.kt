@@ -57,10 +57,9 @@ data class SleepEdge(val atMillis: Long, val turnsOn: Boolean)
  */
 object SleepSchedule {
 
-    fun isInside(window: SleepWindow, nowMillis: Long, zone: ZoneId): Boolean {
-        val local = Instant.ofEpochMilli(nowMillis).atZone(zone).toLocalTime()
-        return window.contains(local.hour * 60 + local.minute)
-    }
+    /** Whether the window's latest edge was a start, so daylight-saving shifts move both alike. */
+    fun isInside(window: SleepWindow, nowMillis: Long, zone: ZoneId): Boolean =
+        latestEdge(window, nowMillis, zone).turnsOn
 
     /**
      * The latest start or end of [window] at or before [nowMillis]. Both happen once every day,
