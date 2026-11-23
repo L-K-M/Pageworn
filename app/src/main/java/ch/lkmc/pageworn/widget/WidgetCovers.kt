@@ -19,9 +19,9 @@ import androidx.core.graphics.createBitmap
 import androidx.core.graphics.withClip
 import androidx.core.graphics.withTranslation
 import ch.lkmc.pageworn.R
+import ch.lkmc.pageworn.artwork.decodeCover
 import ch.lkmc.pageworn.ui.model.BookFace
 import ch.lkmc.pageworn.ui.model.CoverImage
-import java.io.File
 
 /**
  * A book as a picture. The launcher can neither bind art nor load Pageworn's typeface, so the
@@ -38,7 +38,7 @@ class WidgetCovers(private val context: Context) {
     }
 
     private fun draw(face: BookFace, ribbon: Boolean): Bitmap {
-        val art = (face.cover as? CoverImage.Local)?.let { decode(it.file) }
+        val art = (face.cover as? CoverImage.Local)?.let { decodeCover(it.file, SIZE.toInt()) }
         val aspect = art?.let { it.width.toFloat() / it.height } ?: 1f
         val width = if (aspect < 1f) SIZE * aspect else SIZE
         val height = if (aspect > 1f) SIZE / aspect else SIZE
@@ -64,18 +64,6 @@ class WidgetCovers(private val context: Context) {
             }
         }
         return picture
-    }
-
-    /** Null for a file that is missing or is not a picture, which then gets a cloth cover. */
-    private fun decode(file: File): Bitmap? {
-        val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeFile(file.absolutePath, options)
-        if (options.outWidth <= 0 || options.outHeight <= 0) return null
-
-        options.inSampleSize = generateSequence(1) { it * 2 }
-            .first { maxOf(options.outWidth, options.outHeight) / it <= SIZE * 2 }
-        options.inJustDecodeBounds = false
-        return BitmapFactory.decodeFile(file.absolutePath, options)
     }
 
     private fun drawRibbon(canvas: Canvas, book: RectF) {

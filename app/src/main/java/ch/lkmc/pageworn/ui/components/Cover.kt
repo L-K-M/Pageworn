@@ -1,6 +1,5 @@
 package ch.lkmc.pageworn.ui.components
 
-import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -36,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import ch.lkmc.pageworn.R
+import ch.lkmc.pageworn.artwork.decodeCover
 import ch.lkmc.pageworn.ui.model.BookFace
 import ch.lkmc.pageworn.ui.model.CoverImage
 import ch.lkmc.pageworn.ui.theme.PagewornTheme
@@ -63,12 +63,7 @@ fun BookCover(face: BookFace, size: Dp, showRibbon: Boolean = false, modifier: M
     val image by produceState<ImageBitmap?>(null, face.cover, sizePx, loader) {
         value = when (val source = face.cover) {
             is CoverImage.Local -> withContext(Dispatchers.IO) {
-                runCatching {
-                    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                    BitmapFactory.decodeFile(source.file.absolutePath, bounds)
-                    val sample = generateSequence(1) { it * 2 }.first { bounds.outWidth / it <= sizePx * 2 || it >= 128 }
-                    BitmapFactory.decodeFile(source.file.absolutePath, BitmapFactory.Options().apply { inSampleSize = sample })?.asImageBitmap()
-                }.getOrNull()
+                decodeCover(source.file, sizePx)?.asImageBitmap()
             }
             is CoverImage.Remote -> runCatching { loader.load(source, sizePx) }.getOrNull()
             CoverImage.Cloth -> null
