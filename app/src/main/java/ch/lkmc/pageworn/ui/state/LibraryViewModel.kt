@@ -195,8 +195,9 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
             searching.isNotBlank() && published -> EmptyState(Copy.NO_SEARCH_RESULTS, UiAction.CLEAR_SEARCH, Copy.CLEAR_SEARCH)
             notice != null -> statusAsEmpty
             listing.status == ListingStatus.FILLING -> null
-            listing.status == ListingStatus.INCOMPLETE -> EmptyState(Copy.LIBRARY_INCOMPLETE, UiAction.RETRY, Copy.RETRY)
             searching.isNotBlank() -> EmptyState(Copy.NO_SEARCH_RESULTS, UiAction.CLEAR_SEARCH, Copy.CLEAR_SEARCH)
+            // A failed load never claims an empty library; the status line stays authoritative.
+            listing.status == ListingStatus.INCOMPLETE -> null
             // A pending or typed query must not borrow the empty-library prompt.
             published && q.isBlank() -> EmptyState(Copy.EMPTY_LIBRARY, UiAction.CHECK_AGAIN, Copy.CHECK_AGAIN)
             else -> null
