@@ -104,6 +104,7 @@ class ScreenSemanticsTest {
             }
         }
 
+        compose.onAllNodesWithText(stateText).assertCountEquals(1)
         compose.onNodeWithText(stateText).assertIsDisplayed()
     }
 
