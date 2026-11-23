@@ -189,4 +189,24 @@ class SleepScheduleTest {
         assertThat(edge.atMillis).isEqualTo(millis(2026, 11, 24, 7, 0))
         assertThat(edge.turnsOn).isFalse()
     }
+
+    @Test
+    fun theNextEdgeAfterMidnightInsideAnOvernightWindowIsThatMorningsEnd() {
+        val window = SleepWindow(22 * 60, 7 * 60)
+
+        val edge = SleepSchedule.nextEdge(window, millis(2026, 11, 25, 1, 0), zone)
+
+        assertThat(edge.atMillis).isEqualTo(millis(2026, 11, 25, 7, 0))
+        assertThat(edge.turnsOn).isFalse()
+    }
+
+    @Test
+    fun theNextEdgeAcrossTheDstGapIsAResolvedFutureInstant() {
+        val window = SleepWindow(1 * 60 + 30, 3 * 60)
+
+        val edge = SleepSchedule.nextEdge(window, utc("2026-03-29T00:59:00Z"), zone)
+
+        assertThat(edge.atMillis).isGreaterThan(utc("2026-03-29T00:59:00Z"))
+        assertThat(edge.atMillis).isLessThan(utc("2026-03-29T03:00:00Z"))
+    }
 }

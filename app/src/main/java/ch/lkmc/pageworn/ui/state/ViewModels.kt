@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -110,14 +111,18 @@ class PlayerViewModel(private val container: AppContainer) : ViewModel() {
         // A schedule edge can pass while nothing plays and no playback service runs to notice it,
         // so the mode is re-checked when it is due: at the window's next edge, not on a fixed poll.
         viewModelScope.launch {
-            container.sleepSettings.settings.collect { mode ->
-                container.sleepSettings.refresh()
-                val now = container.liveClock.wallMillis()
-                val delayMs = if (mode.automatic) {
-                    (SleepSchedule.nextEdge(mode.window, now, ZoneId.systemDefault()).atMillis - now)
-                        .coerceIn(1, MAX_SCHEDULE_WAIT_MS)
-                } else SCHEDULE_IDLE_WAIT_MS
-                delay(delayMs)
+            // collectLatest restarts the wait when the settings change; the inner loop re-checks
+            // at each edge, so a passed window edge is applied without waiting for a change.
+            container.sleepSettings.settings.collectLatest { mode ->
+                while (true) {
+                    container.sleepSettings.refresh()
+                    val now = container.liveClock.wallMillis()
+                    val delayMs = if (mode.automatic) {
+                        (SleepSchedule.nextEdge(mode.window, now, ZoneId.systemDefault()).atMillis - now)
+                            .coerceIn(1, MAX_SCHEDULE_WAIT_MS)
+                    } else SCHEDULE_IDLE_WAIT_MS
+                    delay(delayMs)
+                }
             }
         }
     }
