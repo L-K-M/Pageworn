@@ -61,7 +61,11 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /** Download, or Repair download: stages a fresh generation and keeps the saved place. */
-    fun download() = actions.download(key)
+    fun download() {
+        // A new download clears the removal notice, so the screen never claims the book was removed.
+        removedNotice.value = null
+        actions.download(key)
+    }
     fun pauseTransfer(jobId: String) = actions.pause(jobId)
     fun resumeTransfer(jobId: String) = actions.resume(jobId)
     fun cancelTransfer(jobId: String) = actions.cancel(jobId)
@@ -71,8 +75,10 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
         // Not the screen's scope: leaving details must not stop between releasing and removing.
         container.appScope.launch {
             container.playerConnection.releaseBook(key)
-            container.editionStore.remove(key)
-            removedNotice.value = Copy.AUDIO_REMOVED
+            // A failed removal leaves the edition row, so the screen still shows the book as
+            // downloaded; only a completed removal earns the saved-place notice.
+            runCatching { container.editionStore.remove(key) }
+                .onSuccess { removedNotice.value = Copy.AUDIO_REMOVED }
         }
     }
 
