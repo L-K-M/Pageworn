@@ -65,14 +65,14 @@ fun DownloadedScreen(state: DownloadedUiState, listState: LazyListState, onOpenB
                 Text("Downloading", Modifier.padding(start = 20.dp, top = 12.dp, bottom = 8.dp).semantics { heading() }, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.sheetTitle.copy(fontSize = PagewornTheme.type.rowTitle.fontSize * 1.15f))
             }
             items(state.transfers.size, key = { "transfer:${state.transfers[it].transfer.jobId}" }) { index ->
-                // A finished transfer slides into the books below instead of appearing in place.
-                Box(Modifier.animateItem()) {
+                // A finished transfer fades out of the group above as its book fades in below.
+                Column(Modifier.animateItem()) {
                     DownloadTransferRow(state.transfers[index], onOpenBook, onPauseTransfer, onResumeTransfer, onRetryTransfer, onCancelTransfer)
                     HorizontalDivider(Modifier.padding(horizontal = 20.dp), color = PagewornTheme.colors.secondaryInk.copy(alpha = .25f))
                 }
             }
             items(state.books.size, key = { state.books[it].face.key.mediaId }) { index ->
-                Box(Modifier.animateItem()) {
+                Column(Modifier.animateItem()) {
                     DownloadedBookRow(state.books[index], onOpenBook, onPlayPause)
                     HorizontalDivider(Modifier.padding(horizontal = 20.dp), color = PagewornTheme.colors.secondaryInk.copy(alpha = .25f))
                 }

@@ -97,7 +97,7 @@ fun LibraryScreen(state: LibraryUiState, listState: LazyListState, onQueryChange
         if (state.empty != null) item(key = "empty") { EmptyStateView(state.empty, onAction) }
         else items(state.rows.size, key = { state.rows[it].face.key.mediaId }) { index ->
             // A book that appears or moves settles into place instead of jumping.
-            Box(Modifier.animateItem()) {
+            Column(Modifier.animateItem()) {
                 CatalogBookRow(state.rows[index], onOpenBook, onDownload, onPlayPause, onPauseTransfer, onResumeTransfer, onCancelTransfer)
                 if (index != state.rows.lastIndex) HorizontalDivider(Modifier.padding(horizontal = 20.dp), color = PagewornTheme.colors.secondaryInk.copy(alpha = .25f))
             }
