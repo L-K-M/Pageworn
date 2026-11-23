@@ -100,8 +100,11 @@ fun LibraryScreen(state: LibraryUiState, listState: LazyListState, onQueryChange
         state.status?.let { line -> item(key = "status") { StatusLineView(line, onAction) } }
         if (state.empty != null) item(key = "empty") { EmptyStateView(state.empty, onAction) }
         else items(state.rows.size, key = { state.rows[it].face.key.mediaId }) { index ->
-            CatalogBookRow(state.rows[index], onOpenBook, onDownload, onPlayPause, onPauseTransfer, onResumeTransfer, onCancelTransfer)
-            if (index != state.rows.lastIndex) HorizontalDivider(Modifier.padding(horizontal = 20.dp), color = PagewornTheme.colors.secondaryInk.copy(alpha = .25f))
+            // A book that appears or moves settles into place instead of jumping.
+            Column(Modifier.animateItem()) {
+                CatalogBookRow(state.rows[index], onOpenBook, onDownload, onPlayPause, onPauseTransfer, onResumeTransfer, onCancelTransfer)
+                if (index != state.rows.lastIndex) HorizontalDivider(Modifier.padding(horizontal = 20.dp), color = PagewornTheme.colors.secondaryInk.copy(alpha = .25f))
+            }
         }
     }
 }
@@ -125,7 +128,9 @@ private fun CatalogBookRow(row: CatalogRow, onOpenBook: (BookKey) -> Unit, onDow
                     else -> row.message
                 }
                 message?.let { Text(it, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status) }
-                if (row.action is CatalogAction.Transferring && compact) Text(row.action.transfer.stateText, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status)
+                // The phase belongs beside the ring at every text size, so a paused or waiting
+                // transfer never reads as active.
+                if (row.action is CatalogAction.Transferring) Text(row.action.transfer.stateText, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status)
             }
             if (!compact) CatalogActionView(row, onDownload, onPlayPause, onPauseTransfer, onResumeTransfer)
         }

@@ -19,6 +19,7 @@ import ch.lkmc.pageworn.ui.model.CoverImage
 import ch.lkmc.pageworn.ui.model.DetailAction
 import ch.lkmc.pageworn.ui.model.Format
 import ch.lkmc.pageworn.ui.model.StartAction
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -50,8 +51,33 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
 
     private val actions = TransferActions(container)
 
-    val state: StateFlow<BookDetailUiState?> = combine(inputs, container.playbackHub.state, actions.refusal) { i, live, refusal ->
-        build(i, i.edition?.let { plans.plan(it) }, live)?.let { built -> refusal?.let { built.copy(message = it.text) } ?: built }
+    /**
+     * Set once this screen removes the audio. The confirmation stays in memory for this screen;
+     * its display is masked while an edition or transfer exists, so another path removing the
+     * book cannot resurrect it.
+     */
+    private val _removed = MutableStateFlow(false)
+    private val removed = _removed
+
+    val state: StateFlow<BookDetailUiState?> = combine(
+        inputs,
+        container.playbackHub.state,
+        actions.refusal,
+        removed,
+    ) { i, live, refusal, removed ->
+        build(i, i.edition?.let { plans.plan(it) }, live)?.let { built ->
+            // A refusal about a transfer or edition that still exists is newer and actionable,
+            // so it outranks the removal confirmation. Once the book is gone, the removal is the
+            // newest fact.
+            if (refusal != null && (i.edition != null || i.transfer != null)) {
+                built.copy(message = refusal.text)
+            } else if (removed && i.edition == null && i.transfer == null) {
+                // The saved place survives the removal, and the listener should hear so.
+                built.copy(message = Copy.AUDIO_REMOVED)
+            } else {
+                built
+            }
+        }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /** Download, or Repair download: stages a fresh generation and keeps the saved place. */
@@ -65,6 +91,8 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
         // Not the screen's scope: leaving details must not stop between releasing and removing.
         container.appScope.launch {
             container.playerConnection.releaseBook(key)
+            // Set before the store write so no frame shows a gone edition without its reason.
+            _removed.value = true
             container.editionStore.remove(key)
         }
     }
