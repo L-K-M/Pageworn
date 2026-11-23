@@ -11,7 +11,21 @@ class DownloadedClockTest {
 
     @Test
     fun positionsInsideOneCheckpointStepBuildTheSameRowState() {
-        val early = LivePlayback(key = key, positionMs = 1_000, sleepRemainingMs = 90_000)
+        // Every forwarded field holds a non-default value, so dropping one from forRows()
+        // fails the comparison instead of silently defaulting.
+        val early = LivePlayback(
+            key = key,
+            isPlaying = true,
+            playWhenReady = true,
+            positionMs = 1_000,
+            speed = 1.25f,
+            failed = true,
+            ended = true,
+            held = true,
+            playbackRequested = true,
+            starting = key,
+            sleepRemainingMs = 90_000,
+        )
         val late = early.copy(positionMs = 4_999, sleepRemainingMs = 86_000)
 
         // The whole object pins the whitelist: excluded fields keep their defaults.
@@ -20,7 +34,7 @@ class DownloadedClockTest {
                 key = early.key,
                 isPlaying = early.isPlaying,
                 playWhenReady = early.playWhenReady,
-                positionMs = late.forRows().positionMs,
+                positionMs = 0L,
                 speed = early.speed,
                 failed = early.failed,
                 ended = early.ended,
