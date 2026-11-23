@@ -1,5 +1,6 @@
 package ch.lkmc.pageworn.ui.player
 
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -51,23 +52,26 @@ class PlayNoticeDismissTest {
 
     @Test
     fun detailsOfferDismissInsteadOfTheirMessage() {
-        var dismissed = 0
-        val state = BookDetailUiState(
+        val state = mutableStateOf(BookDetailUiState(
             face = PlayerStates.face(plan), narrator = null, durationText = "1 h 00 min", sizeText = null,
             action = DetailAction.Play(StartAction.RESUME, showsPause = false, starting = false),
             message = Copy.AUDIO_REMOVED, playNotice = Copy.PLAY_DID_NOT_START,
             description = null, segmentsTitle = null, segments = emptyList(), segmentsPlayable = true, canRemove = true,
-        )
+        ))
         compose.setContent {
             PagewornTheme {
-                BookDetailScreen(state, onBack = {}, onDownload = {}, onRetry = {}, onPlayPause = {}, onRepair = {}, onPauseTransfer = {}, onResumeTransfer = {}, onCancelTransfer = {}, onSelectSegment = {}, onRemove = {}, onDismissPlayNotice = { dismissed++ })
+                // Dismissing clears the problem, so the next state carries no notice.
+                BookDetailScreen(state.value, onBack = {}, onDownload = {}, onRetry = {}, onPlayPause = {}, onRepair = {}, onPauseTransfer = {}, onResumeTransfer = {}, onCancelTransfer = {}, onSelectSegment = {}, onRemove = {}, onDismissPlayNotice = { state.value = state.value.copy(playNotice = null) })
             }
         }
 
         compose.onNodeWithText(Copy.PLAY_DID_NOT_START).assertExists()
         compose.onNodeWithText(Copy.AUDIO_REMOVED).assertDoesNotExist()
         compose.onNodeWithText(Copy.DISMISS).performScrollTo().performClick()
-        assertThat(dismissed).isEqualTo(1)
+
+        compose.onNodeWithText(Copy.PLAY_DID_NOT_START).assertDoesNotExist()
+        compose.onNodeWithText(Copy.DISMISS).assertDoesNotExist()
+        compose.onNodeWithText(Copy.AUDIO_REMOVED).assertExists()
     }
 
     private companion object {
