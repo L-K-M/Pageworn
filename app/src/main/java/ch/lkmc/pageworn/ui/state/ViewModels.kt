@@ -118,8 +118,14 @@ class PlayerViewModel(private val container: AppContainer) : ViewModel() {
                     container.sleepSettings.refresh()
                     val now = container.liveClock.wallMillis()
                     val delayMs = if (mode.automatic) {
-                        (SleepSchedule.nextEdge(mode.window, now, ZoneId.systemDefault()).atMillis - now)
-                            .coerceIn(1, MAX_SCHEDULE_WAIT_MS)
+                        try {
+                            (SleepSchedule.nextEdge(mode.window, now, ZoneId.systemDefault()).atMillis - now)
+                                .coerceIn(1, MAX_SCHEDULE_WAIT_MS)
+                        } catch (_: Exception) {
+                            // No resolvable edge (e.g. a degenerate or DST-collapsed window):
+                            // fall back to idle polling instead of killing the watcher.
+                            SCHEDULE_IDLE_WAIT_MS
+                        }
                     } else SCHEDULE_IDLE_WAIT_MS
                     delay(delayMs)
                 }
