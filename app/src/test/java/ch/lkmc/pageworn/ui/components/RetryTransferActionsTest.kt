@@ -2,6 +2,7 @@ package ch.lkmc.pageworn.ui.components
 
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
@@ -18,8 +19,9 @@ import ch.lkmc.pageworn.ui.model.CatalogRow
 import ch.lkmc.pageworn.ui.model.CoverImage
 import ch.lkmc.pageworn.ui.model.DetailAction
 import ch.lkmc.pageworn.ui.model.LibraryUiState
-import ch.lkmc.pageworn.ui.model.TransferPhase
-import ch.lkmc.pageworn.ui.model.TransferUi
+import ch.lkmc.pageworn.data.db.TransferEntity
+import ch.lkmc.pageworn.data.db.TransferState
+import ch.lkmc.pageworn.ui.state.RowBuilders
 import ch.lkmc.pageworn.ui.theme.PagewornTheme
 import com.google.common.truth.Truth.assertThat
 import org.junit.Rule
@@ -40,16 +42,18 @@ class RetryTransferActionsTest {
     @Test
     fun libraryOffersRetryOnAFailedTransfer() {
         var resumed: String? = null
-        val state = LibraryUiState(rows = listOf(CatalogRow(face, CatalogAction.Transferring(transfer(TransferPhase.FAILED)))))
+        val job = mutableStateOf(TransferState.VERIFYING)
         compose.setContent {
+            val state = LibraryUiState(rows = listOf(CatalogRow(face, CatalogAction.Transferring(transfer(job.value)))))
             PagewornTheme {
                 LibraryScreen(state, rememberLazyListState(), {}, {}, {}, {}, {}, { _, _ -> }, {}, { resumed = it }, {}, {}, {}, PaddingValues())
             }
         }
 
         val retry = compose.onNodeWithContentDescription("Retry download of The Harbour")
-        retry.assertExists()
-        retry.performClick()
+        retry.assertDoesNotExist()
+        compose.runOnIdle { job.value = TransferState.FAILED }
+        retry.performScrollTo().performClick()
 
         assertThat(resumed).isEqualTo(JOB)
     }
@@ -57,16 +61,18 @@ class RetryTransferActionsTest {
     @Test
     fun detailOffersRetryOnAFailedTransfer() {
         var resumed: String? = null
-        val state = detail(DetailAction.Transferring(transfer(TransferPhase.FAILED)))
+        val job = mutableStateOf(TransferState.VERIFYING)
         compose.setContent {
+            val state = detail(DetailAction.Transferring(transfer(job.value)))
             PagewornTheme {
                 BookDetailScreen(state, {}, {}, {}, {}, {}, { resumed = it }, {}, {}, {})
             }
         }
 
         val retry = compose.onNodeWithContentDescription("Retry download of The Harbour")
-        retry.assertExists()
-        retry.performClick()
+        retry.assertDoesNotExist()
+        compose.runOnIdle { job.value = TransferState.FAILED }
+        retry.performScrollTo().performClick()
 
         assertThat(resumed).isEqualTo(JOB)
     }
@@ -75,7 +81,7 @@ class RetryTransferActionsTest {
     fun libraryWaitingKeepsPauseAndCancelBesideRetry() {
         var paused: String? = null
         var cancelled: String? = null
-        val state = LibraryUiState(rows = listOf(CatalogRow(face, CatalogAction.Transferring(transfer(TransferPhase.WAITING)))))
+        val state = LibraryUiState(rows = listOf(CatalogRow(face, CatalogAction.Transferring(transfer(TransferState.WAITING_FOR_CONNECTION)))))
         compose.setContent {
             PagewornTheme {
                 LibraryScreen(state, rememberLazyListState(), {}, {}, {}, {}, {}, { _, _ -> }, { paused = it }, {}, { cancelled = it }, {}, {}, PaddingValues())
@@ -97,7 +103,7 @@ class RetryTransferActionsTest {
     fun detailWaitingKeepsPauseAndCancelBesideRetry() {
         var paused: String? = null
         var cancelled: String? = null
-        val state = detail(DetailAction.Transferring(transfer(TransferPhase.WAITING)))
+        val state = detail(DetailAction.Transferring(transfer(TransferState.WAITING_FOR_CONNECTION)))
         compose.setContent {
             PagewornTheme {
                 BookDetailScreen(state, {}, {}, {}, {}, { paused = it }, {}, { cancelled = it }, {}, {})
@@ -129,16 +135,13 @@ class RetryTransferActionsTest {
         canRemove = false,
     )
 
-    private fun transfer(phase: TransferPhase) = TransferUi(
-        jobId = JOB,
-        phase = phase,
-        bytesDone = 10,
-        bytesTotal = 100,
-        stateText = if (phase == TransferPhase.WAITING) "Waiting for connection" else "Download stopped",
-        canPause = phase == TransferPhase.WAITING,
-        canResume = phase == TransferPhase.PAUSED,
-        canRetry = phase == TransferPhase.FAILED || phase == TransferPhase.WAITING,
-        canCancel = true,
+    private fun transfer(state: TransferState) = RowBuilders.transferUi(
+        TransferEntity(
+            jobId = JOB, profileId = face.key.profileId, itemId = face.key.itemId,
+            stagingGenerationId = "generation", manifestFingerprint = null, state = state,
+            activeMarker = 1, createdAt = 0, updatedAt = 0, bytesDone = 10, bytesTotal = 100,
+            title = face.title, authors = face.author,
+        ),
     )
 
     private companion object {
