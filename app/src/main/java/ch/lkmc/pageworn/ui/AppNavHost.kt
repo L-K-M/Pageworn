@@ -72,6 +72,13 @@ object Routes {
     fun detail(key: BookKey) = "book/" + android.net.Uri.encode(key.mediaId)
 }
 
+/**
+ * True when the back stack moved from the sections to a screen over them. A launch that opens
+ * straight onto the player or a book starts with no previous route, so it has not left Downloaded:
+ * the listener has not seen that section yet.
+ */
+internal fun leftTheSections(fromRoute: String?, toRoute: String?) = fromRoute == Routes.MAIN && toRoute != Routes.MAIN
+
 /** One tap on a link to a book's details. Each is a new link, even to the same book. */
 class BookLink(val key: BookKey)
 
@@ -108,10 +115,13 @@ fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, op
         if (openPlayer > 0) navController.navigate(Routes.PLAYER) { launchSingleTop = true }
     }
 
-    // A screen outside the sections leaves Downloaded behind, so its notice goes with it.
+    // A screen opened over the sections leaves Downloaded behind, so its notice goes with it.
     LaunchedEffect(navController) {
+        var previous: String? = null
         navController.currentBackStackEntryFlow.collect { entry ->
-            if (entry.destination.route != Routes.MAIN) container.notices.openedOver(main.destination.value)
+            val route = entry.destination.route
+            if (leftTheSections(previous, route)) container.notices.openedOver(main.destination.value)
+            previous = route
         }
     }
 
