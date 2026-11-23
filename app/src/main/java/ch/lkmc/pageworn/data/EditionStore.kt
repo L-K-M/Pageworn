@@ -15,6 +15,7 @@ import ch.lkmc.pageworn.data.db.TrackEntity
 import ch.lkmc.pageworn.data.db.TransferState
 import ch.lkmc.pageworn.playback.EditionPlan
 import ch.lkmc.pageworn.playback.EditionSource
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -61,9 +62,16 @@ class EditionStore(
     fun release(generationId: String) {
         val stillHeld = leases.computeIfPresent(generationId) { _, n -> if (n <= 1) null else n - 1 } != null
         if (stillHeld) return
-        // The scope has no exception handler. A failed read or delete leaves the files to the
-        // sweep at the next start, as before, rather than ending the process.
-        background.launch(Dispatchers.IO) { runCatching { deleteIfUnused(generationId) } }
+        background.launch(Dispatchers.IO) {
+            try {
+                deleteIfUnused(generationId)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failed: Exception) {
+                // The scope has no exception handler. A failed read or delete leaves the files to
+                // the sweep at the next start, as before, rather than ending the process.
+            }
+        }
     }
 
     /**

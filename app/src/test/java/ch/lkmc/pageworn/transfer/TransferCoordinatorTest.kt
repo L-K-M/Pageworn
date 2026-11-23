@@ -38,6 +38,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.job
 import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -85,7 +86,10 @@ class TransferCoordinatorTest {
         coordinator = freshCoordinator()
     }
 
-    @After fun tearDown() { db.close() }
+    @After fun tearDown() {
+        background.cancel()
+        db.close()
+    }
 
     private fun freshCoordinator(transferRoutes: TransferRoutes = routes) = TransferCoordinator(db, files, editions, transferRoutes,
         TrackVerifier { file, _, _ ->
