@@ -1,6 +1,8 @@
 package ch.lkmc.pageworn.ui.model
 
+import ch.lkmc.pageworn.core.timeline.Segment
 import ch.lkmc.pageworn.core.sleep.SleepLength
+import ch.lkmc.pageworn.core.timeline.Division
 import ch.lkmc.pageworn.catalog.CatalogSort
 import ch.lkmc.pageworn.core.BookKey
 import java.io.File
@@ -231,6 +233,8 @@ data class PlayerUiState(
     val segmentLine: String,
     /** What such a segment is called: "Chapter", "Track" or "Part". */
     val segmentName: String,
+    /** How the edition is divided, for naming an untitled segment in the sheet. */
+    val division: Division,
     val segmentStartMs: Long,
     val segmentEndMs: Long,
     val positionMs: Long,
@@ -252,7 +256,10 @@ data class PlayerUiState(
     val sleep: SleepUi,
     /** "Chapters" or "Tracks". */
     val segmentsLabel: String,
-    val segments: List<SegmentRow>,
+    /** The edition's segments, shared with its timeline so a live tick does not rebuild them. */
+    val segments: List<Segment>,
+    /** Which of [segments] holds the position, for the sheet's place marker and scroll. */
+    val segmentIndex: Int,
     val hasPlace: Boolean,
     val finished: Boolean = false,
     val continuityChoice: ContinuityChoice? = null,

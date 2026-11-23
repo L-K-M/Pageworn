@@ -129,6 +129,7 @@ object PlayerStates {
             narrator = edition?.narrators,
             segmentLine = segmentTitle(timeline.division, segment),
             segmentName = segmentName(timeline.division),
+            division = timeline.division,
             segmentStartMs = segment.startMs,
             segmentEndMs = segment.endMs,
             positionMs = position,
@@ -144,7 +145,10 @@ object PlayerStates {
             speed = live.speed,
             sleep = sleep(live, timeline.division, sleepMode, plan.key),
             segmentsLabel = segmentsLabel(timeline.division),
-            segments = segments(plan, position),
+            // The timeline already owns the segment list; building display rows here would format
+            // every chapter's duration on each live tick, four times a second.
+            segments = timeline.segments,
+            segmentIndex = timeline.segmentIndexAt(position),
             hasPlace = !finished && progress != null && (progress.positionMs > 0 || isLive),
             finished = finished,
             continuityChoice = progress?.takeIf { it.pendingContinuityChoice }?.let {
