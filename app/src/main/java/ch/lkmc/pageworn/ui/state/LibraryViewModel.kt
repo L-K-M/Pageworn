@@ -107,12 +107,15 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
 
     private val actions = TransferActions(container)
 
-    private data class Conditions(val notice: ServerNotice?, val checked: Boolean, val refusal: DownloadRefusal?)
+    /** True while a catalog refresh runs, so the pull-to-refresh indicator spins. */
+    private val refreshing = MutableStateFlow(false)
 
-    private val conditions = combine(container.accounts.notice, librariesChecked, actions.refusal) { notice, checked, refusal -> Conditions(notice, checked, refusal) }
+    private data class Conditions(val notice: ServerNotice?, val checked: Boolean, val refusal: DownloadRefusal?, val refreshing: Boolean)
+
+    private val conditions = combine(container.accounts.notice, librariesChecked, actions.refusal, refreshing) { notice, checked, refusal, refreshing -> Conditions(notice, checked, refusal, refreshing) }
 
     val state: StateFlow<LibraryUiState> = combine(scope, queries, listing, local, conditions) { s, q, rows, l, condition ->
-        withRefusal(build(s, q.typed, q.searching, rows, l, condition.notice, condition.checked), condition.refusal)
+        withRefusal(build(s, q.typed, q.searching, rows, l, condition.notice, condition.checked), condition.refusal).copy(refreshing = condition.refreshing)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryUiState(sort = container.settings.librarySort.value))
 
     /** A Download tap refused for the book itself says why on its row. */
@@ -140,8 +143,17 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     /** Runs in the application scope, so leaving the screen does not cancel a refresh. */
-    fun refresh() {
-        container.appScope.launch { if (container.accounts.refreshLibraryAndCatalog()) librariesChecked.value = true }
+    fun refresh() = refreshCatalog(null)
+
+    private fun refreshCatalog(libraryId: String?) {
+        container.appScope.launch {
+            refreshing.value = true
+            try {
+                if (container.accounts.refreshLibraryAndCatalog(libraryId)) librariesChecked.value = true
+            } finally {
+                refreshing.value = false
+            }
+        }
     }
 
     fun setQuery(value: String) {
@@ -153,7 +165,7 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
     fun selectLibrary(libraryId: String) {
         container.appScope.launch {
             container.accounts.chooseLibrary(libraryId)
-            container.accounts.refreshLibraryAndCatalog(libraryId)
+            refreshCatalog(libraryId)
         }
     }
 

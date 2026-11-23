@@ -43,6 +43,7 @@ enum class UiAction {
     BROWSE_LIBRARY,
     CHECK_AGAIN,
     CLEAR_SEARCH,
+    REFRESH,
 }
 
 /** A recoverable condition shown as live type between the heading block and the first row. */
@@ -123,6 +124,8 @@ data class LibraryUiState(
     /** When set, replaces the rows (and, for no audiobook libraries, the selector and search). */
     val empty: EmptyState? = null,
     val showSelectorAndSearch: Boolean = true,
+    /** A catalog refresh is running: the pull-to-refresh indicator spins. */
+    val refreshing: Boolean = false,
 )
 
 // --- Downloaded --------------------------------------------------------------------------------
