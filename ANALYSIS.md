@@ -22,6 +22,13 @@ open; check its state before relying on one. Anything not listed here is still o
 - **Bound the plan cache.** PR #45 turns `PlanCache` into an access-ordered LRU of 16 generations instead of an unbounded map.
 - **Coarsen Downloaded's live position.** PR #42 floors a playing row's place to the minute and skips unchanged live states, replacing the four-per-second rebuild of every row. A second approach in PR #43 was closed as a duplicate once #42 merged.
 - PR #48 overlaps PR #35 (transfer state text); keep one when they merge.
+- **Centralize the Library row message.** PR #36 moves the row's metadata line into `RowBuilders.catalogRowMessage`: a transfer always shows its state text joined with any failure message (blank parts dropped), and `Copy.REPAIR_NEEDED` is shared with the Downloaded badge. `CatalogRowMessageTest` pins the precedence and blank handling.
+- **Fade and crossfade cover art.** PR #51 fades fetched covers in over the cloth (180 ms, off under reduced motion), keeps the previous art on screen while a changed cover loads, crossfades instead of popping, and rethrows `CancellationException` so a cancelled load is never mistaken for missing art.
+- **Pull down on Library to refresh the catalog.** PR #59 wraps the list in a `PullToRefreshBox`; refreshes from pulls, retries and library switches are serialized behind a mutex so the spinner never drops while work is queued.
+- **Settle list rows into place.** PR #62 applies `Modifier.animateItem()` to Library and Downloaded rows and the Downloading header, and omits the trailing divider at the bottom of each list.
+- **Wait for the sleep window's next edge.** PR #64 replaces the 30 s sleep poll with a `collectLatest` loop that delays until `SleepSchedule.nextEdge` (overnight ends after midnight included, DST-tested) and falls back to idle polling if no edge resolves, so the watcher cannot crash.
+- **Keep the Library search field bounded at large font scales.** PR #65 wraps at two lines from 150% text, pins `ImeAction.Search` with a focus-clearing action, and strips newlines from hardware-Enter or pasted text.
+- PR #40 was closed as a duplicate of #60 (removal notice) and PR #47 as a duplicate of #42 (Downloaded row tick).
 
 ### Open pull requests
 
@@ -348,10 +355,16 @@ Prototype lightweight filters for Listening, New and Finished, plus an optional 
 - **Reserve the mini-player's height.** `MainScaffold` measures the mini-player with `onSizeChanged` and applies bottom padding afterwards, so the list can jump for one frame when it appears or disappears. The measured heights are known (60/68 dp), so reserve them directly.
 - **Keep the progress ring decorative.** The compact transfer ring repeats its percentage in visible text and semantics; the ring itself should stay cleared for TalkBack so the row reads once.
 - **Check focus indicators over texture at high contrast.** The reports claim the 3:1 focus check; repeat it over the textured paper and cloth with the final composite.
-- **Keep the search field's name and single line.** The hint disappears as soon as the query is non-empty, leaving only the pencil glyph and the semantics description, and the field becomes multi-line at 150% text. Give it the persistent floating-label treatment of the paper fields, or a compact visible label, and pin `singleLine = true`.
+- **Keep the search field's name and single line.** The hint disappears as soon as the query is non-empty, leaving only the pencil glyph and the semantics description. PR #65 already bounded the field to two lines from 150% text with newline sanitizing; the remaining idea is the persistent floating-label treatment of the paper fields, or a compact visible label.
 - **Rotate the library selector's chevron when its menu is open**, as the disclosure rows already do.
 - **Announce transfer state changes politely.** A transfer that moves between active, paused, waiting and failed while the Library list is on screen changes only a state description. Announce the phase once when it changes for a visible row, without stealing focus.
 - **Refresh reduced-motion and high-contrast state while the process lives.** `PagewornTheme` reads both once per composition; toggling the animator duration scale or a high-text-contrast accessibility setting does not recreate the activity. Observe the change or refresh the flags on configuration change, and give the weakest secondary-ink lines an opaque backing in high contrast.
+- **Mark the Connect screen's cleartext tradeoff with an icon.** The http-address warning is plain secondary-ink text; a small pencil lock or exclamation mark beside it would make the security choice scannable without breaking the system-form look.
+- **Theme the system-owned surfaces.** Material time pickers, the exposed library dropdown and alert dialogs inherit the custom colors but keep the platform elevation and shadow language. A themed `TimePickerDefaults` and matching dialog container would close the gap with the paper-and-brass screens.
+- **Richer empty-state typography.** Empty states are deliberately plain per spec; a larger first line plus a short supporting line would still fit without illustrations.
+- **Give the Library header the same rule Downloaded has** (or record the asymmetry as deliberate): the two destinations share a row language but only Downloaded draws a rule under its heading.
+- **Skip widget work for hidden covers.** `WidgetViews.reading()` decodes the cover bitmap even when the cover is `GONE` behind a notice, and rebuilds `RemoteViews` mappings for every placement; skip the decode and the hidden `setImageViewBitmap` calls.
+- **Brief first-run explainer.** First run lands on Connect; a one-time note explaining Library vs Downloaded, the two text scales and the place ribbon would orient new listeners without changing the flow.
 
 ## Product gaps needing an owner decision
 
@@ -446,6 +459,9 @@ Offer a quick “Mark this moment” action in the player and a chronological li
 - **Both scrubbers already draw round caps**, with the smaller thumb on the book bar, and the time row lines up with the visible bar ends.
 - **Catalog search escapes LIKE wildcards**, so `%`, `_` and the escape character match literally.
 - **Progress writes are ordered by playback generation and sequence**, and a late pause sample cannot move a newer place backwards.
+- **Player vertical distribution is correct**: the two weighted spacers around the transport row measure as equal gaps on an API 37 device.
+- **End-of-chapter sleep stop stays EXACT**: the explicit write is protected by the seek discontinuity from the end-of-segment clip, so the pause does not overwrite it with ORDINARY on the common path.
+- **Room schema, migrations, backup exclusion, foreground-service types and the network security configuration** match `docs/03-android-and-data.md`.
 
 ## Download and publication reliability
 
