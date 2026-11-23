@@ -16,13 +16,20 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.ui.connect.ConnectScreen
 import ch.lkmc.pageworn.ui.library.LibraryScreen
 import ch.lkmc.pageworn.ui.model.AddressRow
 import ch.lkmc.pageworn.ui.model.AddressesUiState
+import ch.lkmc.pageworn.ui.model.BookFace
+import ch.lkmc.pageworn.ui.model.CatalogAction
+import ch.lkmc.pageworn.ui.model.CatalogRow
 import ch.lkmc.pageworn.ui.model.ConnectUiState
+import ch.lkmc.pageworn.ui.model.CoverImage
 import ch.lkmc.pageworn.ui.model.LibraryUiState
 import ch.lkmc.pageworn.ui.model.SettingsUiState
+import ch.lkmc.pageworn.ui.model.TransferPhase
+import ch.lkmc.pageworn.ui.model.TransferUi
 import ch.lkmc.pageworn.ui.settings.AddressesScreen
 import ch.lkmc.pageworn.ui.settings.LicencesScreen
 import ch.lkmc.pageworn.ui.settings.SettingsScreen
@@ -54,6 +61,31 @@ class ScreenSemanticsTest {
         compose.runOnIdle { query.value = "harbour" }
 
         compose.onNode(hasSetTextAction()).assert(hasContentDescription("Search title or author"))
+    }
+
+    @Test
+    fun libraryTransferRowsShowTheirStateAtTheDefaultTextSize() {
+        val face = BookFace(BookKey("profile", "item"), "The Night Orchard", "A. Author", CoverImage.Cloth)
+        val paused = CatalogRow(
+            face,
+            CatalogAction.Transferring(
+                TransferUi(
+                    jobId = "job", phase = TransferPhase.PAUSED, bytesDone = 10, bytesTotal = 100,
+                    stateText = "Paused", message = null, canPause = false, canResume = true,
+                    canRetry = false, canCancel = true,
+                ),
+            ),
+        )
+        compose.setContent {
+            PagewornTheme {
+                LibraryScreen(
+                    LibraryUiState(rows = listOf(paused)), rememberLazyListState(),
+                    {}, {}, {}, {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, PaddingValues(),
+                )
+            }
+        }
+
+        compose.onNodeWithText("Paused").assertExists()
     }
 
     @Test

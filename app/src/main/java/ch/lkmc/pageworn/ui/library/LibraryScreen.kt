@@ -121,7 +121,9 @@ private fun CatalogBookRow(row: CatalogRow, onOpenBook: (BookKey) -> Unit, onDow
                     else -> row.message
                 }
                 message?.let { Text(it, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status) }
-                if (row.action is CatalogAction.Transferring && compact) Text(row.action.transfer.stateText, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status)
+                // The phase belongs beside the ring at every text size, so a paused or waiting
+                // transfer never reads as active.
+                if (row.action is CatalogAction.Transferring) Text(row.action.transfer.stateText, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status)
             }
             if (!compact) CatalogActionView(row, onDownload, onPlayPause, onPauseTransfer, onResumeTransfer)
         }
