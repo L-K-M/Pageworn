@@ -39,6 +39,7 @@ import ch.lkmc.pageworn.R
 import ch.lkmc.pageworn.ui.model.BookFace
 import ch.lkmc.pageworn.ui.model.CoverImage
 import ch.lkmc.pageworn.ui.theme.PagewornTheme
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -61,9 +62,10 @@ fun BookCover(face: BookFace, size: Dp, showRibbon: Boolean = false, modifier: M
     val loader = LocalCoverLoader.current
     val previewPainter = LocalCoverPainter.current?.invoke(face)
     // Keep a usable bitmap during a resize, but never carry it to a different cover source.
-    val image = key(face.cover) {
+    val source = face.cover
+    val image = key(source) {
         produceState<ImageBitmap?>(null, sizePx, loader) {
-            value = when (val source = face.cover) {
+            value = when (source) {
                 is CoverImage.Local -> withContext(Dispatchers.IO) {
                     runCatching {
                         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -72,7 +74,9 @@ fun BookCover(face: BookFace, size: Dp, showRibbon: Boolean = false, modifier: M
                         BitmapFactory.decodeFile(source.file.absolutePath, BitmapFactory.Options().apply { inSampleSize = sample })?.asImageBitmap()
                     }.getOrNull()
                 }
-                is CoverImage.Remote -> runCatching { loader.load(source, sizePx) }.getOrNull()
+                is CoverImage.Remote -> runCatching { loader.load(source, sizePx) }
+                    .onFailure { if (it is CancellationException) throw it }
+                    .getOrNull()
                 CoverImage.Cloth -> null
             }
         }

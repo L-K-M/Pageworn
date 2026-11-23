@@ -35,7 +35,7 @@ class BookCoverTest {
     fun aNewCoverSourceDoesNotShowTheOldArtworkWhileLoading() {
         val first = CoverImage.Remote("profile", "book", 1L)
         val second = first.copy(updatedAt = 2L)
-        val face = mutableStateOf(BookFace(BookKey("profile", "book"), "Book", null, first))
+        val face = mutableStateOf(BookFace(BookKey("profile", "book"), "Book", null, CoverImage.Cloth))
         val requested = CompletableDeferred<Unit>()
         val replacement = CompletableDeferred<ImageBitmap>()
         val loader = CoverLoader { source, _ ->
@@ -54,11 +54,13 @@ class BookCoverTest {
                 }
             }
         }
+        val clothColor = coverCenter()
+        composeRule.runOnIdle { face.value = face.value.copy(cover = first) }
         assertThat(coverCenter()).isEqualTo(Color.Red)
 
         composeRule.runOnIdle { face.value = face.value.copy(cover = second) }
         composeRule.waitUntil(5_000) { requested.isCompleted }
-        assertThat(coverCenter()).isNotEqualTo(Color.Red)
+        assertThat(coverCenter()).isEqualTo(clothColor)
 
         composeRule.runOnIdle { replacement.complete(solidBitmap(android.graphics.Color.BLUE)) }
         assertThat(coverCenter()).isEqualTo(Color.Blue)
