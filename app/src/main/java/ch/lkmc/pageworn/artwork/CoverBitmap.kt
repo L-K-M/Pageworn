@@ -6,9 +6,10 @@ import java.io.File
 
 /** Reads file-backed cover art on the caller's I/O dispatcher. */
 internal fun decodeCover(file: File, sizePx: Int): Bitmap? {
+    if (sizePx <= 0) return null
     val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     BitmapFactory.decodeFile(file.absolutePath, options)
-    if (options.outWidth <= 0 || options.outHeight <= 0 || sizePx <= 0) return null
+    if (options.outWidth <= 0 || options.outHeight <= 0) return null
 
     val longestEdge = maxOf(options.outWidth, options.outHeight)
     var sample = 1

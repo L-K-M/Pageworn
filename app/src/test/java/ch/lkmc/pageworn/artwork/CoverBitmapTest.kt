@@ -21,6 +21,10 @@ class CoverBitmapTest {
         assertThat(decodedSize(8192, 256)).isEqualTo(256 to 8)
     }
 
+    @Test fun intermediateDimensionsUseTheNextSampleSize() {
+        assertThat(decodedSize(300, 450)).isEqualTo(150 to 225)
+    }
+
     @Test fun smallCoversKeepTheirPixels() {
         assertThat(decodedSize(64, 128)).isEqualTo(64 to 128)
     }

@@ -63,7 +63,7 @@ fun BookCover(face: BookFace, size: Dp, showRibbon: Boolean = false, modifier: M
     val image by produceState<ImageBitmap?>(null, face.cover, sizePx, loader) {
         value = when (val source = face.cover) {
             is CoverImage.Local -> withContext(Dispatchers.IO) {
-                decodeCover(source.file, sizePx)?.asImageBitmap()
+                runCatching { decodeCover(source.file, sizePx)?.asImageBitmap() }.getOrNull()
             }
             is CoverImage.Remote -> runCatching { loader.load(source, sizePx) }.getOrNull()
             CoverImage.Cloth -> null
