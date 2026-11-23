@@ -2,6 +2,7 @@ package ch.lkmc.pageworn.ui.components
 
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
@@ -11,6 +12,8 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.DeviceConfigurationOverride
+import androidx.compose.ui.test.FontScale
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -66,21 +69,48 @@ class ScreenSemanticsTest {
 
     @Test
     fun libraryTransferRowsAlwaysPairTheProgressIconWithTheirState() {
+        renderTransferRows()
+
+        assertOneStateLabelPerRow()
+    }
+
+    @Test
+    fun libraryTransferRowsPairIconAndStateInCompactRows() {
+        compose.setContent {
+            DeviceConfigurationOverride(DeviceConfigurationOverride.FontScale(2f)) {
+                PagewornTheme { transferRows() }
+            }
+        }
+
+        assertOneStateLabelPerRow()
+    }
+
+    @Composable
+    private fun transferRows() = LibraryScreen(transferState(), rememberLazyListState(), {}, {}, {}, {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, PaddingValues())
+
+    private fun renderTransferRows() {
+        compose.setContent { PagewornTheme { transferRows() } }
+    }
+
+    private fun assertOneStateLabelPerRow() {
+        // The action view shows the progress ring, not the state word, so each row owns its label.
+        compose.onAllNodesWithText("Waiting for connection").assertCountEquals(1)
+        compose.onNodeWithText("Waiting for connection").assertIsDisplayed()
+        compose.onAllNodesWithText("Paused").assertCountEquals(1)
+        compose.onNodeWithText("Paused").assertIsDisplayed()
+    }
+
+    private fun transferState(): LibraryUiState {
         fun transfer(jobId: String, phase: TransferPhase, stateText: String) =
             CatalogAction.Transferring(TransferUi(jobId, phase, 5, 100, stateText, canPause = false, canResume = false, canRetry = true, canCancel = true))
         val face = BookFace(BookKey("profile", "waiting"), "Waiting Book", "Author", CoverImage.Cloth)
         val paused = face.copy(key = BookKey("profile", "paused"), title = "Paused Book")
-        compose.setContent {
-            PagewornTheme {
-                LibraryScreen(
-                    LibraryUiState(rows = listOf(CatalogRow(face, transfer("waiting", TransferPhase.WAITING, "Waiting for connection")), CatalogRow(paused, transfer("paused", TransferPhase.PAUSED, "Paused")))),
-                    rememberLazyListState(), {}, {}, {}, {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, PaddingValues(),
-                )
-            }
-        }
-
-        compose.onNodeWithText("Waiting for connection").assertIsDisplayed()
-        compose.onNodeWithText("Paused").assertIsDisplayed()
+        return LibraryUiState(
+            rows = listOf(
+                CatalogRow(face, transfer("waiting", TransferPhase.WAITING, "Waiting for connection")),
+                CatalogRow(paused, transfer("paused", TransferPhase.PAUSED, "Paused")),
+            ),
+        )
     }
 
     @Test
