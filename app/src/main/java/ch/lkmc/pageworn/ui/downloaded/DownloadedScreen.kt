@@ -74,7 +74,7 @@ fun DownloadedScreen(state: DownloadedUiState, listState: LazyListState, onOpenB
             items(state.books.size, key = { state.books[it].face.key.mediaId }) { index ->
                 Column(Modifier.animateItem()) {
                     DownloadedBookRow(state.books[index], onOpenBook, onPlayPause)
-                    HorizontalDivider(Modifier.padding(horizontal = 20.dp), color = PagewornTheme.colors.secondaryInk.copy(alpha = .25f))
+                    if (index != state.books.lastIndex) HorizontalDivider(Modifier.padding(horizontal = 20.dp), color = PagewornTheme.colors.secondaryInk.copy(alpha = .25f))
                 }
             }
         }
