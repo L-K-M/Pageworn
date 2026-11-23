@@ -19,6 +19,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -164,8 +166,10 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
         interactionSource = interaction,
         // One line at normal font scales; from 150% text the query may wrap to two lines so it
         // stays readable, but the field never grows beyond that and pushes the list down.
+        // Enter still commits the search rather than typing a newline into the query.
         singleLine = LocalDensity.current.fontScale < 1.5f,
-        maxLines = if (LocalDensity.current.fontScale < 1.5f) 1 else 2,
+        maxLines = if (LocalDensity.current.fontScale < 1.5f) 1 else 2, // ignored while singleLine = true
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
         decorationBox = { field ->
             Row(
                 Modifier.heightIn(min = 48.dp).background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = .5f), shape).border(if (focused) 2.dp else 1.dp, edge, shape).padding(start = 12.dp),
