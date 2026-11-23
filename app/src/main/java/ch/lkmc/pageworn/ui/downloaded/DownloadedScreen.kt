@@ -62,13 +62,16 @@ fun DownloadedScreen(state: DownloadedUiState, listState: LazyListState, onOpenB
         if (state.empty != null) item(key = "empty") { EmptyStateView(state.empty, onAction) }
         else {
             if (state.transfers.isNotEmpty()) item(key = "downloading") {
-                Text("Downloading", Modifier.padding(start = 20.dp, top = 12.dp, bottom = 8.dp).semantics { heading() }, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.sheetTitle.copy(fontSize = PagewornTheme.type.rowTitle.fontSize * 1.15f))
+                // Fades with the last transfer row instead of popping out a frame early.
+                Text("Downloading", Modifier.animateItem().padding(start = 20.dp, top = 12.dp, bottom = 8.dp).semantics { heading() }, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.sheetTitle.copy(fontSize = PagewornTheme.type.rowTitle.fontSize * 1.15f))
             }
             items(state.transfers.size, key = { "transfer:${state.transfers[it].transfer.jobId}" }) { index ->
                 // A finished transfer fades out of the group above as its book fades in below.
                 Column(Modifier.animateItem()) {
                     DownloadTransferRow(state.transfers[index], onOpenBook, onPauseTransfer, onResumeTransfer, onRetryTransfer, onCancelTransfer)
-                    HorizontalDivider(Modifier.padding(horizontal = 20.dp), color = PagewornTheme.colors.secondaryInk.copy(alpha = .25f))
+                    // The divider after the last transfer separates the sections while books
+                    // follow, and stays away when it is the bottom of the list.
+                    if (index != state.transfers.lastIndex || state.books.isNotEmpty()) HorizontalDivider(Modifier.padding(horizontal = 20.dp), color = PagewornTheme.colors.secondaryInk.copy(alpha = .25f))
                 }
             }
             items(state.books.size, key = { state.books[it].face.key.mediaId }) { index ->
