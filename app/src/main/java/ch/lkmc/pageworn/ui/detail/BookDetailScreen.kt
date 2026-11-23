@@ -60,6 +60,7 @@ fun BookDetailScreen(state: BookDetailUiState, onBack: () -> Unit, onDownload: (
                     TransferIndicator(t, compact = false)
                     if (t.canPause) TransferPauseKey(state.face.title) { onPauseTransfer(t.jobId) }
                     if (t.canResume) TextAction("Resume", spokenLabel = "Resume download of ${state.face.title}", onClick = { onResumeTransfer(t.jobId) })
+                    if (t.canRetry) TextAction(Copy.RETRY, spokenLabel = "Retry download of ${state.face.title}", onClick = { onResumeTransfer(t.jobId) })
                     if (t.canCancel) TextAction(Copy.CANCEL, spokenLabel = "Cancel download of ${state.face.title}", onClick = { onCancelTransfer(t.jobId) })
                 }
             }
