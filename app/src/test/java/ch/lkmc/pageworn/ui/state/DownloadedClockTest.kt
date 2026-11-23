@@ -15,6 +15,8 @@ class DownloadedClockTest {
         val late = early.copy(positionMs = 4_999, sleepRemainingMs = 86_000)
 
         assertThat(early.forRows()).isEqualTo(late.forRows())
+        assertThat(early.forRows().sleepRemainingMs).isNull()
+        assertThat(early.forRows().plan).isNull()
     }
 
     @Test

@@ -52,10 +52,24 @@ class PlanCache(private val container: AppContainer) {
  * The player publishes four times a second. A list row needs the transport and a place held to
  * the checkpoint step, so a long library does not rebuild its whole row list on every tick.
  * Play, pause and starting changes still pass through immediately.
+ *
+ * Only the fields below reach a row. Everything else keeps its default, so a field added to
+ * [LivePlayback] later cannot leak into row state by accident; the sleep countdown is the
+ * highest-value example and belongs to the player and mini-player alone.
  */
 internal fun LivePlayback.forRows(): LivePlayback {
-    val place = positionMs - positionMs % ROW_CLOCK_STEP_MS
-    return transportOnly().copy(positionMs = place)
+    return LivePlayback(
+        key = key,
+        isPlaying = isPlaying,
+        playWhenReady = playWhenReady,
+        positionMs = positionMs - positionMs % ROW_CLOCK_STEP_MS,
+        speed = speed,
+        failed = failed,
+        ended = ended,
+        held = held,
+        playbackRequested = playbackRequested,
+        starting = starting,
+    )
 }
 
 /** The book the mini-player and full player show: the loaded one, or the last active book at rest. */
