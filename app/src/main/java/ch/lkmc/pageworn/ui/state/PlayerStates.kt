@@ -65,12 +65,18 @@ object PlayerStates {
      */
     fun sleep(live: LivePlayback, division: Division, mode: SleepSettings, book: BookKey): SleepUi {
         val endLabel = endLabel(division)
+        // A running timer keeps its length even after its preset is removed, or when it was
+        // carried over after a stop while the mode is now off.
+        val running = live.sleep.takeIf { live.key == book && it != SleepState.Off }?.length
         val options = buildList {
             add(SleepOption(null, "Off"))
             mode.presets.forEach { add(SleepOption(SleepLength.Minutes(it), Format.minutes(it))) }
+            if (running is SleepLength.Minutes && none { it.length == running }) {
+                add(SleepOption(running, Format.minutes(running.minutes)))
+            }
             add(SleepOption(SleepLength.EndOfSegment, endLabel))
         }
-        val selected = mode.length.takeIf { mode.enabled }
+        val selected = running ?: mode.length.takeIf { mode.enabled }
         val remaining = live.sleepRemainingMs?.takeIf { live.key == book && live.sleep != SleepState.Off }
         if (remaining != null) {
             return SleepUi(
