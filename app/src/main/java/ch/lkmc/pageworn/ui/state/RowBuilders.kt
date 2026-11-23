@@ -163,7 +163,7 @@ object RowBuilders {
         CatalogAction.RepairNeeded -> row.message ?: Copy.REPAIR_NEEDED
         is CatalogAction.Transferring -> {
             val t = action.transfer
-            listOfNotNull(t.stateText, row.message ?: t.message).filter { it.isNotBlank() }.distinct().joinToString(" · ").ifEmpty { null }
+            listOfNotNull(t.stateText, row.message?.takeIf { it.isNotBlank() } ?: t.message).filter { it.isNotBlank() }.distinct().joinToString(" · ").ifEmpty { null }
         }
         else -> row.message
     }

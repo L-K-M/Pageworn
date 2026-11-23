@@ -74,6 +74,11 @@ class CatalogRowMessageTest {
         assertThat(RowBuilders.catalogRowMessage(row(TransferPhase.FAILED, "Download stopped", "Transfer detail", rowMessage = "Row detail"))).isEqualTo("Download stopped · Row detail")
     }
 
+    @Test
+    fun aBlankRowMessageFallsBackToTheTransferMessage() {
+        assertThat(RowBuilders.catalogRowMessage(row(TransferPhase.FAILED, "Download stopped", "Transfer detail", rowMessage = ""))).isEqualTo("Download stopped · Transfer detail")
+    }
+
     private fun row(phase: TransferPhase, stateText: String, message: String? = null, rowMessage: String? = message) = CatalogRow(
         face,
         CatalogAction.Transferring(TransferUi("job", phase, 1, 2, stateText, message, canPause = true, canResume = false, canRetry = false, canCancel = true)),
