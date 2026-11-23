@@ -135,19 +135,30 @@ object RowBuilders {
         heldOrder: List<BookKey> = emptyList(),
     ): Pair<List<TransferRow>, List<ReadyBookRow>> {
         val transferRows = transfers.filter { it.state.active }.map { TransferRow(transferFace(it), transferUi(it)) }
-        val ordered = holdOrder(DownloadedOrder.sort(editions) { progress[it.key]?.lastListenedAt }, heldOrder)
+        val ordered = heldOrSorted(editions, progress, heldOrder)
         val bookRows = ordered.map { readyRow(it, dirOf(it), progress[it.key], timelines[it.generationId], live) }
         return transferRows to bookRows
     }
 
     /**
      * Keeps rows where they were while the list is on screen, so the book that just started does
-     * not move from under the finger that started it. A changed set of books is sorted afresh.
+     * not move from under the finger that started it. A held order that already names exactly the
+     * current editions wins over sorting, which keeps a position tick or progress write from
+     * reordering the shelf. Only an empty held order or a real gain or loss sorts afresh, and held
+     * keys always resolve to the newest edition metadata.
      */
-    private fun holdOrder(sorted: List<LocalEditionEntity>, held: List<BookKey>): List<LocalEditionEntity> {
-        val byKey = sorted.associateBy { it.key }
-        if (held.size != sorted.size || !held.all { it in byKey }) return sorted
-        return held.map { byKey.getValue(it) }
+    private fun heldOrSorted(
+        editions: List<LocalEditionEntity>,
+        progress: Map<BookKey, BookProgressEntity>,
+        held: List<BookKey>,
+    ): List<LocalEditionEntity> {
+        if (held.isNotEmpty() && held.size == editions.size) {
+            val byKey = editions.associateBy { it.key }
+            if (held.all { it in byKey }) {
+                return held.map { byKey.getValue(it) }
+            }
+        }
+        return DownloadedOrder.sort(editions) { progress[it.key]?.lastListenedAt }
     }
 
     fun noDownloads() = EmptyState(Copy.NO_DOWNLOADS, UiAction.BROWSE_LIBRARY, Copy.BROWSE_LIBRARY)
