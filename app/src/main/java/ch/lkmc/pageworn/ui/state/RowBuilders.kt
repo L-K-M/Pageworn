@@ -156,7 +156,7 @@ object RowBuilders {
     fun catalogRow(
         book: ch.lkmc.pageworn.catalog.CatalogRow, profileId: String, libraryId: String,
         edition: LocalEditionEntity?, editionDir: File?, transfer: TransferEntity?,
-        progress: BookProgressEntity?, live: LivePlayback, canDownload: Boolean, unsupported: Boolean,
+        progress: RowProgress?, live: LivePlayback, canDownload: Boolean, unsupported: Boolean,
     ): CatalogRow = catalogRow(
         CatalogBookEntity(profileId, libraryId, book.itemId, book.title, book.authors, book.narrators, 0, book.updatedAt, book.durationMs, book.sizeBytes, ""),
         edition, editionDir, transfer, progress, live, canDownload, unsupported,
@@ -168,7 +168,7 @@ object RowBuilders {
         edition: LocalEditionEntity?,
         editionDir: File?,
         transfer: TransferEntity?,
-        progress: BookProgressEntity?,
+        progress: RowProgress?,
         live: LivePlayback,
         canDownload: Boolean,
         unsupported: Boolean,
@@ -183,7 +183,7 @@ object RowBuilders {
                 CatalogAction.Ready(
                     showsPause = live.showsPause(key),
                     starting = live.waitsForAudio(key),
-                    start = StartAction.of(hasPlace = (progress?.positionMs ?: 0) > 0, finished = progress?.finished == true),
+                    start = StartAction.of(hasPlace = progress?.hasPlace == true, finished = progress?.finished == true),
                 ),
             )
             unsupported -> CatalogRow(face, CatalogAction.Unsupported, Copy.UNSUPPORTED_FORMAT)
