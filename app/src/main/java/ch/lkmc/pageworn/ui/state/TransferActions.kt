@@ -49,6 +49,11 @@ class TransferActions(private val container: AppContainer) {
     fun cancel(jobId: String) {
         container.appScope.launch { container.transfers.cancel(jobId) }
     }
+
+    /** Drops the last refusal, for example when the book or account state moved on. */
+    fun clearRefusal() {
+        _refusal.value = null
+    }
 }
 
 /**

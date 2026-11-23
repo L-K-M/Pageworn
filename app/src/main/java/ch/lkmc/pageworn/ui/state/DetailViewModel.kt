@@ -79,7 +79,6 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
                 else -> built
             }
         }
-        }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /** Download, or Repair download: stages a fresh generation and keeps the saved place. */

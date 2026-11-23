@@ -22,8 +22,10 @@ class DownloadRefusalTest {
             .isEqualTo(DownloadRefusal(key, Copy.DOWNLOAD_DISABLED, onRow = true, disabledAction = DetailAction.DownloadDisabled))
     }
 
-    @Test fun noAudioLeavesTheActionEnabledSoItCanBeRetried() {
+    @Test fun retryableProblemsLeaveTheActionEnabled() {
         assertThat(refusalOf(key, DownloadStart.Refused(Refusal.NoAudio))?.disabledAction).isNull()
+        assertThat(refusalOf(key, DownloadStart.Refused(Refusal.NoRoute(NoRoute.SignedOut)))?.disabledAction).isNull()
+        assertThat(refusalOf(key, DownloadStart.Refused(Refusal.NoRoute(NoRoute.Unreachable(null))))?.disabledAction).isNull()
     }
 
     @Test fun aProblemOfTheServerRepeatsTheStatus() {
