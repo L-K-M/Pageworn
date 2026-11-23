@@ -158,7 +158,9 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
     val edge = if (focused || LocalHighContrast.current) colors.primaryInk else colors.controlEdge(highContrast = false)
     BasicTextField(
         query,
-        onQueryChange,
+        // A hardware keyboard's Enter or a pasted multi-line text can still put newlines into a
+        // multi-line field, so the query never carries them.
+        { onQueryChange(it.replace('\n', ' ').replace('\r', ' ')) },
         // The hint leaves once there is a query, so the field carries the name itself.
         Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp).semantics { contentDescription = SEARCH_HINT },
         textStyle = PagewornTheme.type.empty.copy(color = colors.primaryInk),
@@ -166,9 +168,9 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
         interactionSource = interaction,
         // One line at normal font scales; from 150% text the query may wrap to two lines so it
         // stays readable, but the field never grows beyond that and pushes the list down.
-        // Enter still commits the search rather than typing a newline into the query.
+        // The Search IME action dismisses the keyboard; the query itself drives the search.
         singleLine = LocalDensity.current.fontScale < 1.5f,
-        maxLines = if (LocalDensity.current.fontScale < 1.5f) 1 else 2, // ignored while singleLine = true
+        maxLines = 2, // only applies when singleLine = false (fontScale >= 1.5)
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
         decorationBox = { field ->
             Row(
