@@ -20,11 +20,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.painter.Painter
@@ -77,6 +77,8 @@ fun BookCover(face: BookFace, size: Dp, showRibbon: Boolean = false, modifier: M
     // While art is loading the cover shows plain cloth; only a load that came back empty
     // earns the generated lettering, so fetched art does not pop over it.
     val artState by produceState<CoverArt>(CoverArt.Loading, face.cover, sizePx, loader) {
+        // Drop the previous key's art first, so changed art fades in fresh instead of popping.
+        value = CoverArt.Loading
         value = when (val source = face.cover) {
             is CoverImage.Local -> withContext(Dispatchers.IO) {
                 runCatching {
@@ -101,6 +103,12 @@ fun BookCover(face: BookFace, size: Dp, showRibbon: Boolean = false, modifier: M
         animationSpec = tween(if (LocalReducedMotion.current) 0 else COVER_FADE_MS),
         label = "coverArt",
     )
+    // The lettering fades with the same spec, so the fallback does not pop in either.
+    val letteringAlpha by animateFloatAsState(
+        targetValue = if (artState is CoverArt.Missing) 1f else 0f,
+        animationSpec = tween(if (LocalReducedMotion.current) 0 else COVER_FADE_MS),
+        label = "coverLettering",
+    )
     val aspect = art?.let { it.width.toFloat() / it.height } ?: 1f
     val bookWidth = if (aspect < 1f) size * aspect else size
     val bookHeight = if (aspect > 1f) size / aspect else size
@@ -122,6 +130,8 @@ fun BookCover(face: BookFace, size: Dp, showRibbon: Boolean = false, modifier: M
             if (previewPainter != null) {
                 Image(painter = previewPainter, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
             } else {
+                // Cloth stays beneath the art even when loaded: opaque art hides it, and
+                // transparent regions of alpha-bearing art intentionally show cloth through.
                 Image(painterResource(R.drawable.pw_cover_cloth), null, Modifier.fillMaxSize(), contentScale = ContentScale.FillBounds)
                 // Lettering is part of the cover art: it scales with the cover, not with the font
                 // scale, and the row or player beside it carries the readable title. Small covers
@@ -129,7 +139,7 @@ fun BookCover(face: BookFace, size: Dp, showRibbon: Boolean = false, modifier: M
                 if (size >= MIN_LETTERED_COVER && artState is CoverArt.Missing) {
                     val titleSize = with(density) { (size * 0.15f).toSp() }
                     val authorSize = with(density) { (size * 0.10f).toSp() }
-                    Column(Modifier.fillMaxSize().padding(size * 0.09f).clearAndSetSemantics {}, horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(Modifier.fillMaxSize().padding(size * 0.09f).clearAndSetSemantics {}.graphicsLayer { alpha = letteringAlpha }, horizontalAlignment = Alignment.CenterHorizontally) {
                         Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                             Text(face.title, color = Color(0xFFF4E4C8), style = PagewornTheme.type.rowTitle.copy(fontWeight = FontWeight.Medium, fontSize = titleSize, lineHeight = titleSize * 1.15f), textAlign = TextAlign.Center, maxLines = 4, overflow = TextOverflow.Ellipsis)
                         }
