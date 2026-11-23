@@ -13,6 +13,7 @@ import ch.lkmc.pageworn.core.timeline.BookTimeline
 import ch.lkmc.pageworn.data.db.BookProgressEntity
 import ch.lkmc.pageworn.data.db.LocalEditionEntity
 import ch.lkmc.pageworn.playback.EditionPlan
+import ch.lkmc.pageworn.playback.LivePlayback
 import ch.lkmc.pageworn.playback.PlayProblem
 import ch.lkmc.pageworn.playback.PlayRefusal
 import ch.lkmc.pageworn.ui.model.Destination
@@ -45,6 +46,16 @@ class PlanCache(private val container: AppContainer) {
 
     suspend fun timelines(editions: List<LocalEditionEntity>): Map<String, BookTimeline> =
         editions.mapNotNull { e -> plan(e)?.let { e.generationId to it.timeline } }.toMap()
+}
+
+/**
+ * The player publishes four times a second. A list row needs the transport and a place held to
+ * the checkpoint step, so a long library does not rebuild its whole row list on every tick.
+ * Play, pause and starting changes still pass through immediately.
+ */
+internal fun LivePlayback.forRows(): LivePlayback {
+    val place = positionMs - positionMs % ROW_CLOCK_STEP_MS
+    return transportOnly().copy(positionMs = place)
 }
 
 /** The book the mini-player and full player show: the loaded one, or the last active book at rest. */
@@ -191,7 +202,7 @@ class DownloadedViewModel(private val container: AppContainer) : ViewModel() {
         container.editionStore.observeEverything(),
         combine(container.database.progress().observeEverything(), showings) { progress, showing -> progress to showing },
         container.database.transfers().observeActive(),
-        container.playbackHub.state,
+        container.playbackHub.state.map(LivePlayback::forRows).distinctUntilChanged(),
         container.notices.downloadedStatus,
     ) { editions, (progress, showing), transfers, live, status ->
         if (showing != orderedFor) heldOrder = emptyList()
@@ -214,6 +225,9 @@ class DownloadedViewModel(private val container: AppContainer) : ViewModel() {
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, DownloadedUiState())
 }
+
+/** Aligned with the controller's checkpoint cadence of at least five seconds of media. */
+private const val ROW_CLOCK_STEP_MS = 5_000L
 
 /**
  * Which main section shows. A cold launch decides from local state alone (A17): Downloaded when a
