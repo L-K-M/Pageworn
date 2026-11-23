@@ -190,7 +190,8 @@ class BookSessionCallback(
             val plan = container.editionSource.plan(key) ?: throw UnsupportedOperationException("Book is not ready")
             val artwork = plan.coverFile?.let { file ->
                 withContext(Dispatchers.IO) {
-                    if (file.isFile && file.length() < 2_000_000) file.readBytes() else null
+                    file.takeIf { it.isFile && it.length() < MAX_COVER_BYTES }?.readBytes()
+                        ?.takeIf { it.size < MAX_COVER_BYTES }
                 }
             }
             val position = container.progressStore.read(key)?.positionMs ?: 0L
@@ -235,6 +236,8 @@ class BookSessionCallback(
     companion object {
         const val ROOT_ID = "root"
         const val NOTHING_DOWNLOADED = "Download books on your phone to listen here."
+        /** A bound on the artwork bytes embedded in resumption metadata. */
+        const val MAX_COVER_BYTES = 2_000_000
     }
 }
 

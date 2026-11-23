@@ -168,8 +168,11 @@ class EditionStore(
         val dir = files.published(edition.generationId)
         return withContext(Dispatchers.IO) {
             db.editions().tracks(edition.generationId).all { track ->
-                val file = File(dir, track.localFilename)
-                file.isFile && file.length() == track.sizeBytes
+                val name = track.localFilename
+                val file = File(dir, name)
+                // Keep the integrity check inside the published directory even if a future
+                // writer ever stores a name with a separator.
+                !name.contains('/') && !name.contains('\\') && file.isFile && file.length() == track.sizeBytes
             }
         }
     }
