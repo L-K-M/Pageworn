@@ -371,7 +371,11 @@ class AccountService(
      */
     suspend fun refreshLibraryAndCatalog(libraryId: String? = null): Boolean = refreshing.withLock {
         if (!refreshLibraries()) return@withLock false
-        val selected = libraryId ?: db.profiles().current()?.chosenLibraryId ?: return@withLock true
+        val profile = db.profiles().current() ?: return@withLock true
+        // The selector can offer a library the server has since removed; the refresh above has
+        // deleted its row and chosen another, so the catalog follows that choice instead.
+        val requested = libraryId?.takeIf { db.libraries().get(profile.profileId, it) != null }
+        val selected = requested ?: profile.chosenLibraryId ?: return@withLock true
         refreshCatalog(selected)
         true
     }
