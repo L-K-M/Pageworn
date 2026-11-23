@@ -4,6 +4,9 @@ These tasks build on the offline-first player, its paper surfaces, Spectral titl
 
 ## Implemented
 
+Each entry names the pull request that carried it. Entries were recorded while their PR was
+open; check its state before relying on one. Anything not listed here is still open.
+
 ### Merged into main
 
 - **Verify formats with the manifest codec.** PR #39 threads the Audiobookshelf codec into the post-download verifier, so MP3 frames inside a CAF container reach the probe instead of being refused after the bytes were fetched. The probe's own codec is re-checked against the matrix and becomes the published fact. A `TrackProbe` test double covers the gate on the JVM.
