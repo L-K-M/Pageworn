@@ -32,7 +32,8 @@ class ProgressDaoAllTest {
         db.progress().upsert(place("b", 2_000))
         db.progress().upsert(place("c", 3_000, profileId = "other-profile"))
 
-        assertThat(db.progress().all().map { it.profileId to it.itemId }).containsExactly(
+        // The query has no ORDER BY, so compare the set of rows rather than their order.
+        assertThat(db.progress().all().map { it.profileId to it.itemId }.toSet()).containsExactly(
             "profile" to "a",
             "profile" to "b",
             "other-profile" to "c",
