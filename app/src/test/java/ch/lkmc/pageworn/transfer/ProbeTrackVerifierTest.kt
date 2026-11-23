@@ -51,5 +51,16 @@ class ProbeTrackVerifierTest {
         assertThat(result).isInstanceOf(TrackCheck.Unsupported::class.java)
     }
 
+    @Test
+    fun aManifestClaimingMp3CannotBypassTheActualCodec() = runTest {
+        val verifier = ProbeTrackVerifier(TrackProbe {
+            MediaProbe.Result(playable = true, durationMs = 90_000, sampleMimeType = "audio/mp4", codecs = "alac", error = null)
+        })
+
+        val result = verifier.verify(File("book.caf"), "caf", "mp3")
+
+        assertThat(result).isInstanceOf(TrackCheck.Unsupported::class.java)
+    }
+
     private fun playable() = MediaProbe.Result(true, 90_000, "audio/mpeg", "mp3", null)
 }
