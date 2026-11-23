@@ -1,9 +1,12 @@
 package ch.lkmc.pageworn.ui
 
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasScrollToNodeAction
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isHeading
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.media3.common.MediaItem
 import androidx.media3.session.MediaController
 import androidx.test.core.app.ActivityScenario
@@ -66,8 +69,10 @@ class RemovePlayingBookTest {
             composeRule.waitUntil(10_000) { composeRule.onAllNodes(open).fetchSemanticsNodes().isNotEmpty() }
             composeRule.onNode(open).performClick()
             val remove = hasContentDescription("Remove download of Boundary Book")
-            composeRule.waitUntil(10_000) { composeRule.onAllNodes(remove).fetchSemanticsNodes().isNotEmpty() }
-            composeRule.onNode(remove).performScrollTo().performClick()
+            val detailHeading = hasText("Boundary Book") and isHeading()
+            composeRule.waitUntil(10_000) { composeRule.onAllNodes(detailHeading).fetchSemanticsNodes().isNotEmpty() }
+            composeRule.onNode(hasScrollToNodeAction()).performScrollToNode(remove)
+            composeRule.onNode(remove).performClick()
             runBlocking {
                 withTimeout(5_000) { container.playbackHub.state.first { !it.isPlaying && it.key == null } }
                 // The checkpoint of the pause is written off the main thread.
