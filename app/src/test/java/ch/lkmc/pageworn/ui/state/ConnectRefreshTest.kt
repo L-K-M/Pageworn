@@ -12,6 +12,8 @@ class ConnectRefreshTest {
     }
 
     @Test
+    // Pairing ties an added address to the existing account and library, so its catalog is the
+    // one already cached rather than a different server's.
     fun addingAnotherAddressKeepsTheExistingCatalog() {
         assertThat(refreshesCatalog(ConnectMode.ADD)).isFalse()
     }

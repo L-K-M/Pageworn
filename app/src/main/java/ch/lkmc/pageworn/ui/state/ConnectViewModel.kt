@@ -157,7 +157,10 @@ class ConnectViewModel(private val container: AppContainer, val mode: ConnectMod
 
 /**
  * Whether a successful connect of [mode] should refresh the libraries and catalog. Signing in
- * again changes what the account may read, so a cached catalog is stale until it does.
+ * again changes what the account may read, so a cached catalog is stale until it does. Adding an
+ * address keeps the existing catalog: pairing has already tied it to this account and library.
  */
-internal fun refreshesCatalog(mode: ConnectMode) =
-    mode == ConnectMode.FIRST || mode == ConnectMode.LAUNCH_BLOCKED || mode == ConnectMode.SIGN_IN
+internal fun refreshesCatalog(mode: ConnectMode) = when (mode) {
+    ConnectMode.FIRST, ConnectMode.LAUNCH_BLOCKED, ConnectMode.SIGN_IN -> true
+    ConnectMode.ADD -> false
+}
