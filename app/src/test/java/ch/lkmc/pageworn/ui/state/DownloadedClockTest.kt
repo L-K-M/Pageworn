@@ -14,9 +14,21 @@ class DownloadedClockTest {
         val early = LivePlayback(key = key, positionMs = 1_000, sleepRemainingMs = 90_000)
         val late = early.copy(positionMs = 4_999, sleepRemainingMs = 86_000)
 
-        assertThat(early.forRows()).isEqualTo(late.forRows())
-        assertThat(early.forRows().sleepRemainingMs).isNull()
-        assertThat(early.forRows().plan).isNull()
+        // The whole object pins the whitelist: excluded fields keep their defaults.
+        assertThat(early.forRows()).isEqualTo(
+            LivePlayback(
+                key = early.key,
+                isPlaying = early.isPlaying,
+                playWhenReady = early.playWhenReady,
+                positionMs = late.forRows().positionMs,
+                speed = early.speed,
+                failed = early.failed,
+                ended = early.ended,
+                held = early.held,
+                playbackRequested = early.playbackRequested,
+                starting = early.starting,
+            ),
+        )
     }
 
     @Test
