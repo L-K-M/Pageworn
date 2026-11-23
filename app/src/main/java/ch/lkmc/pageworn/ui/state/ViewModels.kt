@@ -34,14 +34,27 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.util.concurrent.ConcurrentHashMap
+import java.util.LinkedHashMap
 
 /** Caches edition plans (timeline, files, cover) by generation for row labels and the player. */
 class PlanCache(private val container: AppContainer) {
-    private val plans = ConcurrentHashMap<String, EditionPlan>()
+    // Access-ordered so the most recently used generations survive a long session; every other
+    // generation is re-read from Room when it becomes current again.
+    private val plans = object : LinkedHashMap<String, EditionPlan>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, EditionPlan>): Boolean = size > MAX_CACHED_PLANS
+    }
+    private val lock = Any()
 
     suspend fun plan(edition: LocalEditionEntity): EditionPlan? =
-        plans[edition.generationId] ?: container.editionStore.anyPlan(edition.key)?.also { plans[it.generationId] = it }
+        synchronized(lock) { plans[edition.generationId] } ?: run {
+            val fresh = container.editionStore.anyPlan(edition.key) ?: return null
+            synchronized(lock) { plans[fresh.generationId] = fresh }
+            fresh
+        }
+
+    private companion object {
+        const val MAX_CACHED_PLANS = 16
+    }
 
     suspend fun timelines(editions: List<LocalEditionEntity>): Map<String, BookTimeline> =
         editions.mapNotNull { e -> plan(e)?.let { e.generationId to it.timeline } }.toMap()
