@@ -19,6 +19,7 @@ import ch.lkmc.pageworn.ui.model.CoverImage
 import ch.lkmc.pageworn.ui.model.DetailAction
 import ch.lkmc.pageworn.ui.model.Format
 import ch.lkmc.pageworn.ui.model.StartAction
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -50,8 +51,13 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
 
     private val actions = TransferActions(container)
 
-    val state: StateFlow<BookDetailUiState?> = combine(inputs, container.playbackHub.state, actions.refusal) { i, live, refusal ->
-        build(i, i.edition?.let { plans.plan(it) }, live)?.let { built -> refusal?.let { built.copy(message = it.text) } ?: built }
+    /** Set once the download was removed from this screen: "Download removed. Your place is saved." */
+    private val removedNotice = MutableStateFlow<String?>(null)
+
+    val state: StateFlow<BookDetailUiState?> = combine(inputs, container.playbackHub.state, actions.refusal, removedNotice) { i, live, refusal, removed ->
+        build(i, i.edition?.let { plans.plan(it) }, live)?.let { built ->
+            refusal?.let { built.copy(message = it.text) } ?: removed?.let { built.copy(message = it) } ?: built
+        }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /** Download, or Repair download: stages a fresh generation and keeps the saved place. */
@@ -66,6 +72,7 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
         container.appScope.launch {
             container.playerConnection.releaseBook(key)
             container.editionStore.remove(key)
+            removedNotice.value = Copy.AUDIO_REMOVED
         }
     }
 
