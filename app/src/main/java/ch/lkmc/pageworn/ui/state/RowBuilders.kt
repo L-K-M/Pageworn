@@ -153,18 +153,19 @@ object RowBuilders {
     fun noDownloads() = EmptyState(Copy.NO_DOWNLOADS, UiAction.BROWSE_LIBRARY, Copy.BROWSE_LIBRARY)
 
     /**
-     * The metadata line of a Library row. An active or queued transfer is the ring alone, as
-     * drawn; a resting one (paused, waiting, stopped, verifying) pairs its state text, so it is
-     * never mistaken for progress, with any failure message after it.
+     * The metadata line of a Library row. An active or queued transfer shows only an
+     * exceptional message if one exists (normally none: the ring is the progress, as drawn);
+     * a resting one (paused, waiting, stopped, verifying) pairs its state text with any
+     * failure message, so it is never mistaken for progress.
      */
     fun catalogRowMessage(row: CatalogRow): String? = when (val action = row.action) {
         CatalogAction.DownloadDisabled -> row.message ?: Copy.DOWNLOAD_DISABLED
         CatalogAction.Unsupported -> row.message ?: Copy.UNSUPPORTED_FORMAT
-        CatalogAction.RepairNeeded -> row.message ?: "Repair needed"
+        CatalogAction.RepairNeeded -> row.message ?: Copy.REPAIR_NEEDED
         is CatalogAction.Transferring -> {
             val t = action.transfer
             val stateLine = if (t.phase == TransferPhase.TRANSFERRING || t.phase == TransferPhase.QUEUED) null else t.stateText
-            listOfNotNull(stateLine, row.message).joinToString(" · ").ifEmpty { null }
+            listOfNotNull(stateLine, row.message ?: t.message).distinct().joinToString(" · ").ifEmpty { null }
         }
         else -> row.message
     }

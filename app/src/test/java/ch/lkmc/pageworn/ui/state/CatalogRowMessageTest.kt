@@ -39,9 +39,27 @@ class CatalogRowMessageTest {
     }
 
     @Test
+    fun identicalStateTextAndMessageRenderOnce() {
+        assertThat(RowBuilders.catalogRowMessage(row(TransferPhase.PAUSED, "Paused", "Paused"))).isEqualTo("Paused")
+    }
+
+    @Test
+    fun activeTransferWithAMessageStillShowsTheMessage() {
+        assertThat(RowBuilders.catalogRowMessage(row(TransferPhase.TRANSFERRING, "Downloading", "Retrying soon."))).isEqualTo("Retrying soon.")
+    }
+
+    @Test
+    fun transferMessageIsUsedWhenTheRowCarriesNone() {
+        val row = CatalogRow(face, CatalogAction.Transferring(TransferUi("job", TransferPhase.FAILED, 1, 2, "Download stopped", "No route.", canPause = false, canResume = false, canRetry = true, canCancel = true)))
+        assertThat(RowBuilders.catalogRowMessage(row)).isEqualTo("Download stopped · No route.")
+    }
+
+    @Test
     fun otherActionsKeepTheirMessages() {
         assertThat(RowBuilders.catalogRowMessage(CatalogRow(face, CatalogAction.DownloadDisabled))).isEqualTo(Copy.DOWNLOAD_DISABLED)
+        assertThat(RowBuilders.catalogRowMessage(CatalogRow(face, CatalogAction.DownloadDisabled, "Offline"))).isEqualTo("Offline")
         assertThat(RowBuilders.catalogRowMessage(CatalogRow(face, CatalogAction.Unsupported))).isEqualTo(Copy.UNSUPPORTED_FORMAT)
+        assertThat(RowBuilders.catalogRowMessage(CatalogRow(face, CatalogAction.RepairNeeded))).isEqualTo(Copy.REPAIR_NEEDED)
         assertThat(RowBuilders.catalogRowMessage(CatalogRow(face, CatalogAction.Download))).isNull()
     }
 
