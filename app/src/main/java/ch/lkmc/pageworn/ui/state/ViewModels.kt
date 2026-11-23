@@ -172,6 +172,15 @@ class DownloadedViewModel(private val container: AppContainer) : ViewModel() {
     private val plans = PlanCache(container)
     private val actions = TransferActions(container)
 
+    /**
+     * The player publishes its position every 250 ms, but a downloaded row shows a minute-scale
+     * remaining time. Coarsen the clock and skip unchanged states so a playing book does not
+     * rebuild and re-sort the whole list four times a second (Library already does the same).
+     */
+    private val rowsLive = container.playbackHub.state
+        .map { it.rowDisplay() }
+        .distinctUntilChanged { a, b -> a.sameRowsAs(b) }
+
     fun pauseTransfer(jobId: String) = actions.pause(jobId)
     fun resumeTransfer(jobId: String) = actions.resume(jobId)
     fun cancelTransfer(jobId: String) = actions.cancel(jobId)
@@ -191,7 +200,7 @@ class DownloadedViewModel(private val container: AppContainer) : ViewModel() {
         container.editionStore.observeEverything(),
         combine(container.database.progress().observeEverything(), showings) { progress, showing -> progress to showing },
         container.database.transfers().observeActive(),
-        container.playbackHub.state,
+        rowsLive,
         container.notices.downloadedStatus,
     ) { editions, (progress, showing), transfers, live, status ->
         if (showing != orderedFor) heldOrder = emptyList()
