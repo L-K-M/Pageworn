@@ -157,10 +157,13 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
     private fun refreshCatalog(libraryId: String?) {
         container.appScope.launch {
             queueRefresh()
-            // Pull-to-refresh and library switches can overlap; one refresh at a time keeps
-            // the spinner honest about work actually in flight.
-            refreshLock.withLock { runRefresh(libraryId) }
-            dequeueRefresh()
+            try {
+                // Pull-to-refresh and library switches can overlap; one refresh at a time keeps
+                // the spinner honest about work actually in flight.
+                refreshLock.withLock { runRefresh(libraryId) }
+            } finally {
+                dequeueRefresh()
+            }
         }
     }
 
@@ -191,13 +194,16 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
     fun selectLibrary(libraryId: String) {
         container.appScope.launch {
             queueRefresh()
-            // The switch and its refresh hold the same lock, so no pull-to-refresh can
-            // interleave between choosing the library and loading its catalog.
-            refreshLock.withLock {
-                container.accounts.chooseLibrary(libraryId)
-                runRefresh(libraryId)
+            try {
+                // The switch and its refresh hold the same lock, so no pull-to-refresh can
+                // interleave between choosing the library and loading its catalog.
+                refreshLock.withLock {
+                    container.accounts.chooseLibrary(libraryId)
+                    runRefresh(libraryId)
+                }
+            } finally {
+                dequeueRefresh()
             }
-            dequeueRefresh()
         }
     }
 
