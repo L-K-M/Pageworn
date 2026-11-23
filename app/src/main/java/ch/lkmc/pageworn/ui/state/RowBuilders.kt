@@ -2,7 +2,6 @@ package ch.lkmc.pageworn.ui.state
 
 import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.core.timeline.BookTimeline
-import ch.lkmc.pageworn.core.timeline.Division
 import ch.lkmc.pageworn.data.DownloadedOrder
 import ch.lkmc.pageworn.data.db.BookProgressEntity
 import ch.lkmc.pageworn.data.db.CatalogBookEntity
@@ -92,17 +91,11 @@ object RowBuilders {
         ).let { if (stopped && phase == TransferPhase.FAILED) it.copy(canResume = false) else it }
     }
 
-    /** "Chapter 4 · 2 h 12 min left", "Track 2 · 40 min left" or "2 h 12 min left". */
+    /** "Chapter 4 · 2 h 12 min left", "Track 2 · 40 min left", "Part 13 · 2 h 12 min left". */
     fun progressText(timeline: BookTimeline?, positionMs: Long, durationMs: Long): String {
         val left = Format.hoursMinutes((durationMs - positionMs).coerceAtLeast(0)) + " left"
         if (timeline == null) return left
-        val segment = timeline.segmentAt(positionMs)
-        val label = when (timeline.division) {
-            Division.CHAPTERS -> segment.title
-            Division.TRACKS -> segment.title?.takeIf { it.isNotBlank() } ?: "Track ${segment.index + 1}"
-            Division.WHOLE_BOOK -> null
-        }
-        return if (label == null) left else "$label · $left"
+        return "${PlayerStates.segmentTitle(timeline.division, timeline.segmentAt(positionMs))} · $left"
     }
 
     fun readyRow(
@@ -114,7 +107,7 @@ object RowBuilders {
     ): ReadyBookRow {
         val isLive = live.key == edition.key
         val position = if (isLive) live.positionMs else progress?.positionMs ?: 0L
-        val finished = progress?.finished == true && !(isLive && live.isPlaying)
+        val finished = progress?.finished == true && !live.showsPause(edition.key)
         val neverPlayed = progress == null || (progress.lastListenedAt == null && progress.positionMs == 0L && !isLive)
         val badge = when {
             edition.state == EditionState.REPAIR_NEEDED -> ReadyBadge.RepairNeeded(Copy.DAMAGED_COPY)
@@ -126,7 +119,8 @@ object RowBuilders {
             face = editionFace(edition, editionDir),
             badge = badge,
             hasPlace = !finished && (position > 0 || (progress != null && !neverPlayed)),
-            isPlaying = isLive && live.isPlaying,
+            showsPause = live.showsPause(edition.key),
+            starting = live.waitsForAudio(edition.key),
             playable = edition.state == EditionState.READY,
         )
     }
@@ -138,11 +132,22 @@ object RowBuilders {
         timelines: Map<String, BookTimeline>,
         transfers: List<TransferEntity>,
         live: LivePlayback,
+        heldOrder: List<BookKey> = emptyList(),
     ): Pair<List<TransferRow>, List<ReadyBookRow>> {
         val transferRows = transfers.filter { it.state.active }.map { TransferRow(transferFace(it), transferUi(it)) }
-        val ordered = DownloadedOrder.sort(editions) { progress[it.key]?.lastListenedAt }
+        val ordered = holdOrder(DownloadedOrder.sort(editions) { progress[it.key]?.lastListenedAt }, heldOrder)
         val bookRows = ordered.map { readyRow(it, dirOf(it), progress[it.key], timelines[it.generationId], live) }
         return transferRows to bookRows
+    }
+
+    /**
+     * Keeps rows where they were while the list is on screen, so the book that just started does
+     * not move from under the finger that started it. A changed set of books is sorted afresh.
+     */
+    private fun holdOrder(sorted: List<LocalEditionEntity>, held: List<BookKey>): List<LocalEditionEntity> {
+        val byKey = sorted.associateBy { it.key }
+        if (held.size != sorted.size || !held.all { it in byKey }) return sorted
+        return held.map { byKey.getValue(it) }
     }
 
     fun noDownloads() = EmptyState(Copy.NO_DOWNLOADS, UiAction.BROWSE_LIBRARY, Copy.BROWSE_LIBRARY)
@@ -176,7 +181,8 @@ object RowBuilders {
             edition != null -> CatalogRow(
                 face.copy(cover = edition.coverFile?.let { CoverImage.Local(File(editionDir, it)) } ?: face.cover),
                 CatalogAction.Ready(
-                    isPlaying = live.key == key && live.isPlaying,
+                    showsPause = live.showsPause(key),
+                    starting = live.waitsForAudio(key),
                     start = StartAction.of(hasPlace = (progress?.positionMs ?: 0) > 0, finished = progress?.finished == true),
                 ),
             )

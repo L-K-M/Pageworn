@@ -1,12 +1,13 @@
 package ch.lkmc.pageworn.data
 
 import android.content.Context
+import ch.lkmc.pageworn.catalog.CatalogSort
 import ch.lkmc.pageworn.core.BookKey
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/** Lightweight preferences: last active book, chosen speed, last destination, one-time notices. */
+/** Lightweight preferences: last active book, chosen speed, Library order, last destination, one-time notices. */
 class SettingsStore(context: Context) {
     private val prefs = context.getSharedPreferences("pageworn-settings", Context.MODE_PRIVATE)
 
@@ -15,6 +16,11 @@ class SettingsStore(context: Context) {
 
     private val _speed = MutableStateFlow(prefs.getFloat(SPEED, 1f))
     val speed: StateFlow<Float> = _speed.asStateFlow()
+
+    private val _librarySort = MutableStateFlow(
+        CatalogSort.entries.firstOrNull { it.name == prefs.getString(LIBRARY_SORT, null) } ?: CatalogSort.DEFAULT,
+    )
+    val librarySort: StateFlow<CatalogSort> = _librarySort.asStateFlow()
 
     var lastDestination: String?
         get() = prefs.getString(DESTINATION, null)
@@ -54,11 +60,17 @@ class SettingsStore(context: Context) {
         _speed.value = speed
     }
 
+    fun setLibrarySort(sort: CatalogSort) {
+        prefs.edit().putString(LIBRARY_SORT, sort.name).apply()
+        _librarySort.value = sort
+    }
+
     private fun readLastActive(): BookKey? = BookKey.fromMediaId(prefs.getString(LAST_BOOK, null))
 
     companion object {
         private const val LAST_BOOK = "last_active_book"
         private const val SPEED = "speed"
+        private const val LIBRARY_SORT = "library_sort"
         private const val DESTINATION = "last_destination"
         private const val NOTIFICATIONS_NOTICE = "notifications_notice_consumed"
         private const val NOTIFICATIONS_NOTICE_PENDING = "notifications_notice_pending"

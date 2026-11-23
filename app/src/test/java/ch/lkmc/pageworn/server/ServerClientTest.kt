@@ -169,6 +169,8 @@ class ServerClientTest {
         assertThat(page.entries[0].durationMs).isEqualTo(210000)
         assertThat(page.entries[0].sizeBytes).isEqualTo(1726447)
         assertThat(page.entries[0].numTracks).isEqualTo(2)
+        val addedAt = Regex(""""addedAt":\s*(\d+)""").find(fixture("items-page0"))!!.groupValues[1].toLong()
+        assertThat(page.entries[0].addedAt).isEqualTo(addedAt)
         // Entries without audio stay in the page so the refresh can count them against total.
         val withoutTracks = Regex(""""numTracks":\s*\d+""").replace(fixture("items-page0"), "\"numTracks\": 0")
         server.enqueue(MockResponse().setBody(withoutTracks))

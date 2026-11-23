@@ -2,7 +2,7 @@
 
 Pageworn is an Android audiobook player for one listener with an Audiobookshelf server. Choose a book in **Library**, download it, and listen from **Downloaded**. A book keeps its place even when a download is removed. Its cloth cover, paper surfaces and place ribbon come from a well-used hardcover.
 
-The plan lives in `docs/`. This is a build specification. Test cases describe expected behavior and have yet to be run against an implementation.
+The plan lives in `docs/`. This is a build specification. Test cases describe expected behavior. The [milestone reports](milestones/) record which have been run, on what, and which are pending.
 
 ## Visual handoff
 
@@ -35,6 +35,7 @@ The documents use these terms precisely. Server fields keep their Audiobookshelf
 | Track | One playable audio file in the server’s play order. A track may contain several chapters. |
 | File | One audio file: the server’s original, identified by its file ID, or its local copy. A file stores one track. |
 | Chapter | A server or embedded navigation marker with an absolute book interval. A generated Opening or Interlude segment counts as a chapter for navigation, the scrubber and end-of-chapter sleep. |
+| Part | Ten minutes of a single-file book that has no chapters, counted from its start. The last part is the remainder. A part is generated and counts as a chapter for navigation, the scrubber and sleep. |
 | Edition | One verified local generation of a book: files, timeline and chapter map. |
 | Generation | A staged revision of an edition, identified by a local ID. Only one generation is published at a time. |
 | Refresh generation | One attempt to refresh a library’s catalog, staged under its own ID and published only when complete. It is unrelated to an edition’s generation. |
@@ -64,10 +65,13 @@ The owner asked for implementation work to be committed directly on `main`, with
 |---|---|
 | One client | One Android installation, one account, one logical server with multiple addresses. Local per-book progress is authoritative. Signing out keeps the downloaded books and saved places for the same account. |
 | Book formats | DRM-free **audiobook** files that the target Audiobookshelf release recognizes and Media3 can extract, decode and seek on the phone. A recognized format that Media3 cannot play is refused as unsupported in v1, and the app bundles no decoder of its own. Inventory the formats and exercise local decoding and seeking. Track actual coverage in M0 and M4. |
+| Library order | Library can be sorted, and starts sorted by date added with the newest book at the top. |
+| Two scales | The player shows two progress bars: one for the chapter and one for the whole book. A book without chapters is broken into ten-minute parts. A multi-file book’s files already act as its chapters, so it keeps its Tracks. |
 | Sleep mode | Pause after a wall-clock duration or at the end of the current chapter. Support the locked screen and headphone controls. After a timed stop, a book that has rested five minutes or more starts five minutes earlier. |
 | Design baseline | Kotlin, Jetpack Compose, Room and a Media3 library session. The minimum Android version is 12 (API 31) and the target SDK is 37. The application ID is `ch.lkmc.pageworn`. Sign-in uses an Audiobookshelf username and password. The interface ships in English. |
 | Network | Browse and transfer through a configured address, over HTTPS or explicitly allowed HTTP, on any network including mobile data. Playback, chapters, the timer and progress read from the phone. |
 | In the car | Android Auto lists the downloaded books and resumes one on a tap. Browsing the library and downloading stay on the phone. |
+| Home screen widgets | The owner asked for widgets on 22 November 2026. Pageworn offers two, [Now reading and Bookshelf](02-interface.md#home-screen-widgets). They read and play from the phone alone. |
 | Distribution | A signed APK on the repository’s GitHub Releases, built and signed by GitHub Actions. The app has no store listing, crash reporting or analytics. |
 
-The owner settled these on 21 November 2026, together with the facts about their own setup under [the listener’s deployment](06-delivery-and-tests.md#the-listeners-deployment). Keep implementation evidence with the milestone so the next contributor can reproduce it.
+The owner settled these on 21 November 2026, and the Library order, two scales and widgets on 22 November 2026, together with the facts about their own setup under [the listener’s deployment](06-delivery-and-tests.md#the-listeners-deployment). Keep implementation evidence with the milestone so the next contributor can reproduce it.

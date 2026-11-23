@@ -11,6 +11,7 @@ import ch.lkmc.pageworn.core.timeline.RawChapter
 import ch.lkmc.pageworn.data.EditionAssembler
 import ch.lkmc.pageworn.data.EditionFiles
 import ch.lkmc.pageworn.data.EditionStore
+import ch.lkmc.pageworn.data.ProgressStore
 import ch.lkmc.pageworn.data.db.AddressEntity
 import ch.lkmc.pageworn.data.db.BookProgressEntity
 import ch.lkmc.pageworn.data.db.EditionState
@@ -22,14 +23,20 @@ import ch.lkmc.pageworn.data.db.TransferEntity
 import ch.lkmc.pageworn.data.db.TransferState
 import ch.lkmc.pageworn.formats.DecoderAvailability
 import ch.lkmc.pageworn.formats.FormatSupport
+import ch.lkmc.pageworn.playback.LivePlayback
 import ch.lkmc.pageworn.server.ItemManifest
 import ch.lkmc.pageworn.server.ManifestSourceTrack
 import ch.lkmc.pageworn.server.ServerError
+import ch.lkmc.pageworn.ui.model.ContinuityChoice
+import ch.lkmc.pageworn.ui.model.Copy
+import ch.lkmc.pageworn.ui.model.Format
+import ch.lkmc.pageworn.ui.state.PlayerStates
 import com.google.common.truth.Truth.assertThat
 import java.io.File
 import java.io.RandomAccessFile
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -109,6 +116,14 @@ class TransferCoordinatorTest {
         assertThat(files.published(edition!!.generationId).isDirectory).isTrue()
         assertThat(db.editions().tracks(edition.generationId)).isNotEmpty()
     }
+
+    /** Paused is saved a moment before the copy is cancelled. Data released in between is all copied. */
+    private suspend fun awaitPauseReachedTheCopy(id: String, run: Job) = withTimeout(5_000) {
+        while (job(id).state != TransferState.PAUSED || run.descendants().none { it.isCancelled }) yield()
+    }
+
+    private fun Job.descendants(): Sequence<Job> = children.flatMap { sequenceOf(it) + it.descendants() }
+
     private suspend fun drive(id: String, limit: Int = 8) {
         repeat(limit) {
             if (job(id).state == TransferState.COMPLETE) return
@@ -404,7 +419,7 @@ class TransferCoordinatorTest {
         val running = launch(Dispatchers.Default) { coordinator.runDue() }
         withTimeout(5_000) { gate.reached.await() }
         val pausing = launch(Dispatchers.Default) { coordinator.pause(id) }
-        withTimeout(5_000) { while (job(id).state != TransferState.PAUSED) yield() }
+        awaitPauseReachedTheCopy(id, running)
         gate.release.complete(Unit)
         pausing.join()
         running.join()
@@ -650,7 +665,7 @@ class TransferCoordinatorTest {
         val running = launch(Dispatchers.Default) { coordinator.runDue() }
         withTimeout(5_000) { gate.reached.await() }
         val pausing = launch(Dispatchers.Default) { coordinator.pause(id) }
-        withTimeout(5_000) { while (job(id).state != TransferState.PAUSED) yield() }
+        awaitPauseReachedTheCopy(id, running)
         gate.release.complete(Unit)
         pausing.join()
         running.join()
@@ -774,6 +789,41 @@ class TransferCoordinatorTest {
         assertThat(editions.checkBeforeOpening(key)).isFalse()
         assertThat(db.editions().edition(key.profileId, key.itemId)?.state).isEqualTo(EditionState.REPAIR_NEEDED)
         assertThat(editions.plan(key)).isNull()
+    }
+
+    @Test fun a11_onlyChangedAudioAsksWhereToStart() = runBlocking<Unit> {
+        val first = source(41)
+        val second = source(42)
+        val key = book("a11", "A" to first, "B" to second)
+        drive(enqueue(key))
+        val original = db.editions().edition(PROFILE, key.itemId)!!
+        val saved = progress(key.itemId).copy(editionFingerprint = original.fingerprint)
+        db.progress().upsert(saved)
+
+        routes.manifests[key.itemId] = routes.manifests.getValue(key.itemId).copy(title = "A new title")
+        editions.remove(key)
+        drive(enqueue(key))
+
+        assertThat(db.editions().edition(PROFILE, key.itemId)?.title).isEqualTo("A new title")
+        assertThat(db.progress().get(PROFILE, key.itemId)).isEqualTo(saved)
+
+        book("a11", "B" to second, "A" to first)
+        editions.remove(key)
+        drive(enqueue(key))
+
+        val changed = checkNotNull(db.progress().get(PROFILE, key.itemId))
+        assertThat(changed).isEqualTo(saved.copy(pendingContinuityChoice = true))
+        val plan = checkNotNull(editions.plan(key))
+        val player = PlayerStates.player(plan, db.editions().edition(PROFILE, key.itemId), changed, LivePlayback())
+        assertThat(player.continuityChoice).isEqualTo(ContinuityChoice(Format.hoursMinutes(27_000), Format.hoursMinutes(180_000)))
+        assertThat(player.transportEnabled).isFalse()
+        assertThat(player.transportDisabledReason).isEqualTo(Copy.CHOOSE_START)
+
+        ProgressStore(db.progress(), clock).saveOutsideSession(key, 27_000, 180_000, plan.fingerprint, StopKind.EXACT)
+
+        val chosen = checkNotNull(db.progress().get(PROFILE, key.itemId))
+        assertThat(chosen.pendingContinuityChoice).isFalse()
+        assertThat(chosen.positionMs).isEqualTo(27_000)
     }
 
     @Test fun a07_removeAndRedownloadPreservesSavedPlace() = runBlocking {

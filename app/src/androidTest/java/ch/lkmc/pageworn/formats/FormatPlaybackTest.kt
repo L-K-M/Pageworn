@@ -78,7 +78,7 @@ class FormatPlaybackTest {
         )
         val timeline = checkNotNull(container.editionStore.plan(key)).timeline
         if (probe.chapters.isEmpty()) {
-            assertWithMessage("$id without markers").that(timeline.division).isEqualTo(Division.WHOLE_BOOK)
+            assertWithMessage("$id without markers").that(timeline.division).isEqualTo(Division.PARTS)
         } else {
             assertWithMessage("$id chapters").that(timeline.chapters.map { it.startMs to it.title })
                 .containsExactlyElementsIn(probe.chapters.map { it.startMs to it.title }).inOrder()

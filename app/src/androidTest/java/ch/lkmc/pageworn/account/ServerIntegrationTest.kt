@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import ch.lkmc.pageworn.catalog.CatalogRefresher
+import ch.lkmc.pageworn.catalog.CatalogSort
 import ch.lkmc.pageworn.catalog.ListingStatus
 import ch.lkmc.pageworn.catalog.RefreshOutcome
 import ch.lkmc.pageworn.core.BookKey
@@ -96,11 +97,15 @@ class ServerIntegrationTest {
         assertThat(outcome).isInstanceOf(RefreshOutcome.Published::class.java)
         val listing = CatalogRefresher(db, { 0 }).observeListing(profileId(), audiobooks().libraryId, "").first()
         assertThat(listing.status).isEqualTo(ListingStatus.READY)
-        // Nine books over three pages of four; the two equal titles stay two records.
-        assertThat(listing.rows).hasSize(9)
+        // Ten books over three pages of four; the two equal titles stay two records.
+        assertThat(listing.rows).hasSize(BOOKS)
         val sameTitle = listing.rows.filter { it.title == "Same Title" }
         assertThat(sameTitle.map { it.itemId }.toSet()).hasSize(2)
-        assertThat(listing.rows.map { it.title }).isInOrder(String.CASE_INSENSITIVE_ORDER)
+        // A18b: newest first by default from the server's own dates, and Title keeps its order.
+        assertThat(listing.rows.mapNotNull { it.addedAt }).hasSize(BOOKS)
+        assertThat(listing.rows.mapNotNull { it.addedAt }).isInOrder(reverseOrder<Long>())
+        val byTitle = CatalogRefresher(db, { 0 }).observeListing(profileId(), audiobooks().libraryId, "", CatalogSort.TITLE).first()
+        assertThat(byTitle.rows.map { it.title }).isInOrder(String.CASE_INSENSITIVE_ORDER)
 
         // An unrecognized certificate: its fingerprint, and no request until the listener trusts it.
         val unrecognized = service.checkAddress(TAILSCALE, "Tailscale", allowCleartext = false, trustedSha256 = null)
@@ -152,7 +157,7 @@ class ServerIntegrationTest {
         assertThat(changed.certificateState).isEqualTo(CertificateState.CHANGED)
         assertThat(changed.presentedCertSha256).isEqualTo(newSha256)
         assertThat(changed.confirmedCertSha256).isEqualTo(oldSha256)
-        assertThat(CatalogRefresher(db, { 0 }).observeListing(profileId(), library, "").first().rows).hasSize(9)
+        assertThat(CatalogRefresher(db, { 0 }).observeListing(profileId(), library, "").first().rows).hasSize(BOOKS)
 
         // With Home reachable, automatic mode uses it and Library loads.
         service.setEnabled(address("Home").addressId, true)
@@ -253,7 +258,7 @@ class ServerIntegrationTest {
         val library = audiobooks().libraryId
         assertThat(service.refreshCatalog(library)).isInstanceOf(RefreshOutcome.Failed::class.java)
         assertThat(service.notice.value).isEqualTo(ServerNotice.LocalNetworkDenied("Home"))
-        assertThat(CatalogRefresher(db, { 0 }).observeListing(profileId(), library, "").first().rows).hasSize(9)
+        assertThat(CatalogRefresher(db, { 0 }).observeListing(profileId(), library, "").first().rows).hasSize(BOOKS)
     }
 
     // --- Phase 5: an address whose certificate comes from an installed authority (A26c) ----------
@@ -338,7 +343,7 @@ class ServerIntegrationTest {
         service.remove(addedId)
         assertThat(db.profiles().current()).isNotNull()
         assertThat(db.addresses().forProfile(profileId())).isEmpty()
-        assertThat(CatalogRefresher(db, { 0 }).observeListing(profileId(), library, "").first().rows).hasSize(9)
+        assertThat(CatalogRefresher(db, { 0 }).observeListing(profileId(), library, "").first().rows).hasSize(BOOKS)
         assertThat(container.editionStore.observeEverything().first().map { it.key }).contains(key)
         assertThat(container.progressStore.read(key)!!.positionMs).isEqualTo(115_000)
     }
@@ -350,6 +355,8 @@ class ServerIntegrationTest {
     }
 
     private companion object {
+        /** The books of the seeded Audiobooks library. */
+        const val BOOKS = 10
         const val PAGE_SIZE = 4
         const val HOME = "http://10.0.2.2:13378/"
         const val TAILSCALE = "https://10.0.2.2:13443/"

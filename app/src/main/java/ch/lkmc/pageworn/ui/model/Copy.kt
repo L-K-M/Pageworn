@@ -1,9 +1,29 @@
 package ch.lkmc.pageworn.ui.model
 
+import ch.lkmc.pageworn.catalog.CatalogSort
 import java.util.Locale
 
 /** The listener-facing sentences of docs/01-product.md ("Copy and recovery"), verbatim. */
 object Copy {
+    /** An order as the sheet lists it and as TalkBack reads the Sort control. */
+    fun sortName(sort: CatalogSort) = when (sort) {
+        CatalogSort.DATE_ADDED_NEWEST -> "Date added, newest first"
+        CatalogSort.DATE_ADDED_OLDEST -> "Date added, oldest first"
+        CatalogSort.TITLE -> "Title"
+        CatalogSort.AUTHOR -> "Author"
+    }
+
+    /** An order as the Sort control shows it. */
+    fun sortShortName(sort: CatalogSort) = when (sort) {
+        CatalogSort.DATE_ADDED_NEWEST -> "Newest first"
+        CatalogSort.DATE_ADDED_OLDEST -> "Oldest first"
+        CatalogSort.TITLE -> "Title"
+        CatalogSort.AUTHOR -> "Author"
+    }
+
+    const val SORT_LIBRARY = "Sort Library"
+    const val BACK_15 = "Back 15 seconds"
+    const val FORWARD_30 = "Forward 30 seconds"
     const val NO_DOWNLOADS = "Your downloaded books will appear here."
     const val LIBRARY_LOADING = "Loading your library…"
     const val LIBRARY_INCOMPLETE = "Your library didn’t finish loading."
@@ -25,6 +45,8 @@ object Copy {
     const val TOO_MANY_SIGN_INS = "Too many sign-in attempts. Try again in a few minutes."
     const val CLEARTEXT_TRADEOFF = "Pageworn will send your password and books to this address without encryption. Anyone on the same network can read them."
     const val ALLOW_CLEARTEXT = "Allow unencrypted access"
+    const val CLEARTEXT_ALLOWED = "Unencrypted access allowed"
+    fun lastReached(dateText: String) = "Last reached $dateText"
     fun localNetworkNeeded(address: String) = "Pageworn needs local network access to reach $address."
     fun confirmPairing(username: String, libraryName: String?) =
         if (libraryName == null) "Signed in as $username." else "Signed in as $username. This address reaches the server with your library $libraryName."
@@ -38,10 +60,13 @@ object Copy {
         if (shortfallBytes == null || shortfallBytes <= 0) STORAGE_FULL else "$STORAGE_FULL ${Format.bytes(shortfallBytes)} more is needed."
     const val AUDIO_REMOVED = "Download removed. Your place is saved."
     const val DAMAGED_COPY = "This copy couldn’t be opened."
+    const val PLAY_DID_NOT_START = "Couldn’t start playback. Another app may be using audio."
+    const val CHOOSE_START = "Choose where to start."
+    const val STARTING = "Starting"
+    const val DISMISS = "Dismiss"
     const val PLAYBACK_STOPPED = "Playback paused at your last position."
     const val NOTIFICATIONS_DISABLED = "Transfers and playback controls stay available in the app."
     const val NOTHING_IN_CAR = "Download books on your phone to listen here."
-    const val NO_CHAPTERS = "This book has no chapters."
 
     // Actions.
     const val BROWSE_LIBRARY = "Browse library"
@@ -102,6 +127,9 @@ object Format {
             else -> "$s sec remaining"
         }
     }
+
+    /** A countdown in whole minutes, rounded up: "13 min". */
+    fun minutesLeft(ms: Long): String = "${(ms.coerceAtLeast(0) + 59_999) / 60_000} min"
 
     /** Spoken duration for accessibility: "12 minutes 40 seconds". */
     fun spokenDuration(ms: Long): String {

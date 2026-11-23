@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_now_reading">Now reading</string>
+    <string name="widget_now_reading_description">Your current book, with its place, Play and skips</string>
+    <string name="widget_bookshelf">Bookshelf</string>
+    <string name="widget_bookshelf_description">Your newest downloads, each ready to play</string>
+</resources>

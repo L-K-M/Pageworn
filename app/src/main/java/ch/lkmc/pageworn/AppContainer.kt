@@ -26,6 +26,7 @@ import ch.lkmc.pageworn.data.SettingsStore
 import ch.lkmc.pageworn.data.db.PagewornDatabase
 import ch.lkmc.pageworn.formats.FormatSupport
 import ch.lkmc.pageworn.formats.MediaProbe
+import ch.lkmc.pageworn.playback.BookTransport
 import ch.lkmc.pageworn.playback.EditionSource
 import ch.lkmc.pageworn.playback.PlaybackHub
 import ch.lkmc.pageworn.playback.PlayerConnection
@@ -41,6 +42,7 @@ import ch.lkmc.pageworn.transfer.ProbeTrackVerifier
 import ch.lkmc.pageworn.transfer.TransferCoordinator
 import ch.lkmc.pageworn.transfer.TransferNotifications
 import ch.lkmc.pageworn.ui.state.AppNotices
+import ch.lkmc.pageworn.widget.HomeWidgets
 import java.io.File
 import java.io.IOException
 import java.security.KeyStore
@@ -74,7 +76,9 @@ class AppContainer(private val app: PagewornApp) {
     val editionFiles: EditionFiles by lazy { EditionFiles(File(app.filesDir, "audio")) }
     val editionStore: EditionStore by lazy { EditionStore(database, editionFiles, liveClock) }
     val playbackHub = PlaybackHub()
-    val playerConnection: PlayerConnection by lazy { PlayerConnection(app, playbackHub) }
+    val playerConnection: PlayerConnection by lazy { PlayerConnection(app, playbackHub, editionStore, progressStore) }
+    val bookTransport: BookTransport by lazy { BookTransport(playerConnection, editionStore, progressStore) }
+    val homeWidgets: HomeWidgets by lazy { HomeWidgets(app, this) }
     val notices: AppNotices by lazy { AppNotices(settings) }
 
     /** Where the player's progress writes go. Tests may hold a write back to deliver it late. */

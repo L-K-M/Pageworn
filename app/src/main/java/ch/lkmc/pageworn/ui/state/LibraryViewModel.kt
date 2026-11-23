@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import ch.lkmc.pageworn.AppContainer
 import ch.lkmc.pageworn.account.ServerNotice
 import ch.lkmc.pageworn.catalog.CatalogListing
+import ch.lkmc.pageworn.catalog.CatalogSort
 import ch.lkmc.pageworn.catalog.ListingStatus
 import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.data.db.BookProgressEntity
@@ -27,8 +28,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -69,9 +72,9 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
-    private val listing = combine(scope, query) { s, q -> s to q }.flatMapLatest { (s, q) ->
-        val library = s?.selected ?: return@flatMapLatest flowOf(CatalogListing(emptyList(), ListingStatus.READY, null))
-        container.catalog.observeListing(s.profile.profileId, library.libraryId, q.trim())
+    private val listing = combine(scope, query, container.settings.librarySort, ::Triple).flatMapLatest { (s, q, sort) ->
+        val library = s?.selected ?: return@flatMapLatest flowOf(CatalogListing(emptyList(), ListingStatus.READY, null, sort))
+        container.catalog.observeListing(s.profile.profileId, library.libraryId, q.trim(), sort)
     }
 
     private val local = scope.flatMapLatest { s ->
@@ -82,7 +85,9 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
                 db.editions().observeAll(s.profile.profileId),
                 db.transfers().observeActive(),
                 db.progress().observeAll(s.profile.profileId),
-                container.playbackHub.state,
+                // The rows draw keys only: the position that moves four times a second would rebuild
+                // every row of a large library on the main thread each time.
+                container.playbackHub.state.map { it.transportOnly() }.distinctUntilChanged(),
             ) { editions, transfers, progress, live -> LocalState(editions, transfers, progress, live) }
         }
     }
@@ -95,7 +100,7 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
 
     val state: StateFlow<LibraryUiState> = combine(scope, query, listing, local, conditions) { s, q, rows, l, condition ->
         withRefusal(build(s, q, rows, l, condition.notice, condition.checked), condition.refusal)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryUiState())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryUiState(sort = container.settings.librarySort.value))
 
     /** A Download tap refused for the book itself says why on its row. */
     private fun withRefusal(state: LibraryUiState, refusal: DownloadRefusal?): LibraryUiState {
@@ -129,6 +134,8 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
     fun setQuery(value: String) {
         query.value = value
     }
+
+    fun setSort(sort: CatalogSort) = container.settings.setLibrarySort(sort)
 
     fun selectLibrary(libraryId: String) {
         container.appScope.launch {
@@ -184,6 +191,7 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
             libraries = s.libraries.map { LibraryChoice(it.libraryId, it.name) },
             selectedLibraryId = library.libraryId,
             query = q,
+            sort = listing.sort,
             rows = catalogRows,
             // An empty state that carries the status replaces the status line.
             status = if (empty != null && empty == statusAsEmpty) null else status,

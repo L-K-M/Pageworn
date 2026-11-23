@@ -38,22 +38,22 @@ data class ChapterSpan(
 
 /** How an edition is divided for navigation, the chapter scrubber and the end-of sleep modes. */
 enum class Division {
-    /** A chapter map exists (server, embedded or generated segments). */
+    /** A chapter map of two or more segments exists (server, embedded or generated). */
     CHAPTERS,
 
-    /** Several files and no chapter marks: navigate by track. */
+    /** Several files and no chapters: navigate by track. */
     TRACKS,
 
-    /** A single undivided file: the book is one segment. */
-    WHOLE_BOOK,
+    /** A single file and no chapters: navigate by parts of ten minutes. */
+    PARTS,
 }
 
-/** One navigation segment: a chapter, a track or the whole book, depending on [BookTimeline.division]. */
+/** One navigation segment: a chapter, a track or a part, depending on [BookTimeline.division]. */
 data class Segment(
     val index: Int,
     val startMs: Long,
     val endMs: Long,
-    /** Author-supplied or generated chapter title, a track title, or null for an untitled track or whole book. */
+    /** Author-supplied or generated chapter title, a track title, or null for an untitled track or a part. */
     val title: String?,
     val generated: Boolean,
 ) {
@@ -92,15 +92,16 @@ class BookTimeline(
     val durationMs: Long = tracks.last().endMs
 
     val division: Division = when {
-        chapters.isNotEmpty() -> Division.CHAPTERS
+        // A lone chapter spans the whole book, so it divides nothing.
+        chapters.size > 1 -> Division.CHAPTERS
         tracks.size > 1 -> Division.TRACKS
-        else -> Division.WHOLE_BOOK
+        else -> Division.PARTS
     }
 
     val segments: List<Segment> = when (division) {
         Division.CHAPTERS -> chapters.mapIndexed { i, c -> Segment(i, c.startMs, c.endMs, c.title, c.origin.generated) }
         Division.TRACKS -> tracks.map { t -> Segment(t.index, t.startMs, t.endMs, t.title, generated = false) }
-        Division.WHOLE_BOOK -> listOf(Segment(0, 0, durationMs, null, generated = false))
+        Division.PARTS -> parts(durationMs)
     }
 
     fun clamp(positionMs: Long): Long = positionMs.coerceIn(0, durationMs)
@@ -139,7 +140,7 @@ class BookTimeline(
     }
 
     /**
-     * End boundary that end-of-chapter (or end-of-track, end-of-book) sleep stops at when armed at
+     * End boundary that end-of-chapter (or end-of-track, end-of-part) sleep stops at when armed at
      * [positionMs]: the end of the segment that contains it, clamped to the edition duration.
      */
     fun sleepBoundaryFor(positionMs: Long): Long = segmentAt(positionMs).endMs.coerceAtMost(durationMs)
@@ -174,6 +175,21 @@ class BookTimeline(
 
     companion object {
         const val PREVIOUS_CHAPTER_THRESHOLD_MS = 3_000L
+        const val PART_MS = 10 * 60_000L
+
+        /**
+         * Parts start at whole multiples of [PART_MS] and the last is the remainder. They are
+         * derived from the duration, so an edition downloaded earlier has them as well.
+         */
+        private fun parts(durationMs: Long): List<Segment> {
+            val remainder = durationMs % PART_MS
+            val full = (durationMs / PART_MS).toInt()
+            val count = (if (remainder >= ChapterMapBuilder.MIN_SEGMENT_MS) full + 1 else full).coerceAtLeast(1)
+            return List(count) { i ->
+                val end = if (i == count - 1) durationMs else (i + 1) * PART_MS
+                Segment(i, i * PART_MS, end, title = null, generated = true)
+            }
+        }
 
         /** Builds contiguous tracks from verified durations in play order. */
         fun contiguousTracks(durationsMs: List<Long>, titles: List<String?> = emptyList()): List<TrackSpan> {

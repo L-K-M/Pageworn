@@ -117,7 +117,7 @@ interface CatalogDao {
     @Query(
         """SELECT * FROM catalog_staging WHERE refreshId = :refreshId AND playable = 1
            AND (:query = '' OR title LIKE '%' || :query || '%' ESCAPE '\' OR authors LIKE '%' || :query || '%' ESCAPE '\')
-           ORDER BY sortIndex""",
+           ORDER BY sortIndex, title COLLATE NOCASE, itemId""",
     )
     fun observeStaged(refreshId: String, query: String): Flow<List<CatalogStagingEntity>>
 

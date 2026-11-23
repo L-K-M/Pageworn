@@ -27,14 +27,25 @@ data class PagewornColors(
     val secondaryInk: Color,
     val accent: Color,
     val inkOnAccent: Color,
+    /** The inlay ivory of the keys, which are the same by day and night. */
+    val inkOnKey: Color,
     val cloth: Color,
+    /** Rims and handles. */
+    val brass: Color,
     val dark: Boolean,
-)
+) {
+    /** The outline that bounds a field, which has to stand out from the paper at 3:1. */
+    fun controlEdge(highContrast: Boolean): Color = secondaryInk.copy(alpha = if (highContrast) 1f else CONTROL_EDGE_ALPHA)
+}
 
 data class PagewornTypography(
     val heading: TextStyle,
     val playerTitle: TextStyle,
+    /** A sheet's title and a heading inside a screen. */
+    val sheetTitle: TextStyle,
     val rowTitle: TextStyle,
+    /** Authors, and the line that names the chapter. */
+    val author: TextStyle,
     val ribbonLabel: TextStyle,
     val metadata: TextStyle,
     val status: TextStyle,
@@ -51,19 +62,23 @@ private val spectral = FontFamily(
     Font(R.font.spectral_medium_italic, FontWeight.Medium, androidx.compose.ui.text.font.FontStyle.Italic),
 )
 
+// Ordinary Android proportions rather than the mockups' larger ones, which were too large on the
+// owner's 360 dp phone (docs/02-interface.md, Type, color and layout).
 private val typography = PagewornTypography(
-    heading = TextStyle(fontFamily = spectral, fontSize = 32.sp, lineHeight = 38.sp, fontWeight = FontWeight.Medium),
-    playerTitle = TextStyle(fontFamily = spectral, fontSize = 24.sp, lineHeight = 30.sp, fontWeight = FontWeight.Medium),
-    rowTitle = TextStyle(fontFamily = spectral, fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.Medium),
-    ribbonLabel = TextStyle(fontFamily = spectral, fontSize = 16.sp, lineHeight = 22.sp),
+    heading = TextStyle(fontFamily = spectral, fontSize = 26.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold),
+    playerTitle = TextStyle(fontFamily = spectral, fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold),
+    sheetTitle = TextStyle(fontFamily = spectral, fontSize = 20.sp, lineHeight = 26.sp, fontWeight = FontWeight.Bold),
+    rowTitle = TextStyle(fontFamily = spectral, fontSize = 16.sp, lineHeight = 21.sp, fontWeight = FontWeight.SemiBold),
+    author = TextStyle(fontFamily = spectral, fontSize = 15.sp, lineHeight = 20.sp),
+    ribbonLabel = TextStyle(fontFamily = spectral, fontSize = 15.sp, lineHeight = 20.sp),
     metadata = TextStyle(fontFamily = FontFamily.Default, fontSize = 14.sp, lineHeight = 20.sp),
     status = TextStyle(fontFamily = FontFamily.Default, fontSize = 14.sp, lineHeight = 20.sp),
     empty = TextStyle(fontFamily = FontFamily.Default, fontSize = 16.sp, lineHeight = 22.sp),
-    time = TextStyle(fontFamily = FontFamily.Default, fontSize = 14.sp, lineHeight = 20.sp, fontFeatureSettings = "tnum"),
+    time = TextStyle(fontFamily = spectral, fontSize = 14.sp, lineHeight = 19.sp, fontFeatureSettings = "tnum"),
 )
 
-private val day = PagewornColors(Color(0xFFF3EBD9), Color(0xFFFAF5E9), Color(0xFF30251E), Color(0xFF625243), Color(0xFF833828), Color(0xFFF3EBD9), Color(0xFF233831), false)
-private val night = PagewornColors(Color(0xFF201C19), Color(0xFF29231F), Color(0xFFF2E7D4), Color(0xFFC4B49F), Color(0xFFF0A489), Color(0xFF201C19), Color(0xFF172722), true)
+private val day = PagewornColors(Color(0xFFF3EBD9), Color(0xFFFAF5E9), Color(0xFF30251E), Color(0xFF625243), Color(0xFF833828), Color(0xFFF3EBD9), Color(0xFFF3EBD9), Color(0xFF233831), Color(0xFFA67C45), false)
+private val night = PagewornColors(Color(0xFF201C19), Color(0xFF29231F), Color(0xFFF2E7D4), Color(0xFFC4B49F), Color(0xFFF0A489), Color(0xFF201C19), Color(0xFFF3EBD9), Color(0xFF172722), Color(0xFFB9936A), true)
 
 private val LocalColors = staticCompositionLocalOf { day }
 private val LocalType = staticCompositionLocalOf { typography }
@@ -103,9 +118,12 @@ fun PagewornTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composab
         surfaceContainerLowest = colors.raisedSheet, surfaceContainerLow = colors.raisedSheet,
         surfaceContainer = colors.raisedSheet, surfaceContainerHigh = colors.raisedSheet,
         surfaceContainerHighest = track,
+        error = colors.accent, onError = colors.inkOnAccent, errorContainer = track, onErrorContainer = colors.primaryInk,
         outline = colors.secondaryInk, outlineVariant = track,
     )
     CompositionLocalProvider(LocalColors provides colors, LocalType provides typography, LocalReducedMotion provides reducedMotion, LocalHighContrast provides highContrast) {
         MaterialTheme(colorScheme = scheme, content = content)
     }
 }
+
+private const val CONTROL_EDGE_ALPHA = 0.75f

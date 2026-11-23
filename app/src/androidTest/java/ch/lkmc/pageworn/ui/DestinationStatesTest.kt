@@ -3,15 +3,18 @@ package ch.lkmc.pageworn.ui
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assertHasClickAction
+import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasContentDescription
-import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasStateDescription
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isHeading
+import androidx.compose.ui.test.isSelectable
+import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -20,9 +23,11 @@ import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import ch.lkmc.pageworn.MainActivity
+import ch.lkmc.pageworn.catalog.CatalogSort
 import ch.lkmc.pageworn.debug.DemoLibrary
 import ch.lkmc.pageworn.testing.Fixtures
 import ch.lkmc.pageworn.testing.TestApp
@@ -45,6 +50,7 @@ class DestinationStatesTest {
     @Before
     fun setUp() {
         TestApp.reset()
+        TestApp.container.settings.setLibrarySort(CatalogSort.DEFAULT)
         runBlocking {
             DemoLibrary.seed(TestApp.context, TestApp.container, object : DemoLibrary.FixtureSource {
                 override fun files(fixtureId: String): List<File> = Fixtures.install(fixtureId)
@@ -60,6 +66,7 @@ class DestinationStatesTest {
     @After
     fun tearDown() {
         if (::scenario.isInitialized) scenario.close()
+        TestApp.container.settings.setLibrarySort(CatalogSort.DEFAULT)
         TestApp.reset()
     }
 
@@ -81,15 +88,16 @@ class DestinationStatesTest {
 
         bookmark("Library").performClick()
         bookmark("Library").assertIsSelected()
-        val titles = listOf("Boundary Book", "Field Notes on Rain", "Small Hours", "The Glass Coast", "The Night Orchard")
-        waitForBook("Boundary Book")
+        // Newest first.
+        val titles = listOf("The Night Orchard", "The Glass Coast", "Field Notes on Rain", "Small Hours", "Boundary Book")
+        waitForBook("The Night Orchard")
         titles.forEach(::visibleBook)
         titles.zipWithNext { first, second ->
             visibleBook(second)
             assertThat(bookTop(first)).isLessThan(bookTop(second))
         }
         visibleBook("Boundary Book")
-        assertShown(hasStateDescription("Downloaded") and hasAnyDescendant(hasText("Boundary Book")))
+        assertShown(hasStateDescription("Downloaded") and hasText("Boundary Book"))
         assertShown(hasContentDescription("Resume Boundary Book"))
         visibleBook("Field Notes on Rain")
         assertShown(hasText("61%"))
@@ -131,7 +139,36 @@ class DestinationStatesTest {
         assertShown(hasText("Chapter Two", substring = true))
         composeRule.onNodeWithContentDescription("Collapse player").performClick()
         bookmark("Library").assertIsSelected()
+        composeRule.onNode(hasScrollToIndexAction()).performScrollToIndex(0)
         assertShown(hasText("Search title or author"))
+    }
+
+    @Test
+    fun a18bTheSortSheetChangesTheOrderAndItSurvivesARelaunch() {
+        bookmark("Library").performClick()
+        waitForBook("The Night Orchard")
+        val control = composeRule.onNode(hasContentDescription("Sort Library"))
+        control.assertHasClickAction().assertHeightIsAtLeast(48.dp)
+        composeRule.onNode(hasContentDescription("Sort Library") and hasStateDescription("Date added, newest first")).assertIsDisplayed()
+        control.performClick()
+        composeRule.onNode(hasText("Date added, newest first") and isSelected()).assertIsDisplayed()
+        composeRule.onNode(hasText("Title") and isSelectable()).performClick()
+        composeRule.waitUntil(10_000) {
+            composeRule.onAllNodes(hasContentDescription("Sort Library") and hasStateDescription("Title")).fetchSemanticsNodes().isNotEmpty()
+        }
+        visibleBook("Boundary Book")
+        visibleBook("Field Notes on Rain")
+        assertThat(bookTop("Boundary Book")).isLessThan(bookTop("Field Notes on Rain"))
+
+        scenario.close()
+        scenario = ActivityScenario.launch(MainActivity::class.java)
+        // With a download running the app opens on Downloaded.
+        composeRule.waitUntil(10_000) { composeRule.onAllNodes(hasText("Downloading")).fetchSemanticsNodes().isNotEmpty() }
+        bookmark("Library").performClick()
+        composeRule.waitUntil(10_000) {
+            composeRule.onAllNodes(hasContentDescription("Sort Library") and hasStateDescription("Title")).fetchSemanticsNodes().isNotEmpty()
+        }
+        assertThat(TestApp.container.settings.librarySort.value).isEqualTo(CatalogSort.TITLE)
     }
 
     /** At least one node matches: the player footer repeats a row's chapter and Resume action. */

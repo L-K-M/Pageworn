@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools"
+    android:id="@android:id/background"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/pw_widget_binding"
+    android:clipToOutline="true"
+    android:foreground="?android:attr/selectableItemBackground"
+    android:orientation="vertical"
+    android:paddingBottom="5dp">
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="@drawable/pw_widget_paper">
+
+        <TextView
+            android:id="@+id/widget_notice"
+            style="@style/Widget.Pageworn.Segment"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:autoSizeMaxTextSize="15sp"
+            android:autoSizeMinTextSize="7dp"
+            android:autoSizeTextType="uniform"
+            android:breakStrategy="simple"
+            android:gravity="center"
+            android:maxLines="3"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="2dp"
+            android:textColor="@color/widget_secondary" />
+    </FrameLayout>
+
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="8dp"
+        android:background="@drawable/pw_widget_page_edges"
+        android:importantForAccessibility="no" />
+</LinearLayout>

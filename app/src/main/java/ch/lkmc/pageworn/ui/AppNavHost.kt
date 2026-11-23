@@ -4,16 +4,21 @@ import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
@@ -23,6 +28,7 @@ import androidx.navigation.compose.rememberNavController
 import ch.lkmc.pageworn.AppContainer
 import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.licences.LicenceNotices
+import ch.lkmc.pageworn.playback.PlayRefusal
 import ch.lkmc.pageworn.server.LocalNetworkAccess
 import ch.lkmc.pageworn.ui.components.MainScaffold
 import ch.lkmc.pageworn.ui.connect.ConnectScreen
@@ -42,8 +48,12 @@ import ch.lkmc.pageworn.ui.state.DetailViewModel
 import ch.lkmc.pageworn.ui.state.DownloadedViewModel
 import ch.lkmc.pageworn.ui.state.LibraryViewModel
 import ch.lkmc.pageworn.ui.state.MainViewModel
+import ch.lkmc.pageworn.ui.state.PlayerStates
 import ch.lkmc.pageworn.ui.state.PlayerViewModel
 import ch.lkmc.pageworn.ui.state.SettingsViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 
 /** Routes: the two sections with the mini-player, the full player, book details and settings. */
 object Routes {
@@ -59,8 +69,11 @@ object Routes {
     fun detail(key: BookKey) = "book/" + android.net.Uri.encode(key.mediaId)
 }
 
+/** One tap on a link to a book's details. Each is a new link, even to the same book. */
+class BookLink(val key: BookKey)
+
 @Composable
-fun AppNavHost(container: AppContainer, openPlayer: Boolean, openDownloaded: Int, navController: NavHostController = rememberNavController()) {
+fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, openBook: BookLink? = null, navController: NavHostController = rememberNavController()) {
     val main: MainViewModel = viewModel { MainViewModel(container) }
     val player: PlayerViewModel = viewModel { PlayerViewModel(container) }
     val context = LocalContext.current
@@ -89,7 +102,15 @@ fun AppNavHost(container: AppContainer, openPlayer: Boolean, openDownloaded: Int
     }
 
     LaunchedEffect(openPlayer) {
-        if (openPlayer) navController.navigate(Routes.PLAYER) { launchSingleTop = true }
+        if (openPlayer > 0) navController.navigate(Routes.PLAYER) { launchSingleTop = true }
+    }
+
+    val problem by player.problem.collectAsStateWithLifecycle()
+    val shownBook by player.player.collectAsStateWithLifecycle()
+    val choosing = problem?.key?.takeIf { problem?.refusal == PlayRefusal.NEEDS_CHOICE && shownBook?.face?.key == it }
+    LaunchedEffect(choosing) {
+        // A book that cannot start until the listener chooses where opens on that choice.
+        if (choosing != null) navController.navigate(Routes.PLAYER) { launchSingleTop = true }
     }
 
     val decided by main.decided.collectAsStateWithLifecycle()
@@ -99,8 +120,28 @@ fun AppNavHost(container: AppContainer, openPlayer: Boolean, openDownloaded: Int
             main.select(Destination.DOWNLOADED)
         }
     }
+    LaunchedEffect(openBook, decided) {
+        val link = openBook ?: return@LaunchedEffect
+        if (!decided) return@LaunchedEffect
+        // Navigation is main-thread only, and an effect may resume on the database's thread.
+        withContext(Dispatchers.Main.immediate) {
+            // The link can be older than the book's download, or come from another app.
+            val onPhone = container.editionStore.observeEverything().first().any { it.key == link.key }
+            navController.popBackStack(Routes.MAIN, inclusive = false)
+            if (onPhone) navController.navigate(Routes.detail(link.key)) else main.select(Destination.DOWNLOADED)
+        }
+    }
 
-    NavHost(navController, startDestination = Routes.MAIN) {
+    // Navigation's default cross-fade keeps the leaving screen over the arriving one for 700 ms,
+    // and it takes the taps meant for what the listener already sees. Screens change at once.
+    NavHost(
+        navController,
+        startDestination = Routes.MAIN,
+        enterTransition = { EnterTransition.None },
+        exitTransition = { ExitTransition.None },
+        popEnterTransition = { EnterTransition.None },
+        popExitTransition = { ExitTransition.None },
+    ) {
         composable(Routes.MAIN) {
             MainRoute(container, main, player, navController, requestLocalNetwork)
         }
@@ -111,10 +152,17 @@ fun AppNavHost(container: AppContainer, openPlayer: Boolean, openDownloaded: Int
             if (current == null) {
                 if (loaded) LaunchedEffect(Unit) { navController.popBackStack() }
             } else {
+                val activity = LocalActivity.current
+                DisposableEffect(current.face.key) {
+                    onDispose {
+                        val choiceLeft = player.problem.value?.let { it.refusal == PlayRefusal.NEEDS_CHOICE && it.key == current.face.key } == true
+                        if (choiceLeft && activity?.isChangingConfigurations != true) player.dismissProblem()
+                    }
+                }
                 PlayerScreen(
-                    state = current,
+                    state = current.copy(playNotice = problem?.takeIf { it.key == current.face.key }?.let(PlayerStates::notice)),
                     onCollapse = { navController.popBackStack() },
-                    onPlayPause = player::togglePlayPause,
+                    onPlayPause = { player.playPause(current.face.key, it) },
                     onSkipBack = player::skipBack,
                     onSkipForward = player::skipForward,
                     onSeekTo = player::seekTo,
@@ -137,11 +185,12 @@ fun AppNavHost(container: AppContainer, openPlayer: Boolean, openDownloaded: Int
             val detail: DetailViewModel = viewModel(key = mediaId) { DetailViewModel(container, key) }
             val state by detail.state.collectAsStateWithLifecycle()
             state?.let {
+                val notice = problem?.takeIf { p -> p.key == key }?.let(PlayerStates::notice)
                 BookDetailScreen(
-                    state = it,
+                    state = if (notice == null) it else it.copy(message = notice),
                     onBack = { navController.popBackStack() },
                     onDownload = detail::download,
-                    onPlayPause = { player.playPause(key) },
+                    onPlayPause = { player.playPause(key, it) },
                     onRepair = detail::download,
                     onPauseTransfer = detail::pauseTransfer,
                     onResumeTransfer = detail::resumeTransfer,
@@ -209,6 +258,11 @@ fun AppNavHost(container: AppContainer, openPlayer: Boolean, openDownloaded: Int
                 onAllowLocalNetwork = { requestLocalNetwork { granted -> if (granted) { if (mode == ConnectMode.LAUNCH_BLOCKED) connect.retry() else connect.continueAddress() } else connect.localNetworkDenied() } },
                 onConfirmPairing = connect::confirmPairing, onCancelPairing = connect::declinePairing,
                 onOpenDownloaded = if (mode == ConnectMode.LAUNCH_BLOCKED) ({ main.select(Destination.DOWNLOADED); main.connectFinished(); navController.popBackStack() }) else null,
+                // Pairing and signing in again were opened from a screen, and lead back to it.
+                onBack = when (mode) {
+                    ConnectMode.ADD, ConnectMode.SIGN_IN -> ({ navController.popBackStack() })
+                    ConnectMode.FIRST, ConnectMode.LAUNCH_BLOCKED -> null
+                },
             )
         }
     }
@@ -228,13 +282,20 @@ private fun MainRoute(container: AppContainer, main: MainViewModel, player: Play
     val openBook = { key: BookKey -> navController.navigate(Routes.detail(key)) }
     val openSettings = { navController.navigate(Routes.SETTINGS) }
     LaunchedEffect(destination) { if (destination == Destination.LIBRARY) library.firstVisible() }
+    LifecycleStartEffect(destination) {
+        if (destination == Destination.DOWNLOADED) downloaded.onShown()
+        onStopOrDispose {}
+    }
+    val problem by player.problem.collectAsStateWithLifecycle()
 
     MainScaffold(
         destination = destination,
         onSelectDestination = main::select,
         miniPlayer = mini,
         onOpenPlayer = { navController.navigate(Routes.PLAYER) { launchSingleTop = true } },
-        onMiniPlayPause = player::togglePlayPause,
+        onMiniPlayPause = { action -> mini?.let { player.playPause(it.face.key, action) } },
+        playNotice = problem?.let(PlayerStates::notice),
+        onDismissPlayNotice = player::dismissProblem,
     ) { padding ->
         when (destination) {
             Destination.LIBRARY -> {
@@ -244,6 +305,7 @@ private fun MainRoute(container: AppContainer, main: MainViewModel, player: Play
                     listState = libraryList,
                     onQueryChange = library::setQuery,
                     onSelectLibrary = library::selectLibrary,
+                    onSelectSort = library::setSort,
                     onOpenBook = openBook,
                     onDownload = library::download,
                     onPlayPause = player::playPause,

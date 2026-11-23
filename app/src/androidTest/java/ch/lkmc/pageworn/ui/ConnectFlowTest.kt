@@ -13,6 +13,7 @@ import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.printToLog
@@ -94,7 +95,7 @@ class ConnectFlowTest {
         composeRule.onNodeWithText("Password").performTextReplacement(listenerPassword)
         click(Copy.CONTINUE)
         composeRule.waitUntil(20_000) { composeRule.onAllNodesWithText("Library").fetchSemanticsNodes().size >= 2 }
-        shown("Boundary Book")
+        shownInList("Boundary Book")
         composeRule.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Same Title"))
         composeRule.waitUntil(20_000) { composeRule.onAllNodesWithText("Same Title").fetchSemanticsNodes().size >= 2 }
         composeRule.onAllNodesWithText("Same Title").assertCountEquals(2)
@@ -105,15 +106,17 @@ class ConnectFlowTest {
         click(Copy.BROWSE_LIBRARY)
         shown("Same Title")
 
+        // Newest first puts those two far down, and the list keeps its place: back to its header.
+        composeRule.onNode(hasScrollToIndexAction()).performScrollToIndex(0)
         composeRule.onNodeWithContentDescription("Settings").performClick()
         click(Copy.SIGN_OUT)
         shown(Copy.SIGN_OUT_CONFIRM)
         val signOutButtons = composeRule.onAllNodesWithText(Copy.SIGN_OUT)
         signOutButtons[signOutButtons.fetchSemanticsNodes().lastIndex].performClick()
         shown(Copy.SESSION_EXPIRED)
-        composeRule.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Boundary Book"))
-        shown("Boundary Book")
+        shownInList("Boundary Book")
 
+        composeRule.onNode(hasScrollToIndexAction()).performScrollToIndex(0)
         click(Copy.SIGN_IN)
         shown("http://10.0.2.2:13378/")
         click(Copy.CONTINUE)
@@ -125,7 +128,7 @@ class ConnectFlowTest {
         composeRule.onNodeWithText("Username").performTextReplacement(listener)
         composeRule.onNodeWithText("Password").performTextReplacement(listenerPassword)
         click(Copy.CONTINUE)
-        shown("Boundary Book")
+        shownInList("Boundary Book")
         composeRule.waitUntil(20_000) { composeRule.onAllNodesWithText(Copy.SESSION_EXPIRED).fetchSemanticsNodes().isEmpty() }
 
         composeRule.onNodeWithContentDescription("Settings").performClick()
@@ -143,6 +146,14 @@ class ConnectFlowTest {
             throw e
         }
         composeRule.onAllNodesWithText(text)[0].assertIsDisplayed()
+    }
+
+    /** [text] in the list, which scrolls to it: the newest books fill the first screen. */
+    private fun shownInList(text: String) {
+        composeRule.waitUntil(20_000) {
+            runCatching { composeRule.onNode(hasScrollToIndexAction()).performScrollToNode(hasText(text)) }.isSuccess
+        }
+        shown(text)
     }
 
     private fun click(text: String) { composeRule.onNodeWithText(text).performClick() }

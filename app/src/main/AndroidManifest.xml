@@ -67,6 +67,35 @@
             </intent-filter>
         </receiver>
 
+        <receiver
+            android:name=".widget.NowReadingWidget"
+            android:exported="false"
+            android:label="@string/widget_now_reading">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/pw_widget_now_reading" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.BookshelfWidget"
+            android:exported="false"
+            android:label="@string/widget_bookshelf">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/pw_widget_bookshelf" />
+        </receiver>
+
+        <!-- The widgets' keys. Only this app's own PendingIntents reach it. -->
+        <receiver
+            android:name=".widget.WidgetActionReceiver"
+            android:exported="false" />
+
         <provider
             android:name=".playback.CoverProvider"
             android:authorities="${applicationId}.covers"
