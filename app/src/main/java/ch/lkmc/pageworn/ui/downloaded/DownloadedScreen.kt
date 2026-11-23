@@ -123,7 +123,7 @@ private fun DownloadedBookRow(row: ReadyBookRow, onOpenBook: (BookKey) -> Unit, 
                     ReadyBadge.New -> Text("New", Modifier.padding(top = 4.dp).background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = .6f), RoundedCornerShape(100)).padding(horizontal = 10.dp, vertical = 3.dp), color = PagewornTheme.colors.accent, style = PagewornTheme.type.status)
                     is ReadyBadge.InProgress -> Text(badge.text, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status)
                     ReadyBadge.Finished -> Text("Finished", color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status)
-                    is ReadyBadge.RepairNeeded -> { Text("Repair needed", color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status); Text(badge.message, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status) }
+                    is ReadyBadge.RepairNeeded -> { Text(Copy.REPAIR_NEEDED, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status); if (badge.message.isNotBlank()) Text(badge.message, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status) }
                 }
             }
             if (!compact && row.playable) PlayPauseKey(row.showsPause, row.face.title, ROW_KEY, starting = row.starting, start = row.start) { onPlayPause(row.face.key, it) }

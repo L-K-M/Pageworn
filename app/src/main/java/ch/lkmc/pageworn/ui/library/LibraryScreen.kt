@@ -69,6 +69,7 @@ import ch.lkmc.pageworn.ui.model.KeyAction
 import ch.lkmc.pageworn.ui.model.LibraryUiState
 import ch.lkmc.pageworn.ui.model.StartAction
 import ch.lkmc.pageworn.ui.model.UiAction
+import ch.lkmc.pageworn.ui.state.RowBuilders
 import ch.lkmc.pageworn.ui.theme.LocalHighContrast
 import ch.lkmc.pageworn.ui.theme.PagewornTheme
 
@@ -121,16 +122,9 @@ private fun CatalogBookRow(row: CatalogRow, onOpenBook: (BookKey) -> Unit, onDow
             Column(Modifier.weight(1f).semantics(mergeDescendants = true) { if (row.action is CatalogAction.Ready) stateDescription = "Downloaded" }) {
                 Text(face.title, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.rowTitle)
                 face.author?.let { Text(it, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.author) }
-                val message = when (row.action) {
-                    CatalogAction.DownloadDisabled -> row.message ?: Copy.DOWNLOAD_DISABLED
-                    CatalogAction.Unsupported -> row.message ?: Copy.UNSUPPORTED_FORMAT
-                    CatalogAction.RepairNeeded -> row.message ?: "Repair needed"
-                    else -> row.message
-                }
-                message?.let { Text(it, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status) }
-                // The phase belongs beside the ring at every text size, so a paused or waiting
-                // transfer never reads as active.
-                if (row.action is CatalogAction.Transferring) Text(row.action.transfer.stateText, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status)
+                // The transfer's phase belongs beside the ring at every text size, so a paused
+                // or waiting transfer never reads as active.
+                RowBuilders.catalogRowMessage(row)?.let { Text(it, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status) }
             }
             if (!compact) CatalogActionView(row, onDownload, onPlayPause, onPauseTransfer, onResumeTransfer)
         }
