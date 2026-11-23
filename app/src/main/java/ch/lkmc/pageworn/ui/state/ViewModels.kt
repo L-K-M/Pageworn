@@ -94,8 +94,13 @@ class PlayerViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
-    private val playerStates = combine(shown, container.playbackHub.state, container.sleepSettings.settings) { s, live, sleep ->
-        s?.let { PlayerStates.player(it.plan, it.edition, it.progress, live, sleep) }
+    private val playerStates = combine(
+        shown,
+        container.playbackHub.state,
+        container.sleepSettings.settings,
+        container.settings.speed,
+    ) { s, live, sleep, speed ->
+        s?.let { PlayerStates.player(it.plan, it.edition, it.progress, live, sleep, restingSpeed = speed) }
     }.shareIn(viewModelScope, SharingStarted.Eagerly, replay = 1)
 
     val player: StateFlow<PlayerUiState?> = playerStates.stateIn(viewModelScope, SharingStarted.Eagerly, null)
