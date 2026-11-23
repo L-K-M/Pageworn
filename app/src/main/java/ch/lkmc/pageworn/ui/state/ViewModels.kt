@@ -1,5 +1,8 @@
 package ch.lkmc.pageworn.ui.state
 
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.delay
+import ch.lkmc.pageworn.core.sleep.SleepLength
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ch.lkmc.pageworn.AppContainer
@@ -17,7 +20,6 @@ import ch.lkmc.pageworn.ui.model.DownloadedUiState
 import ch.lkmc.pageworn.ui.model.KeyAction
 import ch.lkmc.pageworn.ui.model.MiniPlayerUi
 import ch.lkmc.pageworn.ui.model.PlayerUiState
-import ch.lkmc.pageworn.ui.model.SleepChoice
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -77,8 +79,8 @@ class PlayerViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
-    private val playerStates = combine(shown, container.playbackHub.state) { s, live ->
-        s?.let { PlayerStates.player(it.plan, it.edition, it.progress, live) }
+    private val playerStates = combine(shown, container.playbackHub.state, container.sleepSettings.settings) { s, live, sleep ->
+        s?.let { PlayerStates.player(it.plan, it.edition, it.progress, live, sleep) }
     }.shareIn(viewModelScope, SharingStarted.Eagerly, replay = 1)
 
     val player: StateFlow<PlayerUiState?> = playerStates.stateIn(viewModelScope, SharingStarted.Eagerly, null)
@@ -89,6 +91,16 @@ class PlayerViewModel(private val container: AppContainer) : ViewModel() {
     val mini: StateFlow<MiniPlayerUi?> = combine(shown, container.playbackHub.state) { s, live ->
         s?.let { PlayerStates.mini(it.plan, it.edition, it.progress, live) }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    init {
+        // A schedule edge can pass while nothing plays and no playback service runs to notice it.
+        viewModelScope.launch {
+            while (isActive) {
+                container.sleepSettings.refresh()
+                delay(SLEEP_SCHEDULE_CHECK_MS)
+            }
+        }
+    }
 
     private fun currentKey(): BookKey? = player.value?.face?.key
 
@@ -132,9 +144,9 @@ class PlayerViewModel(private val container: AppContainer) : ViewModel() {
         connection.setSpeed(speed)
     }
 
-    fun setSleep(choice: SleepChoice) {
-        val key = currentKey() ?: return
-        connection.setSleep(key, choice)
+    /** Turns sleep mode on with [length], or off for null. */
+    fun setSleep(length: SleepLength?) {
+        connection.setSleep(length)
     }
 
     private val transferActions = TransferActions(container)
@@ -266,3 +278,5 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
         container.settings.lastDestination = destination.name
     }
 }
+
+private const val SLEEP_SCHEDULE_CHECK_MS = 30_000L

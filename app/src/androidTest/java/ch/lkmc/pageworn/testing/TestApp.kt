@@ -1,5 +1,7 @@
 package ch.lkmc.pageworn.testing
 
+import ch.lkmc.pageworn.core.sleep.SleepWindow
+import ch.lkmc.pageworn.data.SleepSettings
 import android.content.Intent
 import androidx.media3.datasource.FileDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
@@ -48,6 +50,13 @@ object TestApp {
         container.settings.setLastActiveBook(null)
         container.settings.setSpeed(1f)
         container.settings.pinnedAddressId = null
+        container.sleepSettings.run {
+            choose(SleepSettings().length)
+            choose(null)
+            forgetStop()
+            setPresets(SleepSettings.DEFAULT_PRESETS)
+            setAutomatic(false, SleepWindow.DEFAULT)
+        }
         container.tokenVault.deleteAll()
     }
 

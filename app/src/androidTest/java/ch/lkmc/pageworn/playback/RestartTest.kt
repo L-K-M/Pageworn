@@ -326,10 +326,11 @@ class RestartTest {
                 c.setMediaItem(item(key))
                 c.prepare()
                 c.play()
-                val start = withTimeout(10_000) { container.playbackHub.state.first { it.isPlaying } }
+                val start = withTimeout(10_000) { container.playbackHub.state.first { it.isPlaying && it.sleep is SleepState.Timed } }
                 val expected = stop.positionMs - 300_000
                 assertThat(start.positionMs in (expected - 100)..(expected + 350)).isTrue()
-                assertThat(start.sleep).isEqualTo(SleepState.Off)
+                // Sleep mode outlives the process; the start runs a fresh timer of its length.
+                assertThat((start.sleep as SleepState.Timed).minutes).isEqualTo(15)
                 c.pauseAndSettle()
             } finally {
                 c.release()
@@ -368,7 +369,7 @@ class RestartTest {
 
     // --- A16e, resumption after process death ------------------------------------------------
 
-    /** Pause the boundary book at 115 s at 1.5x with a timed sleep armed; then the process dies. */
+    /** Pause the boundary book at 115 s at 1.5x with 15-minute sleep mode on; then the process dies. */
     @Test
     fun a16ePart1PauseAt115At1_5xWithATimer() {
         TestApp.reset()
@@ -390,8 +391,12 @@ class RestartTest {
             assertThat(armed.resultCode).isEqualTo(SessionResult.RESULT_SUCCESS)
             c.play()
             c.awaitUntil(description = "playing") { isPlaying }
+            // The controller masks Play at once; the service's state shows when its timer runs.
+            withTimeout(5_000) { container.playbackHub.state.first { it.isPlaying && it.sleep is SleepState.Timed } }
             c.pauseAndSettle()
-            assertThat(container.playbackHub.state.value.sleep).isInstanceOf(SleepState.Timed::class.java)
+            // The pause ends the timer; the mode stays on.
+            assertThat(container.playbackHub.state.value.sleep).isEqualTo(SleepState.Off)
+            assertThat(container.sleepSettings.settings.value.enabled).isTrue()
             c.release()
             runBlocking { container.progressStore.read(a)!! }
         }
@@ -399,12 +404,12 @@ class RestartTest {
     }
 
     /**
-     * In a new process, a media-key Play resumes the book at its place and speed without a timer
-     * and without opening the activity, through the service started in the foreground. A press on
+     * In a new process, a media-key Play resumes the book at its place and speed with a fresh timer
+     * of the sleep mode's length and without opening the activity, through the service started in the foreground. A press on
      * Bluetooth headphones and the resumption control after a phone restart are owner checks.
      */
     @Test
-    fun a16ePart2MediaPlayResumesAtThePlaceAndSpeedWithoutATimer() {
+    fun a16ePart2MediaPlayResumesAtThePlaceAndSpeedWithAFreshTimer() {
         val marker = RestartMarker.readAfterRestart("a16e")
         val a = TestApp.key("boundary-book")
         container.clock = FakeClock(wall = marker.getValue("wall") + 60_000L)
@@ -425,7 +430,7 @@ class RestartTest {
         val place = marker.getValue("position")
         assertThat(resumed.positionMs).isIn(com.google.common.collect.Range.closed(place - 300, place + 1_500))
         assertThat(resumed.speed).isEqualTo(A16E_SPEED)
-        assertThat(resumed.sleep).isEqualTo(SleepState.Off)
+        assertThat((resumed.sleep as SleepState.Timed).minutes).isEqualTo(15)
         assertWithMessage("resumed activities").that(resumed.resumedActivities).isEqualTo(0)
         assertWithMessage("the service runs in the foreground").that(resumed.foreground).isTrue()
         RestartMarker.clear()

@@ -131,6 +131,12 @@ object Format {
     /** A countdown in whole minutes, rounded up: "13 min". */
     fun minutesLeft(ms: Long): String = "${(ms.coerceAtLeast(0) + 59_999) / 60_000} min"
 
+    /** A running countdown, rounded up to the second so it reads 0:00 only at the end: "12:40", "1:00:00". */
+    fun countdown(ms: Long): String = clock(((ms.coerceAtLeast(0) + 999) / 1000) * 1000)
+
+    /** A sleep length: "1 minute", "45 minutes". */
+    fun minutes(minutes: Int): String = if (minutes == 1) "1 minute" else "$minutes minutes"
+
     /** Spoken duration for accessibility: "12 minutes 40 seconds". */
     fun spokenDuration(ms: Long): String {
         val totalSeconds = (ms.coerceAtLeast(0) + 500) / 1000

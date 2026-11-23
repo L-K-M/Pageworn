@@ -16,6 +16,7 @@ import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
 import ch.lkmc.pageworn.AppContainer
 import ch.lkmc.pageworn.core.BookKey
+import ch.lkmc.pageworn.core.sleep.SleepLength
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
@@ -201,18 +202,25 @@ class BookSessionCallback(
         args: Bundle,
     ): ListenableFuture<SessionResult> {
         val c = controller()
+        if (customCommand.customAction == PagewornCommands.SET_SLEEP) {
+            // Sleep mode needs no book: it applies to the next start.
+            val length = when (args.getString(PagewornCommands.ARG_SLEEP_MODE)) {
+                PagewornCommands.SLEEP_OFF -> null
+                PagewornCommands.SLEEP_END_OF_SEGMENT -> SleepLength.EndOfSegment
+                PagewornCommands.SLEEP_TIMED -> SleepLength.Minutes(
+                    args.getInt(PagewornCommands.ARG_SLEEP_MINUTES).coerceIn(SleepLength.MIN_MINUTES, SleepLength.MAX_MINUTES),
+                )
+                else -> return Futures.immediateFuture(SessionResult(SessionError.ERROR_BAD_VALUE))
+            }
+            c.setSleep(length)
+            return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+        }
         val plan = c.loadedPlan ?: return Futures.immediateFuture(SessionResult(SessionError.ERROR_INVALID_STATE))
         val player = session.player
         val timeline = plan.timeline
         when (customCommand.customAction) {
             PagewornCommands.NEXT_CHAPTER -> timeline.nextSegmentStart(player.currentPosition)?.let { player.seekTo(it) }
             PagewornCommands.PREVIOUS_CHAPTER -> player.seekTo(timeline.previousSegmentTarget(player.currentPosition))
-            PagewornCommands.SET_SLEEP -> when (val mode = args.getString(PagewornCommands.ARG_SLEEP_MODE)) {
-                PagewornCommands.SLEEP_OFF -> c.setSleepOff()
-                PagewornCommands.SLEEP_END_OF_SEGMENT -> c.setSleepEndOfSegment()
-                PagewornCommands.SLEEP_TIMED -> c.setSleepTimed(args.getInt(PagewornCommands.ARG_SLEEP_MINUTES).coerceIn(1, 24 * 60))
-                else -> return Futures.immediateFuture(SessionResult(SessionError.ERROR_BAD_VALUE)).also { mode }
-            }
             PagewornCommands.SEEK_IN_BOOK -> player.seekTo(timeline.clamp(args.getLong(PagewornCommands.ARG_POSITION_MS)))
             else -> return Futures.immediateFuture(SessionResult(SessionError.ERROR_NOT_SUPPORTED))
         }

@@ -112,8 +112,11 @@ class PlaybackFailureTest {
             val c = controller()
             c.load(book, 95_000)
             c.sleep(PagewornCommands.SLEEP_TIMED, minutes = 15)
-            val deadline = (container.playbackHub.state.value.sleep as SleepState.Timed).deadlineElapsedMs
             c.play()
+            // The controller shows playing before the service has armed the timer: wait on the hub.
+            val deadline = withTimeout(10_000) {
+                container.playbackHub.state.first { it.isPlaying && it.sleep is SleepState.Timed }
+            }.let { (it.sleep as SleepState.Timed).deadlineElapsedMs }
             c.awaitUntil(20_000, "past 102 s") { currentPosition > 102_000 }
             assertThat(faulty.failures).containsExactly(b)
             assertThat(c.playerError).isNull()
@@ -125,7 +128,7 @@ class PlaybackFailureTest {
     }
 
     @Test
-    fun a10dRepeatedReadErrorsPauseNearTheFailureAndLeaveTheTimerArmed() {
+    fun a10dRepeatedReadErrorsPauseNearTheFailureAndEndTheTimer() {
         val book = TestApp.publishBoundaryBook()
         onMain {
             // Every read from 155 s on fails. The loader is held at those bytes until playback runs,
@@ -141,9 +144,8 @@ class PlaybackFailureTest {
             c.load(book, 100_000)
             c.setPlaybackSpeed(2f)
             c.sleep(PagewornCommands.SLEEP_TIMED, minutes = 15)
-            val deadline = (container.playbackHub.state.value.sleep as SleepState.Timed).deadlineElapsedMs
             c.play()
-            c.awaitUntil(10_000, "playing") { isPlaying }
+            withTimeout(10_000) { container.playbackHub.state.first { it.isPlaying && it.sleep is SleepState.Timed } }
             loaderHeld.countDown()
             val live = awaitFailure(60_000)
             delay(500)
@@ -163,11 +165,10 @@ class PlaybackFailureTest {
             assertThat(ui.failureMessage).isEqualTo(Copy.PLAYBACK_STOPPED)
             assertThat(ui.transportEnabled).isFalse()
             assertThat(ui.positionMs).isEqualTo(saved.positionMs)
-            // The failure pause leaves the timer armed; when its deadline passes, it clears and the
-            // saved place stays as it was.
-            assertThat((container.playbackHub.state.value.sleep as SleepState.Timed).deadlineElapsedMs).isEqualTo(deadline)
-            clock.advance(15 * 60_000L + 1_000)
+            // The failure pause ends the timer like any pause, and its deadline passing later
+            // changes nothing.
             withTimeout(5_000) { container.playbackHub.state.first { it.sleep == SleepState.Off } }
+            clock.advance(15 * 60_000L + 1_000)
             delay(500)
             assertThat(stored(book).positionMs).isEqualTo(saved.positionMs)
             assertThat(stored(book).stopKind).isEqualTo(saved.stopKind)
@@ -313,8 +314,10 @@ class PlaybackFailureTest {
             val c = controller()
             c.load(book, 89_000)
             c.sleep(PagewornCommands.SLEEP_END_OF_SEGMENT)
-            assertThat(container.playbackHub.state.value.sleep).isInstanceOf(SleepState.EndOf::class.java)
+            assertThat(container.sleepSettings.settings.value.enabled).isTrue()
             c.play()
+            // The timer starts with playback; wait for it before waiting for its stop.
+            withTimeout(5_000) { container.playbackHub.state.first { it.sleep is SleepState.EndOf } }
             withTimeout(15_000) { container.playbackHub.state.first { it.sleep == SleepState.Off && !it.playWhenReady } }
             delay(500)
             val stop = stored(book)

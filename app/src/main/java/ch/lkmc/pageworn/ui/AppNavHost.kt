@@ -41,6 +41,7 @@ import ch.lkmc.pageworn.ui.player.PlayerScreen
 import ch.lkmc.pageworn.ui.settings.AddressesScreen
 import ch.lkmc.pageworn.ui.settings.LicencesScreen
 import ch.lkmc.pageworn.ui.settings.SettingsScreen
+import ch.lkmc.pageworn.ui.settings.SleepSettingsScreen
 import ch.lkmc.pageworn.ui.state.AddressesViewModel
 import ch.lkmc.pageworn.ui.state.ConnectMode
 import ch.lkmc.pageworn.ui.state.ConnectViewModel
@@ -51,6 +52,7 @@ import ch.lkmc.pageworn.ui.state.MainViewModel
 import ch.lkmc.pageworn.ui.state.PlayerStates
 import ch.lkmc.pageworn.ui.state.PlayerViewModel
 import ch.lkmc.pageworn.ui.state.SettingsViewModel
+import ch.lkmc.pageworn.ui.state.SleepSettingsViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -62,6 +64,7 @@ object Routes {
     const val SETTINGS = "settings"
     const val LICENCES = "licences"
     const val ADDRESSES = "addresses"
+    const val SLEEP = "sleep"
     const val CONNECT = "connect/{mode}/{addressId}"
     fun connect(mode: ConnectMode, addressId: String? = null) = "connect/${mode.name}/${addressId ?: "none"}"
     const val DETAIL = "book/{mediaId}"
@@ -211,6 +214,7 @@ fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, op
                 state = state,
                 onBack = { navController.popBackStack() },
                 onOpenAddresses = { navController.navigate(Routes.ADDRESSES) },
+                onOpenSleep = { navController.navigate(Routes.SLEEP) },
                 onSignOut = settings::askSignOut,
                 onConfirmSignOut = { settings.signOut(); navController.popBackStack() },
                 onDismissSignOut = settings::dismissSignOut,
@@ -237,6 +241,19 @@ fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, op
                 onAllowLocalNetwork = { requestLocalNetwork { granted -> if (granted) addresses.test(it) } },
                 onSignIn = { navController.navigate(Routes.connect(ConnectMode.SIGN_IN, it)) },
                 onSetAutomatic = { addresses.pin(null) }, onPin = { addresses.pin(it) },
+            )
+        }
+        composable(Routes.SLEEP) {
+            val sleep: SleepSettingsViewModel = viewModel { SleepSettingsViewModel(container) }
+            val state by sleep.state.collectAsStateWithLifecycle()
+            SleepSettingsScreen(
+                state = state,
+                onBack = { navController.popBackStack() },
+                onAddPreset = sleep::addPreset,
+                onRemovePreset = sleep::removePreset,
+                onSetAutomatic = sleep::setAutomatic,
+                onSetStart = sleep::setStart,
+                onSetEnd = sleep::setEnd,
             )
         }
         composable(Routes.CONNECT) { entry ->

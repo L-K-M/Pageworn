@@ -47,6 +47,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import ch.lkmc.pageworn.R
+import ch.lkmc.pageworn.core.sleep.SleepLength
 import ch.lkmc.pageworn.ui.components.BookCover
 import ch.lkmc.pageworn.ui.components.PaperRule
 import ch.lkmc.pageworn.ui.components.PaperSheet
@@ -61,7 +62,6 @@ import ch.lkmc.pageworn.ui.model.Format
 import ch.lkmc.pageworn.ui.model.KeyAction
 import ch.lkmc.pageworn.ui.model.PlayerUiState
 import ch.lkmc.pageworn.ui.model.SegmentRow
-import ch.lkmc.pageworn.ui.model.SleepChoice
 import ch.lkmc.pageworn.ui.model.SleepUi
 import ch.lkmc.pageworn.ui.model.StartAction
 import ch.lkmc.pageworn.ui.theme.PagewornTheme
@@ -77,7 +77,7 @@ val LocalPreviewSleepSheet = staticCompositionLocalOf { false }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PlayerScreen(state: PlayerUiState, onCollapse: () -> Unit, onPlayPause: (KeyAction) -> Unit, onSkipBack: () -> Unit, onSkipForward: () -> Unit, onSeekTo: (Long) -> Unit, onSelectSpeed: (Float) -> Unit, onSelectSegment: (Long) -> Unit, onSelectSleep: (SleepChoice) -> Unit, onRepair: () -> Unit, onUsePreviousPosition: () -> Unit, onStartOver: () -> Unit) {
+fun PlayerScreen(state: PlayerUiState, onCollapse: () -> Unit, onPlayPause: (KeyAction) -> Unit, onSkipBack: () -> Unit, onSkipForward: () -> Unit, onSeekTo: (Long) -> Unit, onSelectSpeed: (Float) -> Unit, onSelectSegment: (Long) -> Unit, onSelectSleep: (SleepLength?) -> Unit, onRepair: () -> Unit, onUsePreviousPosition: () -> Unit, onStartOver: () -> Unit) {
     val previewSleep = LocalPreviewSleepSheet.current
     var sheet by rememberSaveable(state.face.key.mediaId) { mutableStateOf<PlayerSheet?>(if (previewSleep) PlayerSheet.SLEEP else null) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -142,7 +142,8 @@ private fun Utility(label: String, description: String, target: String? = null, 
     Column(Modifier.heightIn(min = 60.dp).widthIn(min = 48.dp).clip(UTILITY_SHAPE).clickable(role = Role.Button, onClick = onClick).semantics { contentDescription = description }.padding(horizontal = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         icon()
         Text(label, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.ribbonLabel)
-        target?.let { Text(it, color = PagewornTheme.colors.accent, style = PagewornTheme.type.status) }
+        // Tabular figures keep a ticking countdown from shifting the row every second.
+        target?.let { Text(it, color = PagewornTheme.colors.accent, style = PagewornTheme.type.status.copy(fontFeatureSettings = "tnum")) }
     }
 }
 
@@ -172,11 +173,11 @@ private fun SegmentsSheet(segmentName: String, segments: List<SegmentRow>, onSel
 }
 
 @Composable
-private fun SleepSheet(sleep: SleepUi, onSelect: (SleepChoice) -> Unit) {
+private fun SleepSheet(sleep: SleepUi, onSelect: (SleepLength?) -> Unit) {
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 22.dp, end = 22.dp, bottom = 12.dp).selectableGroup()) {
-        listOf(
-            SleepChoice.OFF to "Off", SleepChoice.MINUTES_15 to "15 minutes", SleepChoice.MINUTES_30 to "30 minutes",
-            SleepChoice.MINUTES_45 to "45 minutes", SleepChoice.MINUTES_60 to "60 minutes", SleepChoice.END_OF_SEGMENT to sleep.endLabel,
-        ).forEach { (choice, label) -> RadioRow(label, sleep.selected == choice, if (sleep.selected == choice) sleep.remainingText else null) { onSelect(choice) } }
+        sleep.options.forEach { option ->
+            val selected = sleep.selected == option.length
+            RadioRow(option.label, selected, if (selected) sleep.remainingText else null) { onSelect(option.length) }
+        }
     }
 }
