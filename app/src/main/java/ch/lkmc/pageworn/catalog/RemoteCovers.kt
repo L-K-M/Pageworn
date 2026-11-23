@@ -38,7 +38,9 @@ class RemoteCovers(
                 withContext(Dispatchers.IO) { touch(cached) }
                 return@withLock cached
             }
-            val bytes = fetch(itemId, widthPx, updatedAt)
+            // Callers are composition, on the main thread; the fetch picks a route and reads each
+            // address's credential from the Keystore before its request, so it leaves the caller.
+            val bytes = withContext(Dispatchers.IO) { fetch(itemId, widthPx, updatedAt) }
             if (bytes == null) {
                 failures[key] = nowMs() + NEGATIVE_TTL_MS
                 return@withLock null
