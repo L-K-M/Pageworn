@@ -121,9 +121,11 @@ class LibraryIncompleteStatusTest {
 
         library.setQuery("")
         val cleared = await("the cleared search") {
-            it.selectedLibraryId == SHELF && it.query.isEmpty() && it.empty == null
+            it.selectedLibraryId == SHELF && it.query.isEmpty() &&
+                it.empty == null && it.status?.text == Copy.LIBRARY_INCOMPLETE
         }
         assertThat(cleared.status?.text).isEqualTo(Copy.LIBRARY_INCOMPLETE)
+        assertThat(cleared.status?.action).isEqualTo(UiAction.RETRY)
     }
 
     private fun await(what: String, condition: (ch.lkmc.pageworn.ui.model.LibraryUiState) -> Boolean): ch.lkmc.pageworn.ui.model.LibraryUiState {
