@@ -40,9 +40,10 @@ Environment: Media3 1.11.1, compile and target API 37. Emulator `pw-api37` (API 
 
 - JVM: `scripts/build.sh` passed with 317 tests. New tests: `SleepTimerTest` (11 tests: arming, restart after pause, fade curve and timed stop, Play during the fade, the five-minute rule, Off, the window starting during playback), `SleepScheduleTest` (10) and `SleepSettingsStoreTest` (14).
 - Instrumented on the API 37 emulator: `SleepPlaybackTest` 14 of 14, including new A13d, A13e (timed and 2x end of chapter), A13f and A13h; `PlaybackFailureTest` 7 of 7; `SystemControlsTest` 5 of 5; `PlayKeyTapTest` 11 of 11; `VisualChecksTest` 6 of 6; `RestartTest` A12b and A16e in separate processes, 4 of 4.
+- Instrumented on emulator `pw-api34` (API 34, image `UE1A.230829.050`), read-only instance: `SleepPlaybackTest` 14 of 14, `PlaybackFailureTest` 7 of 7, `SystemControlsTest` 5 of 5, `PlayKeyTapTest` 11 of 11 and `VisualChecksTest` 6 of 6. The first full run failed A13 once at its locked-keyguard check; A13 then passed 3 of 3 alone and the whole class passed in a rerun.
 - Real touches with screenshots on the same emulator: Settings shows the Sleep timer row. The page added a 90-minute preset, switched on the window, and closed the time picker with Cancel. The player sheet listed the new preset. Choosing 15 minutes at rest showed "15 min". Play showed a live countdown read as "Sleep, 14 minutes 55 seconds remaining", and Pause returned to "Sleep, on, 15 minutes".
 
 ## 4. Pending
 
-- API 31 and 34 emulator runs of the instrumented sleep tests.
+- An API 31 emulator run of the instrumented sleep tests. No API 31 image is installed on this machine.
 - Owner checks: hearing the fade and a locked-screen stop on the phone, a Bluetooth headset Play during the fade, and the window across a real night.

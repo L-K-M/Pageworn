@@ -326,7 +326,7 @@ class RestartTest {
                 c.setMediaItem(item(key))
                 c.prepare()
                 c.play()
-                val start = withTimeout(10_000) { container.playbackHub.state.first { it.isPlaying } }
+                val start = withTimeout(10_000) { container.playbackHub.state.first { it.isPlaying && it.sleep is SleepState.Timed } }
                 val expected = stop.positionMs - 300_000
                 assertThat(start.positionMs in (expected - 100)..(expected + 350)).isTrue()
                 // Sleep mode outlives the process; the start runs a fresh timer of its length.

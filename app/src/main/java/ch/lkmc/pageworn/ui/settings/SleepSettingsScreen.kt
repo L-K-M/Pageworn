@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,10 +53,10 @@ fun SleepSettingsScreen(
     onSetStart: (Int) -> Boolean,
     onSetEnd: (Int) -> Boolean,
 ) {
-    var adding by remember { mutableStateOf(false) }
-    var pickingStart by remember { mutableStateOf(false) }
-    var pickingEnd by remember { mutableStateOf(false) }
-    var windowError by remember { mutableStateOf(false) }
+    var adding by rememberSaveable { mutableStateOf(false) }
+    var pickingStart by rememberSaveable { mutableStateOf(false) }
+    var pickingEnd by rememberSaveable { mutableStateOf(false) }
+    var windowError by rememberSaveable { mutableStateOf(false) }
 
     PaperScreen("Sleep timer", onBack) {
         SectionLabel("Timer lengths")
@@ -140,8 +141,8 @@ private fun TimeRow(label: String, timeText: String, onClick: () -> Unit) {
 /** A new length in minutes, refused in place with the reason left on screen. */
 @Composable
 private fun AddLengthDialog(onConfirm: (Int) -> AddResult, onDismiss: () -> Unit) {
-    var draft by remember { mutableStateOf("") }
-    var error by remember { mutableStateOf<String?>(null) }
+    var draft by rememberSaveable { mutableStateOf("") }
+    var error by rememberSaveable { mutableStateOf<String?>(null) }
     val colors = PagewornTheme.colors
     AlertDialog(
         onDismissRequest = onDismiss,

@@ -113,8 +113,10 @@ class PlaybackFailureTest {
             c.load(book, 95_000)
             c.sleep(PagewornCommands.SLEEP_TIMED, minutes = 15)
             c.play()
-            c.awaitUntil(10_000, "playing") { isPlaying }
-            val deadline = (container.playbackHub.state.value.sleep as SleepState.Timed).deadlineElapsedMs
+            // The controller shows playing before the service has armed the timer: wait on the hub.
+            val deadline = withTimeout(5_000) {
+                container.playbackHub.state.first { it.isPlaying && it.sleep is SleepState.Timed }
+            }.let { (it.sleep as SleepState.Timed).deadlineElapsedMs }
             c.awaitUntil(20_000, "past 102 s") { currentPosition > 102_000 }
             assertThat(faulty.failures).containsExactly(b)
             assertThat(c.playerError).isNull()
@@ -143,8 +145,7 @@ class PlaybackFailureTest {
             c.setPlaybackSpeed(2f)
             c.sleep(PagewornCommands.SLEEP_TIMED, minutes = 15)
             c.play()
-            c.awaitUntil(10_000, "playing") { isPlaying }
-            assertThat(container.playbackHub.state.value.sleep).isInstanceOf(SleepState.Timed::class.java)
+            withTimeout(10_000) { container.playbackHub.state.first { it.isPlaying && it.sleep is SleepState.Timed } }
             loaderHeld.countDown()
             val live = awaitFailure(60_000)
             delay(500)

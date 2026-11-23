@@ -121,7 +121,7 @@ class SleepTimerTest {
     }
 
     @Test
-    fun aPauseEndsTheTimerAndThenextPlayRestartsTheFullLength() {
+    fun aPauseEndsTheTimerAndTheNextPlayRestartsTheFullLength() {
         sleep.choose(SleepLength.Minutes(30))
         start()
         elapse(10 * MINUTE)
@@ -183,7 +183,7 @@ class SleepTimerTest {
         start()
         elapse(MINUTE + 100)
         assertThat(player.wantsToPlay).isFalse()
-        // The schedule's window ended meanwhile.
+        // The mode turns off meanwhile, as when the automatic window ends.
         sleep.choose(null)
 
         elapse(4 * MINUTE)
@@ -253,6 +253,7 @@ class SleepTimerTest {
 
         elapse(3 * MINUTE)
 
+        assertThat(hub.state.value.sleep).isInstanceOf(SleepState.Timed::class.java)
         val timer = hub.state.value.sleep as SleepState.Timed
         assertThat(timer.minutes).isEqualTo(20)
         assertThat(sleep.settings.value.enabled).isTrue()
