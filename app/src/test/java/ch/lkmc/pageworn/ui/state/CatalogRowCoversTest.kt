@@ -40,6 +40,37 @@ class CatalogRowCoversTest {
         assertThat(row.face.cover).isInstanceOf(CoverImage.Remote::class.java)
     }
 
+    @Test
+    fun aRepairNeededEditionKeepsItsLocalCoverToo() {
+        val dir = files.newFolder("damaged")
+        val cover = files.writeFile(dir, "cover.jpg")
+        val edition = edition(dir, cover.name).copy(state = EditionState.REPAIR_NEEDED)
+
+        val row = RowBuilders.catalogRow(book, edition, dir, null, null, LivePlayback(), canDownload = true, unsupported = false)
+
+        assertThat(row.action).isEqualTo(CatalogAction.RepairNeeded)
+        assertThat(row.face.cover).isEqualTo(CoverImage.Local(cover))
+    }
+
+    @Test
+    fun anEditionWithoutACoverFileUsesTheServerThumbnail() {
+        val dir = files.newFolder("plain")
+        val edition = edition(dir, "cover.jpg").copy(coverFile = null)
+
+        val row = RowBuilders.catalogRow(book, edition, dir, activeTransfer(), null, LivePlayback(), canDownload = true, unsupported = false)
+
+        assertThat(row.face.cover).isInstanceOf(CoverImage.Remote::class.java)
+    }
+
+    @Test
+    fun aMissingEditionDirectoryUsesTheServerThumbnail() {
+        val edition = edition(files.root, "cover.jpg").copy(generationId = "gone", relativeDir = "gone")
+
+        val row = RowBuilders.catalogRow(book, edition, null, activeTransfer(), null, LivePlayback(), canDownload = true, unsupported = false)
+
+        assertThat(row.face.cover).isInstanceOf(CoverImage.Remote::class.java)
+    }
+
     private fun activeTransfer() = TransferEntity(
         jobId = "job", profileId = PROFILE, itemId = ITEM, stagingGenerationId = "staged", manifestFingerprint = null,
         state = TransferState.TRANSFERRING, activeMarker = 1, createdAt = 1, updatedAt = 1, title = book.title, authors = book.authors,
