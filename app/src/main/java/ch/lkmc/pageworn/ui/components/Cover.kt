@@ -110,12 +110,18 @@ fun BookCover(face: BookFace, size: Dp, showRibbon: Boolean = false, modifier: M
     // then fades in over it instead of dropping the old one in a single frame.
     var baseArt by remember { mutableStateOf<ImageBitmap?>(null) }
     var overlayArt by remember { mutableStateOf<ImageBitmap?>(null) }
+    var lastState by remember { mutableStateOf<CoverArt?>(null) }
     LaunchedEffect(artState) {
         when (val s = artState) {
-            is CoverArt.Loading -> { baseArt = overlayArt ?: baseArt; overlayArt = null }
+            is CoverArt.Loading -> {
+                // Art that already faded out after an empty load must not flash back in.
+                baseArt = if (lastState is CoverArt.Missing) null else overlayArt ?: baseArt
+                overlayArt = null
+            }
             is CoverArt.Loaded -> overlayArt = s.image
             is CoverArt.Missing -> overlayArt = null
         }
+        lastState = artState
     }
     val overlayAlpha by animateFloatAsState(
         targetValue = if (overlayArt != null) 1f else 0f,
@@ -126,8 +132,9 @@ fun BookCover(face: BookFace, size: Dp, showRibbon: Boolean = false, modifier: M
     // below the lower edge from behind the book.
     val ribbonWidth = maxOf(size * 0.1f, 10.dp)
     val ribbonPeek = maxOf(size * 0.11f, 8.dp)
-    // Art keeps its shape: the book is as tall or as wide as the square allows.
-    val art = (overlayArt ?: baseArt)?.takeIf { previewPainter == null }
+    // Art keeps its shape: the book is as tall or as wide as the square allows. A Missing
+    // result means no art is drawn at all, so the lettering fallback engages.
+    val art = (if (artState is CoverArt.Missing) null else overlayArt ?: baseArt)?.takeIf { previewPainter == null }
     // The settled art fades out when a load came back empty, so cloth and lettering take over.
     val baseAlpha by animateFloatAsState(
         targetValue = if (artState is CoverArt.Missing) 0f else 1f,
@@ -180,12 +187,14 @@ fun BookCover(face: BookFace, size: Dp, showRibbon: Boolean = false, modifier: M
                     }
                 }
                 // The settled art sits under the fading-in overlay; both crossfade with cloth
-                // and lettering rather than popping.
-                baseArt?.let { bitmap ->
-                    Image(bitmap = bitmap, contentDescription = null, modifier = Modifier.fillMaxSize().graphicsLayer { alpha = baseAlpha }, contentScale = ContentScale.Fit)
-                }
-                overlayArt?.let { bitmap ->
-                    Image(bitmap = bitmap, contentDescription = null, modifier = Modifier.fillMaxSize().graphicsLayer { alpha = overlayAlpha }, contentScale = ContentScale.Fit)
+                // and lettering rather than popping. Previews replace fetched art entirely.
+                if (previewPainter == null) {
+                    baseArt?.let { bitmap ->
+                        Image(bitmap = bitmap, contentDescription = null, modifier = Modifier.fillMaxSize().graphicsLayer { alpha = baseAlpha }, contentScale = ContentScale.Fit)
+                    }
+                    overlayArt?.let { bitmap ->
+                        Image(bitmap = bitmap, contentDescription = null, modifier = Modifier.fillMaxSize().graphicsLayer { alpha = overlayAlpha }, contentScale = ContentScale.Fit)
+                    }
                 }
             }
         }
