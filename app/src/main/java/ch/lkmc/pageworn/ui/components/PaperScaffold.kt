@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -80,8 +81,7 @@ private val TAB_LABEL_MIN_SIZE = 10.sp
 private val TAB_LABEL_SIZE = 16.sp
 
 /** How much of each tile shows over its flat colour. */
-private const val PAPER_DAY_ALPHA = 0.55f
-private const val PAPER_NIGHT_ALPHA = 0.45f
+private const val PAPER_ALPHA = 0.55f
 private const val CLOTH_ALPHA = 0.9f
 private const val PAGE_EDGES = 5
 private const val TAB_SHADOW_ALPHA = 0.35f
@@ -96,10 +96,8 @@ fun Modifier.paperBackground(): Modifier {
     val colors = PagewornTheme.colors
     val highContrast = LocalHighContrast.current
     val context = LocalContext.current
-    val image = remember(context, colors.dark) {
-        BitmapFactory.decodeResource(context.resources, if (colors.dark) R.drawable.pw_paper_night else R.drawable.pw_paper_day).asImageBitmap()
-    }
-    return this.background(colors.paper).drawBehind { if (!highContrast) tile(image, if (colors.dark) PAPER_NIGHT_ALPHA else PAPER_DAY_ALPHA) }
+    val image = remember(context) { BitmapFactory.decodeResource(context.resources, R.drawable.pw_paper_day).asImageBitmap() }
+    return this.background(colors.paper).drawBehind { if (!highContrast) tile(image, PAPER_ALPHA) }
 }
 
 @Composable
@@ -160,7 +158,9 @@ fun BindingFooter(destination: Destination, onSelect: (Destination) -> Unit, mod
                 }
             }
         }
-        Box(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
+        // Keep cloth below the bookmarks even when Android reports no navigation inset.
+        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
     }
 }
 
@@ -201,8 +201,8 @@ fun SectionHeader(title: String, onOpenSettings: () -> Unit) {
 @Composable
 private fun PageEdges(top: Color) {
     val colors = PagewornTheme.colors
-    val under = lerp(colors.paper, colors.secondaryInk, if (colors.dark) 0.12f else 0.2f)
-    val line = colors.secondaryInk.copy(alpha = if (colors.dark) 0.3f else 0.45f)
+    val under = lerp(colors.paper, colors.secondaryInk, 0.2f)
+    val line = colors.secondaryInk.copy(alpha = 0.45f)
     Canvas(Modifier.fillMaxWidth().height(15.dp).clipToBounds()) {
         val radius = CornerRadius(12.dp.toPx())
         val stroke = Stroke(0.7.dp.toPx())

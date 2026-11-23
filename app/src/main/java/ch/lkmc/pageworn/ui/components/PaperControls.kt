@@ -248,7 +248,7 @@ private val CONTROL_SHAPE = RoundedCornerShape(10.dp)
 private val CARD_SHAPE = RoundedCornerShape(14.dp)
 private val KEY_SHAPE = RoundedCornerShape(percent = 50)
 
-/** The oxblood of the key art, lit from above, the same by day and night. */
+/** The oxblood of the key art, lit from above. */
 private val LEATHER_HIGH = Color(0xFF8A2E25)
 private val LEATHER_LOW = Color(0xFF571712)
 private const val QUARTER_TURN = 90f

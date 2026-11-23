@@ -8,26 +8,28 @@ Use the [four mockups](07-screen-gallery.md) for appearance, the values below fo
 
 | Element | Material | Function |
 |---|---|---|
-| Page | Quiet warm paper, dark charcoal stock at night | Reading surface. Titles, metadata and controls sit directly on it. |
+| Page | Quiet warm paper | Reading surface. Titles, metadata and controls sit directly on it. |
 | Hardcover | Illustrated cover art, a shallow spine crease, lightly raised edge | Identifies the book consistently in a row, mini-player and full player. |
 | Place ribbon | Narrow oxblood tail emerging from the lower edge near the book spine | Indicates a saved position. Pair it with chapter or elapsed-time text. |
 | Destination bookmarks | Two wide woven tabs over a green cloth binding | Switch between Library and Downloaded. The selected tab hangs lower. |
 | Playback keys | Oxblood domed face in a brass rim, smaller ivory skip keys | Direct audio controls. The inlay identifies the action performed on tap. |
-| Marks on paper | Dark graphite by day, warm ivory pencil by night | Settings, search, collapse, speed, chapters, sleep and small status/action icons. |
+| Marks on paper | Dark graphite pencil | Settings, search, collapse, speed, chapters, sleep and small status/action icons. |
 
 Keep the three depths consistent. Pencil sits flush with the sheet, ribbon disappears *behind* the sheet, and a key stands slightly proud of it. In the artwork a tiny shadow falls below each key or book. Keep the rest of the page quiet.
 
 ## Type, color and layout
 
-| Role | Day | Night |
-|---|---|---|
-| Main paper | `#F3EBD9` | `#201C19` |
-| Raised paper / sheet | `#FAF5E9` | `#29231F` |
-| Primary ink / pencil | `#30251E` | `#F2E7D4` |
-| Secondary ink | `#625243` | `#C4B49F` |
-| Interactive accent / focus | `#833828` | `#F0A489` |
-| Ink on filled accent | `#F3EBD9` | `#201C19` |
-| Cloth at foot of paper | Bottle green `#233831` | Deep green `#172722` |
+| Role | Color |
+|---|---|
+| Main paper | `#F3EBD9` |
+| Raised paper / sheet | `#FAF5E9` |
+| Primary ink / pencil | `#30251E` |
+| Secondary ink | `#625243` |
+| Interactive accent / focus | `#833828` |
+| Ink on filled accent | `#F3EBD9` |
+| Cloth at foot of paper | Bottle green `#233831` |
+
+Pageworn has this one palette and keeps it when the phone is in dark mode. The window, the widgets and the dark icons of Android’s bars follow it too. Android must not darken or invert it either. With “Make more apps dark” on, Android inverts every window whose theme claims to be light (`isLightTheme`), and `forceDarkAllowed` does not prevent it: the API 37 emulator showed that, and its framework code agrees. So the theme turns off `forceDarkAllowed` for the older automatic darkening and does not claim to be light. The plan used to give a night column. On 2026-11-23 the owner found the app broken in dark mode and asked for the designed theme everywhere. Another theme may come later, with every color and material adjusted for it, not only these tokens.
 
 Use Spectral for section titles, book titles and ribbon labels. Bundle the styles the screens use under its SIL Open Font License and list that licence in the app’s open-source notices. Use Roboto or the system sans for times, status and compact metadata. Sizes are 26/32 sp Bold for a screen heading, 22/28 Bold for the player and details title, 20/26 Bold for a sheet title, 16/21 SemiBold for row titles, 15/20 Regular for authors and the chapter line, 16 sp for bookmark labels, 15/20 for utility labels and 14/20 for metadata. The player's times are 14 sp Spectral, as drawn, which takes precedence over the sans for those readouts. Use tabular numbers for moving time readouts if available.
 
@@ -37,7 +39,7 @@ Start on a 4 dp grid. Outer margins are 16–24 dp, cover-to-copy gap 14 dp, row
 
 **Library / Downloaded.** Put the destination heading first, with Settings, a 24 dp pencil gear in a 48 dp hit region, on the same row. There is no separate brand row. Search sits below the Library heading. Under it, at the right, a 48 dp Sort control names the order (“Sort Newest first”) with a pencil chevron. TalkBack reads it as “Sort Library” with the full order as its state. It opens a sheet of four radio choices: Date added, newest first; Date added, oldest first; Title; Author. A choice applies on tap, dismisses the sheet and returns the list to its top. If the listener can access several libraries, expose the active library in a selector. While a book is loaded, the mini-player sits above the lower edge of the paper. It holds a 44 dp cover, the title and the chapter on one line each, and the Play key. From 150% text it leaves the cover out. Reserve its measured height so the last list item scrolls into view. Before the first book is opened there is no mini-player and no reserved space for it.
 
-**Binding at the foot of the screen.** Let the paper end just below the mini-player or list. Draw five stacked page edges with rounded corners, so the cloth shows at the corners. Under those edges, reveal a 68 dp band (86 dp from 150% text) of bottle-green bookcloth, above the system gesture inset. The woven bookmarks emerge from under the paper and over the cloth. Clip their tops to the paper seam. Their fishtail ends stay clear of system gestures.
+**Binding at the foot of the screen.** Let the paper end just below the mini-player or list. Draw five stacked page edges with rounded corners, so the cloth shows at the corners. Under those edges, reveal a 68 dp band (86 dp from 150% text) of bottle-green bookcloth, followed by 12 dp of clear cloth before the system navigation inset. Keep that gap even if the inset is zero. The woven bookmarks emerge from under the paper and over the cloth. Clip their tops to the paper seam. Their fishtail ends stay clear of system gestures.
 
 **Two permanent bookmarks.** Flax is always **Library**, on the leading side. Oxblood is always **Downloaded**, on the trailing side. In a left-to-right locale this puts Library on the left. Use two equal-width stationary selection regions. Render the fabric 112 dp wide (152 dp from 150% text, which “Downloaded” needs at 200%), with enough room for the localized label. In the resting position show 44 dp of fabric (56 dp from 150% text). Move the selected tail and its label 6 dp farther out. Its hit region remains fixed. Expose the selected state to TalkBack. Give the selected label a slightly heavier weight and a dashed pencil underline so the state is clear even with reduced motion. A label too wide for the fabric shrinks to fit on one line, down to 10 sp, and the band keeps its height.
 
@@ -63,7 +65,7 @@ For the player, center a cover as drawn in the mockup: half the screen’s width
 
 Use a strong outline with slight variation in pressure, a soft graphite edge and very sparse hatching. The gear has a clear center hole, Chapters looks like a tiny open book, and Sleep is a hatched crescent. Keep the illustrations legible at icon size. The supplied PNGs carry alpha so the implementation can tint the strokes for either theme. Labels remain live type.
 
-Change the speed drawing when playback speed changes. The supplied 1× image is for 1× only. Render other supported values as slightly oblique serif type at the same optical size, followed by the multiplication sign. Expose the exact value to assistive technology. The playback key symbols are ivory or dark inlays. Android’s own status and navigation indicators follow the operating system.
+Change the speed drawing when playback speed changes. The supplied 1× image is for 1× only. Render other supported values as slightly oblique serif type at the same optical size, followed by the multiplication sign. Expose the exact value to assistive technology. The playback key symbols are ivory or dark inlays. Android’s own status and navigation indicators follow the operating system, with dark icons over the paper.
 
 ## Screens and states
 
@@ -107,7 +109,7 @@ Where the copy table names two actions for a status line or empty state, the fir
 
 ## Home screen widgets
 
-The widgets are the same book on the home screen: paper, page edges over green cloth, bound covers with the place ribbon and the app’s own keys. They follow the phone’s day and night. Android’s launchers cannot load the bundled Spectral, so live widget text uses the system serif. Cover lettering is drawn by the app and keeps Spectral.
+The widgets are the same book on the home screen: paper, page edges over green cloth, bound covers with the place ribbon and the app’s own keys. Like the app, they keep the day paper when the phone is in dark mode. Android’s launchers cannot load the bundled Spectral, so live widget text uses the system serif. Cover lettering is drawn by the app and keeps Spectral.
 
 **Now reading** shows the player’s book, as the player picks it: one that waits for a choice of where to start, otherwise the one starting, loaded or last played. Without one on the phone it shows the first book of Downloaded. Its arrangement follows its size and the system’s font scale.
 

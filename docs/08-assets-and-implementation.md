@@ -12,7 +12,7 @@ The [asset manifest](art/manifest.json) lists every individual resource, its exa
 | [controls](art/controls/) | Ready-composed Play, Pause, Rewind 15, Forward 30 and Pause download | Quickest way to reproduce the art for a standard button. Change the displayed face from live state, add an accessible name, and apply pressed styling in Compose. |
 | [graphite](art/graphite/) | Settings, Chapters, Sleep, Search, Collapse, Download, Check, Speed 1× and More | Each glyph sits on a transparent 128 × 128 canvas. Render with preserved aspect ratio and tint its alpha in the theme’s pencil color. |
 | [inlays](art/inlays/) | Play, Pause, Back 15, Forward 30, each in PNG and Android VectorDrawable XML | Use a single vector over a blank face for custom sizes or contrast. Both formats describe the same inlay. |
-| [materials](art/materials/) | Three 128 × 128 repeating samples for day paper, night paper and bottle-green cloth | Repeat the sample on its base color. These tiles are mirrored at the edges. Lower opacity until the texture recedes at phone scale. |
+| [materials](art/materials/) | Three 128 × 128 repeating samples for day paper, night paper and bottle-green cloth | Repeat the sample on its base color. These tiles are mirrored at the edges. Lower opacity until the texture recedes at phone scale. The app has no night theme and does not bundle the night paper. |
 | [demo](art/demo/) | Four illustrated fictional book covers used by the mockups | Use in previews, screenshot tests and development fixtures. Download and cache the listener’s real book art for production. |
 | [icon](art/icon/) | The background, foreground and monochrome layers of the launcher icon, each 432 × 432 px, and a 512 × 512 preview | Build the adaptive icon from the three layers as described under [Launcher icon](#launcher-icon). The preview is for the release page and stays out of the app. |
 
@@ -49,14 +49,14 @@ On a narrow screen, shrink the drawn face inside a 48 dp tap region. On a large-
 
 ### Utility icons, cover and paper
 
-- Render each pencil mask in a 16–28 dp visual area: 28 dp for the player's utilities, 26 dp for Download, and 24 dp for Settings and the player's collapse mark, each with an independent 48 dp target. Tint to the theme’s primary ink, using warm ivory at night. Keep the thin internal hatching and enough edge contrast on paper.
+- Render each pencil mask in a 16–28 dp visual area: 28 dp for the player's utilities, 26 dp for Download, and 24 dp for Settings and the player's collapse mark, each with an independent 48 dp target. Tint to the primary ink. Keep the thin internal hatching and enough edge contrast on paper.
 - Use `pw_pencil_speed_1x.png` only when the current speed is 1×. Other speeds are live values in a slightly slanted serif. Center the value in the same optical box. Support “Playback speed, 1.25 times” even when compact labels are abbreviated.
 - Use `pw_cover_cloth.png` behind live title/author text for missing cover art. Center real cover art with aspect-preserving fit. A narrow `pw_place_ribbon.png` can peek 6–10 dp out of the bottom edge near the spine. Use a single ribbon even when the mockup artwork already shows one.
-- Draw normal text, times, search fields, sliders, progress bars/rings, radio selections and dividers natively. Keep accessibility range actions and dynamic percentages. Lay the paper tile at 55% by day and 45% at night, mirrored, over the flat paper colour, and the binding cloth at 90%. High contrast drops both. Keep texture away from fine glyph edges where it reduces contrast.
+- Draw normal text, times, search fields, sliders, progress bars/rings, radio selections and dividers natively. Keep accessibility range actions and dynamic percentages. Lay the paper tile at 55%, mirrored, over the flat paper colour, and the binding cloth at 90%. High contrast drops both. Keep texture away from fine glyph edges where it reduces contrast.
 
 ### Home screen widgets
 
-Layer a widget as cloth with the system’s corner radius, paper above it and three page edges at the paper’s foot. Use `pw_paper_day` or `pw_paper_night` and `pw_binding_cloth` at the screens’ opacities. Build keys as the screens do, from `pw_key_oxblood` or `pw_key_ivory_skip` and the vector inlays. Draw each cover in the app as one picture with its crease, shadow, ribbon and, for cloth, lettering: the launcher can draw none of them. Colours are resources with a night variant, because the launcher resolves them.
+Layer a widget as cloth with the system’s corner radius, paper above it and three page edges at the paper’s foot. Use `pw_paper_day` and `pw_binding_cloth` at the screens’ opacities. Build keys as the screens do, from `pw_key_oxblood` or `pw_key_ivory_skip` and the vector inlays. Draw each cover in the app as one picture with its crease, shadow, ribbon and, for cloth, lettering: the launcher can draw none of them. Colours are resources without a night variant: the launcher resolves them, and the widgets keep the day paper when the phone is in dark mode.
 
 ### Launcher icon
 
@@ -66,6 +66,6 @@ Declare one adaptive icon, `ic_launcher.xml` in `app/src/main/res/mipmap-anydpi-
 
 ## Reviewing implementation
 
-Open each PNG against the same background as its final destination. The blank keys and tabs should show transparent surroundings, including the V-shaped cutout between the tab’s tails. The mask tint should change the pencil strokes without filling their internal holes. Check interrupted transfers, paused and playing, night mode, a long translated label, 200% font scaling and a real device’s gesture inset. Check the launcher icon under a round mask, a rounded-square mask and a themed-icon tint. Run V01–V06 in the [delivery checks](06-delivery-and-tests.md).
+Open each PNG against the same background as its final destination. The blank keys and tabs should show transparent surroundings, including the V-shaped cutout between the tab’s tails. The mask tint should change the pencil strokes without filling their internal holes. Check interrupted transfers, paused and playing, the phone in dark mode, a long translated label, 200% font scaling and a real device’s gesture inset. Check the launcher icon under a round mask, a rounded-square mask and a themed-icon tint. Run V01–V06 in the [delivery checks](06-delivery-and-tests.md).
 
 The artwork is visual reference and reusable component art. The specified Android controls, focus targets, labels and media behavior still require implementation and device validation.

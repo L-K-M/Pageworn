@@ -46,7 +46,7 @@ class ScreenSemanticsTest {
     fun a15SearchKeepsItsNameOnceItHoldsAQuery() {
         val query = mutableStateOf("")
         compose.setContent {
-            PagewornTheme(darkTheme = false) {
+            PagewornTheme {
                 LibraryScreen(LibraryUiState(query = query.value), rememberLazyListState(), {}, {}, {}, {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, PaddingValues())
             }
         }
@@ -58,7 +58,7 @@ class ScreenSemanticsTest {
 
     @Test
     fun a15ALicenceSaysWhetherItIsOpen() {
-        compose.setContent { PagewornTheme(darkTheme = false) { LicencesScreen(listOf("Spectral" to "Licence text"), {}) } }
+        compose.setContent { PagewornTheme { LicencesScreen(listOf("Spectral" to "Licence text"), {}) } }
         val row = compose.onNodeWithText("Spectral")
 
         row.assert(hasState("Collapsed"))
@@ -71,7 +71,7 @@ class ScreenSemanticsTest {
     fun anAddressSaysWhatItsDateAndItsExceptionMean() {
         val row = AddressRow("id", "Home", "http://home.invalid/", true, false, true, "22.11.26, 14:02", null, null, false, false, false)
         val state = AddressesUiState(listOf(row), automatic = true, pinnedAddressId = null)
-        compose.setContent { PagewornTheme(darkTheme = false) { AddressesScreen(state, {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) } }
+        compose.setContent { PagewornTheme { AddressesScreen(state, {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) } }
 
         compose.onNodeWithText("Unencrypted access allowed").assertExists()
         compose.onNodeWithText("Last reached 22.11.26, 14:02").assertExists()
@@ -80,7 +80,7 @@ class ScreenSemanticsTest {
     @Test
     fun signOutAsksOnce() {
         val state = SettingsUiState("listener", signedIn = true, versionText = "Pageworn", confirmSignOut = true)
-        compose.setContent { PagewornTheme(darkTheme = false) { SettingsScreen(state, {}, {}, {}, {}, {}, {}, {}, {}, {}) } }
+        compose.setContent { PagewornTheme { SettingsScreen(state, {}, {}, {}, {}, {}, {}, {}, {}, {}) } }
 
         compose.onAllNodesWithText("Sign out?", substring = true).assertCountEquals(1)
     }
@@ -89,7 +89,7 @@ class ScreenSemanticsTest {
     fun connectLeadsBackWhenItWasOpenedFromAnotherScreen() {
         var left = false
         compose.setContent {
-            PagewornTheme(darkTheme = false) {
+            PagewornTheme {
                 ConnectScreen(ConnectUiState(), {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, onOpenDownloaded = null, onBack = { left = true })
             }
         }
@@ -100,14 +100,9 @@ class ScreenSemanticsTest {
     }
 
     @Test
-    fun v03FieldOutlinesStandOutByDay() = assertFieldOutlineStandsOut(darkTheme = false)
-
-    @Test
-    fun v03FieldOutlinesStandOutByNight() = assertFieldOutlineStandsOut(darkTheme = true)
-
-    private fun assertFieldOutlineStandsOut(darkTheme: Boolean) {
+    fun v03FieldOutlinesStandOut() {
         lateinit var colors: PagewornColors
-        compose.setContent { PagewornTheme(darkTheme) { colors = PagewornTheme.colors } }
+        compose.setContent { PagewornTheme { colors = PagewornTheme.colors } }
         compose.waitForIdle()
 
         listOf(colors.paper, colors.raisedSheet).forEach { ground ->

@@ -100,14 +100,14 @@ private fun PlayerExample(state: PlayerUiState, showSleepSheet: Boolean = false)
     } }
 }
 
-@Preview(name = "Player day", widthDp = 390, heightDp = 844, showSystemUi = true)
+@Preview(name = "Player", widthDp = 390, heightDp = 844, showSystemUi = true)
 @Composable
-fun PlayerDayPreview() { PagewornTheme { PlayerExample(player) } }
+fun PlayerPreview() { PagewornTheme { PlayerExample(player) } }
 
-@Preview(name = "Player night · sleep", widthDp = 390, heightDp = 844, showSystemUi = true)
+@Preview(name = "Player · sleep", widthDp = 390, heightDp = 844, showSystemUi = true)
 @Composable
-fun PlayerNightSleepPreview() {
-    PagewornTheme(darkTheme = true) {
+fun PlayerSleepPreview() {
+    PagewornTheme {
         PlayerExample(player.copy(sleep = SleepUi(previewSleepOptions, SleepLength.EndOfSegment, "12 min 40 sec remaining", "Sleep, 12 minutes 40 seconds remaining", "12:40")), showSleepSheet = true)
     }
 }
