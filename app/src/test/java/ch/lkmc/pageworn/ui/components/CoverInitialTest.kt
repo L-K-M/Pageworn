@@ -22,6 +22,12 @@ class CoverInitialTest {
         assertThat(coverInitial("über alles")).isEqualTo("Ü")
     }
 
+    @Test fun aLetterOutsideTheBasicPlaneIsKeptWhole() {
+        // Deseret letters sit outside the Basic Multilingual Plane, so each is two UTF-16 chars.
+        assertThat(coverInitial("\uD801\uDC28\uD801\uDC2F")).isEqualTo("\uD801\uDC00")
+        assertThat(coverInitial("“\uD835\uDD04lpha”")).isEqualTo("\uD835\uDD04")
+    }
+
     @Test fun aTitleWithoutLettersHasNoInitial() {
         assertThat(coverInitial("")).isNull()
         assertThat(coverInitial("   ")).isNull()

@@ -51,6 +51,9 @@ private val COVER_LETTERING = Color(0xFFF4E4C8)
 /** Leading words a small cover skips, so "The Night Orchard" reads N rather than T. */
 private val LEADING_ARTICLES = setOf("the", "a", "an")
 
+/** Separates the words of a title when picking a small cover's initial. */
+private val WORD_SEPARATOR = Regex("\\s+")
+
 /** The cover frame of a book row in Library and Downloaded, and the smaller one from 150% text. */
 val ROW_COVER = 72.dp
 val ROW_COVER_LARGE_TYPE = 60.dp
@@ -140,12 +143,20 @@ fun BookCover(face: BookFace, size: Dp, showRibbon: Boolean = false, modifier: M
  * leading article when more words follow. Null when the title has none.
  */
 internal fun coverInitial(title: String): String? {
-    val words = title.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
+    val words = title.trim().split(WORD_SEPARATOR).filter { it.isNotEmpty() }
     val first = words.firstOrNull() ?: return null
     val word = if (words.size > 1 && first.lowercase() in LEADING_ARTICLES) words[1] else first
-    val index = word.indexOfFirst { it.isLetterOrDigit() }.takeIf { it >= 0 } ?: return null
-    val end = if (word[index].isHighSurrogate() && index + 1 < word.length) index + 2 else index + 1
-    return word.substring(index, end).uppercase()
+
+    // Walk code points, not chars: a letter outside the Basic Multilingual Plane is two chars,
+    // and neither half counts as a letter on its own.
+    var index = 0
+    while (index < word.length) {
+        val codePoint = word.codePointAt(index)
+        val width = Character.charCount(codePoint)
+        if (Character.isLetterOrDigit(codePoint)) return word.substring(index, index + width).uppercase()
+        index += width
+    }
+    return null
 }
 
 private const val CORNER = 0.04f
