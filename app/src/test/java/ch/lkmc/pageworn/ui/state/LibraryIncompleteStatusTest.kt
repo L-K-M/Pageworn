@@ -26,6 +26,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import java.util.concurrent.TimeUnit
 
 /** A01c: a failed first load keeps its staged rows and shows the incomplete status line. */
 @RunWith(RobolectricTestRunner::class)
@@ -102,6 +103,23 @@ class LibraryIncompleteStatusTest {
         assertThat(state.rows).isEmpty()
     }
 
+    @Test
+    fun aSearchDuringAnIncompleteFirstLoadClearsTheSearch() {
+        startLibrary()
+        await("the incomplete status") {
+            it.selectedLibraryId == SHELF && it.status?.text == Copy.LIBRARY_INCOMPLETE
+        }
+        library.setQuery("orchard")
+        // The typed query settles through a debounce before it drives the listing.
+        shadowOf(Looper.getMainLooper()).idleFor(SEARCH_DEBOUNCE_MS + 100L, TimeUnit.MILLISECONDS)
+
+        val state = await("the search result prompt") {
+            it.selectedLibraryId == SHELF && it.empty?.text == Copy.NO_SEARCH_RESULTS
+        }
+        assertThat(state.empty?.action).isEqualTo(UiAction.CLEAR_SEARCH)
+        assertThat(state.status?.text).isEqualTo(Copy.LIBRARY_INCOMPLETE)
+    }
+
     private fun await(what: String, condition: (ch.lkmc.pageworn.ui.model.LibraryUiState) -> Boolean): ch.lkmc.pageworn.ui.model.LibraryUiState {
         repeat(WAIT_STEPS) {
             shadowOf(Looper.getMainLooper()).idle()
@@ -117,5 +135,6 @@ class LibraryIncompleteStatusTest {
         const val SHELF = "shelf"
         const val WAIT_STEPS = 500
         const val WAIT_STEP_MS = 10L
+        const val SEARCH_DEBOUNCE_MS = 400L
     }
 }

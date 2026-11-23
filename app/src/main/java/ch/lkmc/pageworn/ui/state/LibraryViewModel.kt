@@ -159,7 +159,15 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
 
     private fun build(s: Scope?, q: String, searching: String, listing: CatalogListing, local: LocalState, notice: ServerNotice?, checked: Boolean): LibraryUiState {
         if (s == null) return LibraryUiState()
+        // The incomplete status line is authoritative even if a future notice path would leave
+        // statusOf without one; the rows then stay empty with a visible Retry rather than a
+        // silent blank screen.
         val status = statusOf(notice, listing)
+            ?: if (listing.status == ListingStatus.INCOMPLETE) {
+                StatusLine(Copy.LIBRARY_INCOMPLETE, UiAction.RETRY, Copy.RETRY)
+            } else {
+                null
+            }
         if (s.libraries.isEmpty()) {
             if (!checked && notice == null) return LibraryUiState(status = StatusLine(Copy.LIBRARY_LOADING, showsProgress = true), showSelectorAndSearch = false)
             return LibraryUiState(
