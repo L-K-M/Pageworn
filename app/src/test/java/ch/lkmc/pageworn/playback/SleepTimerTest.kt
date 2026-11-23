@@ -2,9 +2,12 @@ package ch.lkmc.pageworn.playback
 
 import android.os.Looper
 import android.provider.Settings
+import androidx.media3.common.util.Clock
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
+import androidx.media3.common.Timeline
+import androidx.media3.exoplayer.PlayerMessage
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.room.Room
@@ -256,6 +259,30 @@ class SleepTimerTest {
     }
 
     @Test
+    fun endOfSegmentSleepKeepsTheExactStopWhenThePauseCallbackArrivesLate() {
+        start()
+        player.deferStop = true
+        controller.setSleep(SleepLength.EndOfSegment)
+        player.deliverMessages()
+
+        // The boundary itself is committed at once.
+        assertThat(writes.last().first).isEqualTo(TRACK_MS)
+        assertThat(writes.last().second).isEqualTo(StopKind.EXACT)
+
+        // The renderer's later isPlaying change must not turn it into an ordinary stop.
+        player.flushDeferred()
+        assertThat(writes.last().first).isEqualTo(TRACK_MS)
+        assertThat(writes.last().second).isEqualTo(StopKind.EXACT)
+
+        // A following ordinary pause is ordinary again.
+        player.play()
+        ticks.testScheduler.runCurrent()
+        player.pause()
+        player.flushDeferred()
+        assertThat(writes.last().second).isEqualTo(StopKind.ORDINARY)
+    }
+
+    @Test
     fun theWindowBeginningWhileABookPlaysStartsItsTimer() {
         val local = Instant.ofEpochMilli(clock.wall).atZone(zone)
         val startMinute = (local.hour * 60 + local.minute + 2) % SleepWindow.MINUTES_PER_DAY
@@ -296,14 +323,55 @@ class SleepTimerTest {
         var item: MediaItem? = null
         var wantsToPlay = false
         var volume = 1f
+        var deferStop = false
+        var positionMs = POSITION_MS
         private var audible = false
         private var listener: Player.Listener? = null
+        private val messages = mutableListOf<PlayerMessage>()
+        private val deliveries = mutableListOf<() -> Unit>()
+        private val deferred = mutableListOf<() -> Unit>()
+
+        /** Delivers the scheduled chapter message at its position, as the player would. */
+        fun deliverMessages() {
+            val sent = messages.toList()
+            messages.clear()
+            sent.forEach { message -> positionMs = message.positionMs }
+            val pending = deliveries.toList()
+            deliveries.clear()
+            pending.forEach { it() }
+        }
+
+        fun flushDeferred() {
+            val pending = deferred.toList()
+            deferred.clear()
+            pending.forEach { it() }
+        }
 
         val exo = Proxy.newProxyInstance(ExoPlayer::class.java.classLoader, arrayOf(ExoPlayer::class.java)) { _, method, args ->
             when (method.name) {
                 "addListener" -> { listener = args[0] as Player.Listener; null }
                 // A resume rewind seeks; this player stays where it is.
-                "removeListener", "setPlaybackSpeed", "seekTo" -> null
+                "removeListener", "setPlaybackSpeed", "seekTo", "prepare" -> null
+                "setMediaSource" -> { if (args.size == 2) positionMs = args[1] as Long; null }
+                "createMessage" -> {
+                    val holder = arrayOfNulls<PlayerMessage>(1)
+                    val target = args[0] as PlayerMessage.Target
+                    val message = PlayerMessage(
+                        PlayerMessage.Sender { _ ->
+                            holder[0]?.let { sent ->
+                                deliveries += { target.handleMessage(sent.type, sent.payload) }
+                            }
+                        },
+                        target,
+                        Timeline.EMPTY,
+                        /* type= */ 0,
+                        Clock.DEFAULT,
+                        Looper.getMainLooper(),
+                    )
+                    holder[0] = message
+                    messages += message
+                    message
+                }
                 "pause" -> { pause(); null }
                 "setPlayWhenReady" -> { if (args[0] as Boolean) play() else pause(); null }
                 "getPlayWhenReady" -> wantsToPlay
@@ -312,7 +380,7 @@ class SleepTimerTest {
                 "setVolume" -> { volume = args[0] as Float; null }
                 "getPlaybackState" -> Player.STATE_READY
                 "getPlayerError" -> null
-                "getCurrentPosition" -> POSITION_MS
+                "getCurrentPosition" -> positionMs
                 "getCurrentMediaItem" -> item
                 "getPlaybackParameters" -> PlaybackParameters.DEFAULT
                 "getPlaybackSuppressionReason" -> Player.PLAYBACK_SUPPRESSION_REASON_NONE
@@ -335,7 +403,12 @@ class SleepTimerTest {
             wantsToPlay = false
             audible = false
             listener?.onPlayWhenReadyChanged(false, Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)
-            listener?.onIsPlayingChanged(false)
+            if (deferStop) {
+                // The renderer reports the stop after the application thread returns.
+                deferred += { listener?.onIsPlayingChanged(false) }
+            } else {
+                listener?.onIsPlayingChanged(false)
+            }
         }
     }
 

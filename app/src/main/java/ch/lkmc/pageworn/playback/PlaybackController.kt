@@ -132,6 +132,7 @@ class PlaybackController(
             // Book switch: checkpoint the old book now, release its timer and reader.
             saveSettledPause()
             checkpointIfPlaying()
+            pauseCause = null
             clearSleep()
             clippedAtMs = null
             // Playback goes on with the new book: that is a start, with a fresh timer.
@@ -228,6 +229,8 @@ class PlaybackController(
     override fun onIsPlayingChanged(isPlaying: Boolean) {
         if (isPlaying) {
             startResolved = false
+            // A new play ends any pause kind a timer armed for the previous stop.
+            pauseCause = null
             failed = false
             played = true
             if (fadeJob == null) restoreVolume()
@@ -319,6 +322,7 @@ class PlaybackController(
         val requested = exo.playWhenReady
         val seekFailed = pendingSeek
         pendingSeek = false
+        pauseCause = null
         val timer = sleep as? SleepState.EndOf
         exo.playWhenReady = false
         val position = snapToBoundary(exo.currentPosition)
@@ -583,12 +587,16 @@ class PlaybackController(
         sleep = SleepState.Off
         stopFade()
         sleepSettings.recordStop(SleepLength.EndOfSegment)
+        // ExoPlayer reports the pause itself inline, but the renderer's isPlaying change comes
+        // later. Mark the pause exact first, so that late checkpoint cannot store an ordinary
+        // stop over the boundary and undo the exact resume the chapter rules require.
+        pauseCause = if (exo.isPlaying) StopKind.EXACT else null
         if (exo.playWhenReady) {
             exo.pause()
         }
         setAudioEnd(null, boundaryMs)
-        // Chapter, track and book modes commit the exact boundary.
-        pauseCause = null
+        // Commit the exact boundary even when no pause callback follows, for example when
+        // playback was already suppressed.
         save(boundaryMs, StopKind.EXACT, listened = true)
         publish()
     }
