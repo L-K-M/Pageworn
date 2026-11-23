@@ -15,10 +15,12 @@ import ch.lkmc.pageworn.data.db.TrackEntity
 import ch.lkmc.pageworn.data.db.TransferState
 import ch.lkmc.pageworn.playback.EditionPlan
 import ch.lkmc.pageworn.playback.EditionSource
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
@@ -164,9 +166,11 @@ class EditionStore(
     /** Every track file is on the disk with the size it was verified at. */
     private suspend fun filesIntact(edition: LocalEditionEntity): Boolean {
         val dir = files.published(edition.generationId)
-        return db.editions().tracks(edition.generationId).all { track ->
-            val file = File(dir, track.localFilename)
-            file.isFile && file.length() == track.sizeBytes
+        return withContext(Dispatchers.IO) {
+            db.editions().tracks(edition.generationId).all { track ->
+                val file = File(dir, track.localFilename)
+                file.isFile && file.length() == track.sizeBytes
+            }
         }
     }
 

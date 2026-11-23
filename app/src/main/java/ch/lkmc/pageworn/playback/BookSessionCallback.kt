@@ -24,6 +24,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.guava.future
 
 /**
@@ -187,7 +188,11 @@ class BookSessionCallback(
         } else {
             // Metadata only, for the resumption control after a restart: no network, cover as bytes.
             val plan = container.editionSource.plan(key) ?: throw UnsupportedOperationException("Book is not ready")
-            val artwork = plan.coverFile?.takeIf { it.isFile && it.length() < 2_000_000 }?.readBytes()
+            val artwork = plan.coverFile?.let { file ->
+                withContext(Dispatchers.IO) {
+                    if (file.isFile && file.length() < 2_000_000) file.readBytes() else null
+                }
+            }
             val position = container.progressStore.read(key)?.positionMs ?: 0L
             MediaSession.MediaItemsWithStartPosition(listOf(items.forResumptionMetadata(plan, artwork)), 0, position)
         }
