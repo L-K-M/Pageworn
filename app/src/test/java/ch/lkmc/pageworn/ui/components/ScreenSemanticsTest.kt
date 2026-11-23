@@ -10,19 +10,27 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.ui.connect.ConnectScreen
 import ch.lkmc.pageworn.ui.library.LibraryScreen
+import ch.lkmc.pageworn.ui.model.BookFace
+import ch.lkmc.pageworn.ui.model.CatalogAction
+import ch.lkmc.pageworn.ui.model.CatalogRow
+import ch.lkmc.pageworn.ui.model.ConnectUiState
+import ch.lkmc.pageworn.ui.model.CoverImage
 import ch.lkmc.pageworn.ui.model.AddressRow
 import ch.lkmc.pageworn.ui.model.AddressesUiState
-import ch.lkmc.pageworn.ui.model.ConnectUiState
 import ch.lkmc.pageworn.ui.model.LibraryUiState
 import ch.lkmc.pageworn.ui.model.SettingsUiState
+import ch.lkmc.pageworn.ui.model.TransferPhase
+import ch.lkmc.pageworn.ui.model.TransferUi
 import ch.lkmc.pageworn.ui.settings.AddressesScreen
 import ch.lkmc.pageworn.ui.settings.LicencesScreen
 import ch.lkmc.pageworn.ui.settings.SettingsScreen
@@ -54,6 +62,25 @@ class ScreenSemanticsTest {
         compose.runOnIdle { query.value = "harbour" }
 
         compose.onNode(hasSetTextAction()).assert(hasContentDescription("Search title or author"))
+    }
+
+    @Test
+    fun libraryTransferRowsAlwaysPairTheProgressIconWithTheirState() {
+        fun transfer(jobId: String, phase: TransferPhase, stateText: String) =
+            CatalogAction.Transferring(TransferUi(jobId, phase, 5, 100, stateText, canPause = false, canResume = false, canRetry = true, canCancel = true))
+        val face = BookFace(BookKey("profile", "waiting"), "Waiting Book", "Author", CoverImage.Cloth)
+        val paused = face.copy(key = BookKey("profile", "paused"), title = "Paused Book")
+        compose.setContent {
+            PagewornTheme {
+                LibraryScreen(
+                    LibraryUiState(rows = listOf(CatalogRow(face, transfer("waiting", TransferPhase.WAITING, "Waiting for connection")), CatalogRow(paused, transfer("paused", TransferPhase.PAUSED, "Paused")))),
+                    rememberLazyListState(), {}, {}, {}, {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, PaddingValues(),
+                )
+            }
+        }
+
+        compose.onNodeWithText("Waiting for connection").assertIsDisplayed()
+        compose.onNodeWithText("Paused").assertIsDisplayed()
     }
 
     @Test
