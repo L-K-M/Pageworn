@@ -1,24 +1,51 @@
 # Pageworn improvement backlog
 
-These tasks build on the offline-first player, its paper surfaces, Spectral titles and oxblood place ribbon. The November 2026 review used the implementation at `9e4be6d`, the earlier gallery images, and a synthetic library on an API 37 emulator. Each task includes a way to decide whether the change helps.
+These tasks build on the offline-first player, its paper surfaces, Spectral titles and oxblood place ribbon. The November 2026 review used the implementation at `9e4be6d`, the gallery images and a synthetic library on an API 37 emulator. Each task includes a way to decide whether the change helps.
+
+## Implemented in open pull requests
+
+- **Keep chapter work off the playback tick.** PR #34. `PlayerStates.player` now carries the timeline's own segment list and current index instead of formatting every chapter row four times a second; the lazy sheet formats only visible rows. The regression test asserts two live states share one list while the index advances.
+- **Name the state of every library transfer.** PR #35. Library rows pair the progress icon with the state word at every text size, not only from 150 percent, so paused and waiting downloads no longer read as bare rings.
 
 ## Listening and browsing performance
 
-### Keep chapter work off the playback tick
-
-**Evidence.** `PlayerStates.player` maps every segment to a formatted row on each position update. `PlayerViewModel` collects eagerly, and `WidgetStates.reading` constructs the same chapter list for a widget that displays one segment. Details also rebuilds the list from the playback flow. `BookDetailScreen` composes the entire list in a scrolling column.
-
-**First change.** Measure allocations during 60 seconds of playback with 3 and 500 chapters, with the player visible, closed and with Now reading on the launcher. Separate immutable titles, starts and formatted durations from the selected index. Scope any cached data to the current edition generation. For details, compare a keyed lazy list with the existing column. The debug emulator frame samples varied too much to infer a phone frame-rate improvement.
-
-**Acceptance.** A tick within a chapter formats zero chapter rows. A seek across a boundary selects the correct row immediately. Repairing the edition picks up changed titles and timings. The details action and last chapter remain scrollable at 200% text.
-
 ### Bound thumbnail cache bookkeeping
 
-**Evidence.** `RemoteCovers` retains mutexes for keys after requests finish, and expiry records for failed keys can survive until a successful retry. Each new file triggers a directory scan for old revisions and another for eviction.
+**Evidence.** `RemoteCovers.write` renames a temp file and then calls `evictIfNeeded`, which lists and deletes every file under the byte cap, including another key's `cover-*.tmp` before its rename. `RemoteCovers` also retains mutexes for keys after requests finish, and expiry records for failed keys can survive until a successful retry.
 
-**First change.** Measure retained keys, directory walks and elapsed time for 5,000 distinct thumbnails at two widths. Repeat with a warm cache and an unreachable server. If bookkeeping grows with historical requests, bound the lock table and prune expired failure entries. Measure filesystem cost separately before introducing an index.
+**First change.** Measure retained keys, directory walks and elapsed time for 5,000 distinct thumbnails at two widths, with a warm cache and an unreachable server. Restrict eviction and byte accounting to committed thumbnails. If bookkeeping grows with historical requests, bound the lock table and prune expired failure entries. Measure filesystem cost separately before introducing an index.
 
-**Acceptance.** Concurrent calls for the same key still share one fetch, including when a waiter cancels. Verify the ten-minute retry boundary, replacement of older revisions, and eviction under the byte limit.
+**Acceptance.** Concurrent calls for the same key still share one fetch, including when a waiter cancels. A staged temp file survives eviction under a tight byte limit. Verify the ten-minute retry boundary, replacement of older revisions, and eviction under the byte limit.
+
+### Keep the exact MP3 index off the first-play path
+
+**Evidence.** `ExactSeekMp3Extractor.index` lazily scans every frame of a VBR file the first time it opens, on the extractor's init call. A multi-hour file can delay the first Play after the starting arc is drawn. The scan is cached by path, length and mtime.
+
+**First change.** Measure preparation time for a long VBR book on a cold cache, then move the scan off the playback thread or keep the starting state until the index is ready. Keep exact late seeks.
+
+**Acceptance.** The first Play of a long VBR file shows its starting state immediately, and a seek near the end still lands within the format matrix tolerance.
+
+### Bound the plan cache
+
+**Evidence.** `PlanCache` keeps an edition plan for every generation it has seen and never evicts. Plans are small, but a long-lived install accumulates one per download, repair and replacement.
+
+**First change.** Tie entries to the published generation, clear them when an edition is removed, or bound the map. No behavior change is needed beyond memory.
+
+## Details correctness
+
+### Refuse an unsupported format before the tap
+
+**Evidence.** `DetailViewModel.build` can return `Download`, `DownloadDisabled`, `Repair` or `Play`, but never `DetailAction.Unsupported`; `LibraryViewModel` passes `unsupported = false`. The refusal appears only after a tap, when the coordinator reads the manifest. Spec A24b wants details to disable Download with the unsupported-format copy, and the Library row to show it without starting a job. The pinned catalog list response carries no codec or extension, only media metadata, so this needs either stored format summaries captured at item fetch or an on-demand manifest read in details.
+
+**First change.** Decide between an item-detail fetch cached by profile, item and revision, and carrying format information in a schema change. Then have details and the Library row share one verdict. Never mark a book unsupported because the network was unavailable.
+
+**Acceptance.** Opening an unsupported book shows the disabled action before any tap, starts no job and requests no audio. An offline previously downloaded book still opens and plays. A cached verdict cannot outlive the item's revision.
+
+### Handle a detail link whose book is gone
+
+**Evidence.** `DetailViewModel.build` returns null when both the catalog row and the edition are absent, and `AppNavHost` renders nothing for null. Removing the last local copy, or opening a stale link after a server-side removal and catalog refresh, leaves a blank paper screen with no route except Back.
+
+**First change.** Distinguish loading from missing and offer a route to Downloaded. Verify that removing a book keeps its saved place.
 
 ## Layout and navigation
 
@@ -32,25 +59,25 @@ These tasks build on the offline-first player, its paper surfaces, Spectral titl
 
 ### Give wide windows a facing details page
 
-**Evidence.** The interface specification calls for details beside the library where space permits. `AppNavHost` currently replaces the list with a full-screen destination. The single-column composition leaves room for a second page on a tablet.
+**Evidence.** The interface specification calls for details beside the library where space permits. `AppNavHost` currently replaces the list with a full-screen destination, leaving room for a second page on a tablet.
 
-**Prototype.** Keep the library, query, sort and binding on the leading page. Show the selected book and its actions on the facing page. Use a quiet seam between the two paper surfaces. Determine the breakpoint from the measured room for both pages with large type.
+**Prototype.** Keep the library, query, sort and binding on the leading page. Show the selected book and its actions on the facing page, with a quiet seam between the two paper surfaces. Determine the breakpoint from the measured room for both pages with large type.
 
 **Acceptance.** At 320, 600 and 840 dp, exercise selecting a book, Back, rotation and resizing while details are open. Preserve selection, scroll position and the playing book. Check keyboard focus order across panes and avoid duplicate transport announcements.
 
 ### Open details from the title as well as the cover
 
-**Evidence.** Library and Downloaded expose the thumbnail as the details target. The larger title beside it does nothing on tap. A listener trying to find the narrator or file size has to discover the cover shortcut.
+**Evidence.** Library and Downloaded expose the thumbnail as the details target. The larger title beside it does nothing on tap, so a listener looking for the narrator or file size must discover the cover shortcut.
 
-**Prototype.** Group cover and identifying text into one labelled action. Leave Play, Download, transfer controls and progress announcements independent. Try a ready book, remote book and waiting transfer at normal and 200% text.
+**Prototype.** Group cover and identifying text into one labelled action. Leave Play, Download, transfer controls and progress announcements independent. Try a ready book, a remote book and a waiting transfer at normal and 200% text.
 
-**Acceptance.** A tap on the title or cover opens the intended book. A transport tap runs only its own action. In TalkBack traversal, each book has one details action, its metadata is readable, and the action names distinguish books with the same title.
+**Acceptance.** A tap on the title or cover opens the intended book. A transport tap runs only its own action. In TalkBack traversal each book has one details action, its metadata is readable, and action names distinguish books with the same title.
 
 ### Read the jacket copy before downloading
 
-**Evidence.** The detail page currently takes its description from the local edition. An undownloaded book can show the cover, author, length and download size while leaving most of the page empty. Audiobookshelf item metadata already feeds a description into the download manifest.
+**Evidence.** The detail page takes its description from the local edition, so an undownloaded book can show the cover, author, length and download size while leaving most of the page empty. Audiobookshelf item metadata already feeds a description into the download manifest.
 
-**First change.** Verify which pinned catalog responses include a plain description. If the list omits it, use an on-demand detail lookup for the selected book. Render the existing summary and actions immediately. Cache available prose by profile, item and revision and use plain text. Compare a short description with an expandable long one on a 360 dp phone before fixing a line limit.
+**First change.** Verify which pinned catalog responses include a plain description. If the list omits it, use an on-demand detail lookup for the selected book. Render the existing summary and actions immediately. Cache prose by profile, item and revision, as plain text. Compare a short description with an expandable long one on a 360 dp phone before fixing a line limit.
 
 **Acceptance.** Opening one remote book makes at most one metadata request for its revision, starts no transfer and leaves Download reachable. Revisiting it offline shows the cached prose. A missing description leaves a tidy page, and a response for the previous book never appears under the current title.
 
@@ -67,6 +94,14 @@ Run `PlaybackFailureTest#a10dATrackThatCannotOpenEndsPlaybackAtItsBoundary` on A
 A small movement on the book scrubber can cross hours of audio. Prototype a transient “Return to 2:14:36” action after a whole-book drag commits. A pencil tick can show the departure point without reusing the saved-place ribbon. Compare the text action alone with text plus tick.
 
 Test an accidental seek, an intentional seek, repeated scrubs and switching books. Undo must return once to the last departure point, preserve play or pause, and never seek a different book. Check discoverability with TalkBack and agree on the lifetime with listeners before persisting any new state.
+
+## Delight candidates
+
+- Fine chapter-boundary ticks on the whole-book bar, drawn like pencil marks, to make the two scales' relationship visible without new chrome.
+- A soft page-turn settle when the player collapses back to the list, respecting reduced motion.
+- A pressed shadow and haptic on the bookmark tabs, matching the keys.
+- A short ribbon pulse on the mini-player when a new segment begins.
+- A faint cloth spine shadow behind the standing covers on the Bookshelf widget.
 
 ## Test reliability
 
