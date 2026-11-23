@@ -333,7 +333,7 @@ private fun MainRoute(container: AppContainer, main: MainViewModel, player: Play
                     onAction = { action ->
                         when (action) {
                             UiAction.CLEAR_SEARCH -> library.setQuery("")
-                            UiAction.RETRY, UiAction.CHECK_AGAIN -> library.refresh()
+                            UiAction.RETRY, UiAction.CHECK_AGAIN, UiAction.REFRESH -> library.refresh()
                             // Connection setup signs in to the profile's first address when none is named.
                             UiAction.SIGN_IN -> navController.navigate(Routes.connect(ConnectMode.SIGN_IN))
                             UiAction.OPEN_ADDRESSES -> navController.navigate(Routes.ADDRESSES)

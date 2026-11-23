@@ -60,6 +60,7 @@ object Copy {
         if (shortfallBytes == null || shortfallBytes <= 0) STORAGE_FULL else "$STORAGE_FULL ${Format.bytes(shortfallBytes)} more is needed."
     const val AUDIO_REMOVED = "Download removed. Your place is saved."
     const val DAMAGED_COPY = "This copy couldn’t be opened."
+    const val REPAIR_NEEDED = "Repair needed"
     const val PLAY_DID_NOT_START = "Couldn’t start playback. Another app may be using audio."
     const val CHOOSE_START = "Choose where to start."
     const val STARTING = "Starting"
