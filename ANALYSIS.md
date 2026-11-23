@@ -9,7 +9,7 @@ These tasks build on the offline-first player, its paper surfaces, Spectral titl
 - **Protect writes during cover cache eviction.** PR #25 limits eviction to published thumbnails and reclaims abandoned temporary files on the next process's first write.
 - **Return from missing book details.** PR #27 distinguishes loading from a missing book. An API 37 removal test checks the return to Downloaded and the saved place.
 - **Retry a download in place.** PR #28 adds Retry to Library and details while retaining Pause and Cancel where available.
-- **Mark a saved place on the details cover.** PR #29 shows the ribbon for Resume and leaves fresh and finished books unmarked.
+- **Mark a saved place on the details cover.** PRs #29 and #38 show the ribbon for Resume and leave fresh and finished books unmarked.
 - **Bound cover decoding.** PR #30 samples against the longer edge across Compose, cached remote art and widgets. A 256 × 8192 portrait decodes to 8 × 256 for a 128 px target.
 - **Verify formats with the manifest codec.** PR #39 threads the Audiobookshelf codec into the post-download verifier, so MP3 frames inside a CAF container reach the probe instead of being refused after the bytes were fetched. A `TrackProbe` test double covers the gate on the JVM.
 - **Hold Downloaded rows to the checkpoint clock.** PR #43 strips volatile playback fields and holds the moving position to five seconds before combining, so a playing book no longer rebuilds every row four times a second. Transport changes still pass through at once.
@@ -23,6 +23,10 @@ These tasks build on the offline-first player, its paper surfaces, Spectral titl
 - **Treat an unreadable library list as a sign-in failure.** PR #56. A failed `/api/libraries` read revokes the fresh session and reports the address problem instead of storing an empty profile or claiming a different server.
 - **Draw focus rings outside keys and paper rows.** PR #57. The key ring surrounds the face, and text actions and disclosure rows gain the same pencil outline as the other controls.
 - **Say that a removal keeps the place.** PR #60. The long-unused `AUDIO_REMOVED` copy now appears under the detail action until a download starts or an edition returns.
+- **Refresh the catalog after signing in again.** PR #37 makes `SIGN_IN` refresh libraries and the catalog like the other reconnect modes, so a cached Library cannot stay stale behind a restored session.
+- **Coarsen Downloaded's live position.** PR #42 floors a playing row's place to the minute and skips unchanged live states; PR #43 holds it to the checkpoint clock. Both replace the four-per-second rebuild of every row.
+- **Bound the plan cache.** PR #45 turns `PlanCache` into an access-ordered LRU of 16 generations instead of an unbounded map.
+- **Load progress once for the car's book list.** PR #50 replaces the per-edition `book_progress` query in `readyBooks()` with one `ProgressDao.all()`.
 - PR #48 overlaps PR #35 (transfer state text); keep one when they merge.
 
 ## Listening and browsing performance
@@ -67,20 +71,20 @@ BookDetailScreen lays out the entire chapter list in a scrolling column. Compare
 
 **Evidence.** `PlanCache` keeps an edition plan for every generation it has seen and never evicts. Plans are small, but a long-lived install accumulates one per download, repair and replacement.
 
+PR #45 bounds this map as an access-ordered LRU of 16 plans. The remaining work is the same lifetime question for the other tables below.
+
 The same lifetime question applies to `EditionStore.bookLocks` and
 `ProgressStore.handedOut`, which keep one mutex or session generation per book
 forever, and to `ServerAccess.connections`, which is replaced rather than
 evicted when a policy changes.
 
-**First change.** Tie plan-cache entries to the published generation, clear them when an edition is removed, or bound the map. No behavior change is needed beyond memory.
-
-**First change.** Tie entries to the published generation, clear them when an edition is removed, or bound the map. Give book locks and handed-out session counters the same treatment: keep them while a book is reachable in the session, then let them go. No behavior change is needed beyond memory.
+**First change.** Give book locks and handed-out session counters the same bounded lifetime: keep them while a book is reachable in the session, then let them go. No behavior change is needed beyond memory.
 
 ### Rebuild Downloaded rows only when their inputs change
 
 **Evidence.** `DownloadedViewModel.state` combines the full `playbackHub.state` and is shared eagerly. Every 250 ms playback tick walks all editions through `plans.timelines` and rebuilds every transfer and book row, even while another screen is showing. Library deliberately feeds `transportOnly()` with `distinctUntilChanged` for the same reason.
 
-**First change.** Switch the flow to `WhileSubscribed`, feed the row builder `transportOnly()`, and cache timelines against the edition generation set. Measure allocations during a minute of playback with the player closed.
+**First change.** PRs #42 and #43 coarsen or hold the position and skip unchanged states. Still open: switch the flow to `WhileSubscribed` when no screen needs it, cache timelines against the edition generation set, and measure allocations during a minute of playback with the player closed.
 
 **Acceptance.** Starting or pausing a book updates the row keys and badge, a resting row keeps its order, and a tick inside a chapter performs no timeline lookups or row rebuilds.
 
@@ -212,6 +216,14 @@ the cached-catalog status line for later failures.
 incomplete copy with Retry; an unreachable server shows the unreachable copy
 with the last refresh time; a cached catalog still browses through both.
 
+### Recompute local-network permission state when Addresses resumes
+
+**Evidence.** `AddressesViewModel` computes `denied` inside its `combine` transform, so the answer changes only when addresses, test results or the pin emit. Granting the Android 17 local-network permission in system settings and returning to the app changes none of them; the row keeps the denied message and the Allow-access action even though a request would now succeed.
+
+**First change.** Expose permission state as an observed flow, or recompute on screen entry and resume. Keep the DNS classification off the main thread as it is today.
+
+**Acceptance.** Deny, open Library and see the local-network message; grant in system settings, return, and the message clears without tapping Test. On Android 12 to 16 nothing is requested.
+
 ## Layout and navigation
 
 ### Align the two section headings
@@ -268,9 +280,9 @@ and Downloaded in light and dark.
 
 ### Distribute spare height in the player
 
-**Evidence.** `PlayerScreen` places two `Spacer(Modifier.weight(1f))` inside a `Column` that has `verticalScroll`. A scrolling column measures children with an infinite maximum height, and Compose's `RowColumnMeasurePolicy` gives weighted children space derived from the minimum constraint in that case, so both spacers collapse to zero. The comment says spare height opens around the keys, but the controls sit directly under the scrubbers and the spare paper pools at the bottom of a tall screen.
+**Evidence.** Source reading suggests the two `Spacer(Modifier.weight(1f))` calls inside the scrolling player column might collapse: a vertical scroll passes children an unbounded maximum height, and Compose derives weighted space from the minimum constraint in that case. A measurement on an API 37 emulator (1080 × 2400 at 420 dpi) found the opposite: the chapter times end at y ≈ 1539, the transport row occupies 1733–1943 and the utilities 2137–2295, two equal 194 px gaps, so the weights did distribute. Re-measure with `uiautomator` or compose bounds on a regular-height device before changing this; if a device shows collapse, split the player into a scrolling upper region and a fixed lower control stack, or insert explicit spacers only when the natural content fits.
 
-**Prototype.** Split the player into a scrolling upper region and a fixed lower control stack, or measure the natural content height once per layout-relevant change and insert explicit spacers only when the content fits. Keep every control row scrollable at 200% text and in short landscape.
+**Prototype.** If measurement confirms collapse on any supported device, split the player into a scrolling upper region and a fixed lower control stack. Keep every control row scrollable at 200% text and in short landscape.
 
 **Acceptance.** On a regular-height phone the transport keys and utilities keep their designed separation and no large empty area sits below the utilities. At 200% text the same rows can still be brought into view, and a short screen collapses the artwork first.
 
@@ -306,6 +318,23 @@ and Downloaded in light and dark.
 - **Check focus indicators over texture at high contrast.** The reports claim the 3:1 focus check; repeat it over the textured paper and cloth with the final composite.
 - **Keep the search field's name and single line.** The hint disappears as soon as the query is non-empty, leaving only the pencil glyph and the semantics description, and the field becomes multi-line at 150% text. Give it the persistent floating-label treatment of the paper fields, or a compact visible label, and pin `singleLine = true`.
 - **Announce transfer state changes politely.** A transfer that moves between active, paused, waiting and failed while the Library list is on screen changes only a state description. Announce the phase once when it changes for a visible row, without stealing focus.
+- **Refresh reduced-motion and high-contrast state while the process lives.** `PagewornTheme` reads both once per composition; toggling the animator duration scale or a high-text-contrast accessibility setting does not recreate the activity. Observe the change or refresh the flags on configuration change, and give the weakest secondary-ink lines an opaque backing in high contrast.
+
+## Product gaps needing an owner decision
+
+These change the written release scope, so agree on the behavior before building them. Launcher shortcuts, bookmarks and clips, per-book speed, pull-to-refresh, a Quick Settings sleep tile and a real dark theme are already listed under delight candidates.
+
+### Storage usage at a glance
+
+Settings shows per-book sizes in details but no total library size, no largest-first view and no remove-finished action. A total in Settings and a confirmed bulk-remove flow would make the storage margin easier to manage. Removal stays explicit: one confirmation naming what stays (saved places) and what goes (audio), and busy transfers stay out of the bulk path. The same total could explain the free-space margin before a download starts.
+
+### Filters, series and grouping
+
+Downloaded is a flat sorted list. All/unfinished/finished/new filters, series and collection headers, and author indexes would help a large library. Keep the documented sort stable while a filter is active, and keep equal titles independent by item ID.
+
+### More sleep conveniences
+
+A shake-to-extend gesture, an “add five minutes” action on a running timer and a persistent countdown outside the player sheet are small comforts. The sensor belongs in the playback service; every control must respect reduced motion and announce itself once. Preserve the current rules for fresh timers after a timed stop.
 
 ## Delight candidates
 
@@ -340,6 +369,10 @@ and Downloaded in light and dark.
 - A brief place-ribbon settle on a cover when its download completes, tying the completion notice to the object the listener will look for.
 - Chapter skip commands in the media notification overflow, so bedtime chapter turns do not need the phone unlocked.
 - A native confirmation before removing a server address; a mis-tap in a wrapping action row currently revokes a paired alias.
+- A brief chapter-title bookplate over the cover when a chapter begins, suppressed by reduced motion.
+- A folded dog-ear on a cover once the book is finished, paired with the existing badge.
+- A dated reading log drawn as pencil marginalia: finished and abandoned books, nothing leaving the phone.
+- A subtle cover-tinted cloth accent, opt-in only, so the fixed palette remains the default.
 
 ## Playback investigation and design experiment
 
@@ -360,6 +393,9 @@ Test an accidental seek, an intentional seek, repeated scrubs and switching book
 - **Volume after a faded timed stop.** The player keeps the faded volume after a timer expires and restores it in `beforePlay`. The existing fade test asserts that behaviour, and the contract's “restore full volume for the next start” is met there. A failure or focus loss during the fade also reaches the next start at full volume; changing this would need a test decision first.
 - **Debouncing Library search.** A flow `debounce` in `LibraryViewModel` fails the Robolectric JVM tests because `shadowOf(mainLooper).idle()` does not advance delayed tasks, so the listing never arrives. If this is taken up, either teach the tests to advance the clock (`idleFor`) or throttle with a test clock rather than wall time.
 - **A book of one part still has both bars, finished books stay finished until Replay, and an end-of-book seek within 250 ms marks the book finished.** These are specified and tested; recorded here only so they are not “simplified” later.
+- **Both scrubbers already draw round caps**, with the smaller thumb on the book bar, and the time row lines up with the visible bar ends.
+- **Catalog search escapes LIKE wildcards**, so `%`, `_` and the escape character match literally.
+- **Progress writes are ordered by playback generation and sequence**, and a late pause sample cannot move a newer place backwards.
 
 ## Test reliability
 
