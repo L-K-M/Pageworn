@@ -27,6 +27,8 @@ These tasks build on the offline-first player, its paper surfaces, Spectral titl
 - **Coarsen Downloaded's live position.** PR #42 floors a playing row's place to the minute and skips unchanged live states; PR #43 holds it to the checkpoint clock. Both replace the four-per-second rebuild of every row.
 - **Bound the plan cache.** PR #45 turns `PlanCache` into an access-ordered LRU of 16 generations instead of an unbounded map.
 - **Load progress once for the car's book list.** PR #50 replaces the per-edition `book_progress` query in `readyBooks()` with one `ProgressDao.all()`.
+- **Show a remote book's description on its details page.** PR #55. The pinned minified listing already carries `media.metadata.description` (verified against the captured v2.38.0 fixtures), so the catalog now stores it (`catalog_book`/`catalog_staging`, schema 3) and details fall back to it when no downloaded edition snapshots its own copy. The HTML-only fallback is stripped to plain text in both parse paths.
+- **Project progress to what Library rows draw.** PR #61. Library rows use only hasPlace/finished, so the view model now projects `BookProgressEntity` to that pair with `distinctUntilChanged`; a moving position no longer re-maps every row of a large library on each checkpoint. Downloaded rows still read exact positions.
 - PR #48 overlaps PR #35 (transfer state text); keep one when they merge.
 
 - **Clear stale cover art during a source change.** PR #26 resets the Compose bitmap when the artwork source changes. The API 37 regression checks the cloth placeholder while a replacement is delayed.
@@ -149,6 +151,12 @@ The playback contract counts automatic focus recovery among starts for resume re
 **First change.** Suppress the empty state until the first editions/transfers emission, or seed the initial state from a quick local read. Keep the true empty state immediate when there really is nothing.
 
 **Acceptance.** A cold launch with downloads never shows the no-downloads sentence; a phone with none still does.
+
+### Serve car covers without blocking a binder thread
+
+**Evidence.** `CoverProvider.openAssetFile` calls `runBlocking { container.coverFileFor(key) }`, a Room read on a binder thread. It is not an ANR (binder, not main), but it parks a binder thread on the database.
+
+**First change.** Keep a small in-memory cover-path map maintained by `EditionStore` on publish/remove/recover, or read through a synchronous DAO on a dedicated executor. Verify the car list still gets a fresh URI per generation and a cloth fallback for art-free books.
 
 ## Details correctness
 
@@ -276,11 +284,9 @@ and Downloaded in light and dark.
 
 ### Read the jacket copy before downloading
 
-**Evidence.** The detail page takes its description from the local edition, so an undownloaded book can show the cover, author, length and download size while leaving most of the page empty. Audiobookshelf item metadata already feeds a description into the download manifest.
+**Done in PR #55.** The pinned minified listing does include `media.metadata.description` (checked against the captured v2.38.0 fixtures), so no extra request is needed: the refresh stores it on the catalog row (schema 3) and details show it for a book that was never downloaded, offline included. The HTML-only fallback is tag-stripped to plain text.
 
-**First change.** Verify which pinned catalog responses include a plain description. If the list omits it, use an on-demand detail lookup for the selected book. Render the existing summary and actions immediately. Cache prose by profile, item and revision, as plain text. Compare a short description with an expandable long one on a 360 dp phone before fixing a line limit.
-
-**Acceptance.** Opening one remote book makes at most one metadata request for its revision, starts no transfer and leaves Download reachable. Revisiting it offline shows the cached prose. A missing description leaves a tidy page, and a response for the previous book never appears under the current title.
+**Remaining.** Long descriptions: compare a short description with an expandable long one on a 360 dp phone before fixing a line limit. A missing description must leave a tidy page.
 
 ### Remove a download from its Downloaded row
 
@@ -350,7 +356,7 @@ Settings shows per-book sizes in details but no total library size, no largest-f
 
 ### Filters, series and grouping
 
-Downloaded is a flat sorted list. All/unfinished/finished/new filters, series and collection headers, and author indexes would help a large library. Keep the documented sort stable while a filter is active, and keep equal titles independent by item ID.
+Downloaded is a flat sorted list. All/unfinished/finished/new filters, series and collection headers, and author indexes would help a large library. A local search within Downloaded (title/author, no network) is the cheapest first step once many books are on the phone. Keep the documented sort stable while a filter is active, and keep equal titles independent by item ID.
 
 ### More sleep conveniences
 
@@ -359,6 +365,7 @@ A shake-to-extend gesture, an “add five minutes” action on a running timer a
 ## Delight candidates
 
 - Fine chapter-boundary ticks on the whole-book bar, drawn like pencil marks, to make the two scales' relationship visible without new chrome.
+- Time-left on a ready Library row, matching the Downloaded badge ("Chapter 4 · 2 h 12 min left"), so the two sections read as one library.
 - A soft page-turn settle when the player collapses back to the list, respecting reduced motion.
 - A pressed shadow and haptic on the bookmark tabs, matching the keys.
 - A short ribbon pulse on the mini-player when a new segment begins.
@@ -447,6 +454,10 @@ The recovery path in `data/EditionStore.kt` can assign the recovery time as `pub
 Transfer startup and Activity startup recover editions after the filesystem finalize step. A media-button start can enter the Media3 service without either. Seed the existing finalized-but-uncommitted fixture, kill the process, and invoke a Bluetooth or media-session start while the Activity stays closed. Decide whether recovery can resolve the selected book without delaying starts of already published editions. Reuse the idempotent recovery path and protect active staging against reclamation.
 
 ## Test reliability
+
+### Clear a stale test-results binary after a killed run
+
+On this host, a Gradle run killed mid-test leaves `app/build/test-results/testDebugUnitTest/binary` in a state where the next `:app:testDebugUnitTest` fails with `EOFException`/`NoSuchFileException` while reading the previous results, before any test runs. `rm -rf app/build/test-results` or `:app:cleanTestDebugUnitTest` recovers. Worth remembering when a local run fails this way; CI is unaffected.
 
 ### Diagnose the intermittent concurrent refresh failure
 
