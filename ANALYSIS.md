@@ -11,6 +11,11 @@ These tasks build on the offline-first player, its paper surfaces, Spectral titl
 - **Retry a download in place.** PR #28 adds Retry to Library and details while retaining Pause and Cancel where available.
 - **Mark a saved place on the details cover.** PR #29 shows the ribbon for Resume and leaves fresh and finished books unmarked.
 - **Bound cover decoding.** PR #30 samples against the longer edge across Compose, cached remote art and widgets. A 256 × 8192 portrait decodes to 8 × 256 for a 128 px target.
+- **Verify formats with the manifest codec.** PR #39 threads the Audiobookshelf codec into the post-download verifier, so MP3 frames inside a CAF container reach the probe instead of being refused after the bytes were fetched. A `TrackProbe` test double covers the gate on the JVM.
+- **Hold Downloaded rows to the checkpoint clock.** PR #43 strips volatile playback fields and holds the moving position to five seconds before combining, so a playing book no longer rebuilds every row four times a second. Transport changes still pass through at once.
+- **Keep a published cover on a transferring row.** PR #46 prefers the edition's stored cover during a repair or replacement, falling back to the server thumbnail only when no local file exists.
+- **Select the sleep length that is actually running.** PR #53 selects a carried-over timer, or a running length whose preset was removed, and lists that length while it runs so exactly one radio carries the countdown.
+- **Settle Library search before querying.** PR #58 debounces non-empty queries by 200 ms while keeping the field immediate, so a large catalog is not re-searched and re-sorted once per character.
 
 ## Listening and browsing performance
 
@@ -38,7 +43,12 @@ BookDetailScreen lays out the entire chapter list in a scrolling column. Compare
 
 **Evidence.** `PlanCache` keeps an edition plan for every generation it has seen and never evicts. Plans are small, but a long-lived install accumulates one per download, repair and replacement.
 
-**First change.** Tie entries to the published generation, clear them when an edition is removed, or bound the map. No behavior change is needed beyond memory.
+The same lifetime question applies to `EditionStore.bookLocks` and
+`ProgressStore.handedOut`, which keep one mutex or session generation per book
+forever, and to `ServerAccess.connections`, which is replaced rather than
+evicted when a policy changes.
+
+**First change.** Tie entries to the published generation, clear them when an edition is removed, or bound the map. Give book locks and handed-out session counters the same treatment: keep them while a book is reachable in the session, then let them go. No behavior change is needed beyond memory.
 
 ## Details correctness
 
@@ -50,7 +60,93 @@ BookDetailScreen lays out the entire chapter list in a scrolling column. Compare
 
 **Acceptance.** Opening an unsupported book shows the disabled action before any tap, starts no job and requests no audio. An offline previously downloaded book still opens and plays. A cached verdict cannot outlive the item's revision.
 
+### Disable Download after a proven format refusal
+
+**Evidence.** Until the pre-tap verdict above lands, a Download tap that
+fetches a manifest and finds an unsupported format leaves the button enabled,
+so the same refusal repeats on every tap. `DetailAction.Unsupported` already
+exists and renders a disabled button with the message; nothing produces it.
+
+**First change.** Once a refusal proves the format unsupported, represent that
+visit as `DetailAction.Unsupported` instead of the plain Download action. Keep
+the action enabled for transient route and permission refusals.
+
+**Acceptance.** A repeated tap does not repeat the fetch; the message stays;
+leaving and reopening the screen clears the visit-local verdict.
+
+### Decide how a repair appears next to its book
+
+**Evidence.** A repair enqueues a transfer while the damaged edition stays
+published until the new generation commits, so Downloaded can show the same
+title twice: once in the Downloading group and once as Repair needed with two
+different sets of actions.
+
+**First change.** Decide whether the old copy remains playable during a repair.
+If it does, make the two roles unmistakable; if it does not, hide the book row
+while its transfer is active. Add a state test for a damaged edition with an
+active repair job.
+
+**Acceptance.** A listener can tell which row plays and which replaces it, and
+the book appears once after publication.
+
+## Connection, settings and diagnostics
+
+### Name the pinned route in manual mode
+
+**Evidence.** Manual mode filters candidates to the pinned address. If that
+address is gone, disabled or no longer paired, the candidate pool is empty and
+`RouteSelector` reports `Unreachable(null)`, so the listener sees a generic
+“Can’t reach your server” instead of the route they chose.
+
+**First change.** Pass the pinned address row (or its label) into the selector,
+or restore the label in `ServerAccess.route` when manual mode finds no
+candidate. Cover a removed pin, a disabled pin and a certificate-blocked pin.
+
+**Acceptance.** Every manual-mode failure names the pinned address; automatic
+mode is unchanged.
+
+### Clear a stale diagnostics export failure
+
+**Evidence.** `SettingsViewModel.exportFailed` is cleared only by a successful
+export. After one failed save, a later successful export leaves “Couldn’t export
+diagnostics” on screen.
+
+**First change.** Clear the flag when a new create-document launch starts.
+A save-failure test needs a URI that fails to open, or extract the flag into a
+testable state change.
+
+**Acceptance.** A retry that succeeds shows no failure message; a genuine
+failure still does.
+
+### Distinguish an unreachable server from a malformed refresh
+
+**Evidence.** `AccountService.refreshCatalog` maps every failing page to the
+unreachable notice, including a well-formed HTTP error or an unparseable body
+from a reachable server. A first load then shows “Can’t reach your server”
+instead of “Your library didn’t finish loading”, which sends the listener to
+check their network when the server answered badly.
+
+**First change.** Carry a distinct server-error notice out of a refresh
+failure, or prefer `ListingStatus.INCOMPLETE` for a first load while keeping
+the cached-catalog status line for later failures.
+
+**Acceptance.** A reachable server that returns a malformed page shows the
+incomplete copy with Retry; an unreachable server shows the unreachable copy
+with the last refresh time; a cached catalog still browses through both.
+
 ## Layout and navigation
+
+### Align the two section headings
+
+**Evidence.** Downloaded draws a pencil rule under its heading and Library does
+not, so the two permanent destinations read as slightly different surfaces.
+
+**First change.** Choose one treatment and apply it to both. Add a visual check
+that compares the heading block, search row and first row position on both
+destinations at 100% and 200% text.
+
+**Acceptance.** The same rule, spacing and heading baseline appear in Library
+and Downloaded in light and dark.
 
 ### Reclaim list space in short landscape
 
@@ -105,6 +201,17 @@ Test an accidental seek, an intentional seek, repeated scrubs and switching book
 - A pressed shadow and haptic on the bookmark tabs, matching the keys.
 - A short ribbon pulse on the mini-player when a new segment begins.
 - A faint cloth spine shadow behind the standing covers on the Bookshelf widget.
+- A ribbon tail that lengthens with progress, clamped to a tasteful range, so
+  the shelf itself tells how far each book is while the exact time stays in
+  text. Keep it distinct from any temporary marker.
+- A live landing preview while dragging the whole-book bar: the chapter or part
+  under the finger and its time, not just the scale's own numbers.
+- A one-off sleep timer on a long-press of the Sleep utility, without changing
+  the persisted mode.
+- Sleep remaining in the media metadata subtitle, so the lock screen can show
+  the countdown without opening the app.
+- Widget picker artwork generated from the cover pipeline, instead of the blank
+  preview frames the launcher draws today.
 
 ## Test reliability
 
