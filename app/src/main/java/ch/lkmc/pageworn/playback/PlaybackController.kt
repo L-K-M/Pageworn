@@ -245,6 +245,9 @@ class PlaybackController(
                 val before = loaded?.saved
                 checkpoint(kind, listened = true)
                 pauseSaved = loaded?.saved?.takeIf { it !== before }
+            } else {
+                // This pause wrote nothing new; don't leave a snapshot from an earlier pause behind.
+                pauseSaved = null
             }
             // An exact stop is a timer boundary, which already committed its place. The renderer
             // can creep a few milliseconds past that boundary before the pause lands; re-saving
@@ -397,6 +400,9 @@ class PlaybackController(
     /** Saves the current position of the loaded book if the player still holds it. */
     fun checkpoint(kind: StopKind, listened: Boolean) {
         val book = loaded ?: return
+        // An armed exact stop owns the place until its pause callback lands. A periodic tick or
+        // a book switch in that window must not persist the renderer's crept position.
+        if (pauseCause == StopKind.EXACT) return
         if (!playerHolds(book)) return
         if (pendingSeek) return
         // A finished book keeps its finished place until Replay or a seek moves it; switching to
