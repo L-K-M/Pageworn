@@ -14,6 +14,7 @@ import ch.lkmc.pageworn.core.FakeClock
 import ch.lkmc.pageworn.core.progress.StopKind
 import ch.lkmc.pageworn.core.sleep.SleepLength
 import ch.lkmc.pageworn.core.sleep.SleepWindow
+import ch.lkmc.pageworn.core.timeline.Division
 import ch.lkmc.pageworn.data.EditionFiles
 import ch.lkmc.pageworn.data.EditionManifest
 import ch.lkmc.pageworn.data.EditionStore
@@ -55,6 +56,7 @@ class SleepTimerTest {
     val folder = TemporaryFolder()
 
     private val key = BookKey("profile", "item")
+    private val other = BookKey("profile", "other")
     private val clock = FakeClock()
     private val zone = ZoneId.of("Europe/Zurich")
     private val ticks = TestScope()
@@ -62,6 +64,9 @@ class SleepTimerTest {
     private val hub = PlaybackHub()
     private val writes = mutableListOf<Pair<Long, StopKind>>()
     private lateinit var db: PagewornDatabase
+    private lateinit var files: EditionFiles
+    private lateinit var editions: EditionStore
+    private lateinit var progress: ProgressStore
     private lateinit var sleep: SleepSettingsStore
     private lateinit var controller: PlaybackController
 
@@ -71,22 +76,15 @@ class SleepTimerTest {
         Settings.Global.putInt(context.contentResolver, Settings.Global.BOOT_COUNT, 1)
         db = Room.inMemoryDatabaseBuilder(context, PagewornDatabase::class.java).build()
         db.profiles().upsert(ProfileEntity(key.profileId, "account", "Listener", null, null, "2.38.0", clock.wall))
-        val files = EditionFiles(folder.newFolder("media")).also { it.ensureRoots() }
-        val staged = files.staging("generation").also { it.mkdirs() }
-        val tracks = (0..1).map { ordinal ->
-            val name = "%03d.mp3".format(ordinal)
-            File(staged, name).writeBytes(byteArrayOf(1))
-            ManifestTrack(ordinal, "file-$ordinal", 1, 1, name, ordinal * TRACK_MS, TRACK_MS, extension = "mp3")
-        }
-        val editions = EditionStore(db, files, clock)
-        editions.publish(
-            EditionManifest(generationId = "generation", jobId = null, profileId = key.profileId, itemId = key.itemId, fingerprint = "print", title = "Book", tracks = tracks, chapters = emptyList()),
-        )
+        files = EditionFiles(folder.newFolder("media")).also { it.ensureRoots() }
+        editions = EditionStore(db, files, clock)
+        progress = ProgressStore(db.progress(), clock)
+        publish(key.itemId, "generation")
         sleep = SleepSettingsStore(context, clock) { zone }
         controller = PlaybackController(
             exo = player.exo,
             editions = editions,
-            progress = ProgressStore(db.progress(), clock),
+            progress = progress,
             settings = SettingsStore(context),
             sleepSettings = sleep,
             clock = clock,
@@ -273,6 +271,91 @@ class SleepTimerTest {
         assertThat(sleep.settings.value.enabled).isTrue()
     }
 
+    @Test
+    fun aSwitchToABookThatCannotOpenKeepsThePlayingBooksTimer() = runBlocking {
+        sleep.choose(SleepLength.Minutes(30))
+        start()
+        elapse(5 * MINUTE)
+        val timer = hub.state.value.sleep
+
+        // A car or Bluetooth controller can ask the session for a book that is not downloaded.
+        assertThat(controller.resolve(BookKey("profile", "missing"), null)).isNull()
+        ticks.testScheduler.runCurrent()
+
+        assertThat(controller.sleep).isEqualTo(timer)
+        assertThat(hub.state.value.sleep).isEqualTo(timer)
+        assertThat(hub.state.value.sleepRemainingMs).isEqualTo(25 * MINUTE)
+        assertThat(hub.state.value.isPlaying).isTrue()
+        assertThat(player.wantsToPlay).isTrue()
+    }
+
+    @Test
+    fun aSwitchToADamagedBookKeepsAnEndOfTrackTimer() = runBlocking {
+        player.position = LAST_TRACK_MS
+        start()
+        controller.setSleep(SleepLength.EndOfSegment)
+        val timer = controller.sleep
+        assertThat(timer).isEqualTo(SleepState.EndOf(Division.TRACKS, 2 * TRACK_MS, true))
+
+        // The damaged edition turns Repair needed when the open checks its files, and the open fails.
+        publish(other.itemId, "other-generation")
+        File(files.published("other-generation"), "000.mp3").delete()
+        assertThat(controller.resolve(other, null)).isNull()
+        ticks.testScheduler.runCurrent()
+
+        assertThat(controller.sleep).isEqualTo(timer)
+        assertThat(hub.state.value.sleep).isEqualTo(timer)
+        assertThat(hub.state.value.sleepRemainingMs).isEqualTo(2 * TRACK_MS - LAST_TRACK_MS)
+        assertThat(player.wantsToPlay).isTrue()
+    }
+
+    @Test
+    fun aSwitchWaitingForAContinuityChoiceKeepsThePlayingBooksTimer() = runBlocking {
+        sleep.choose(SleepLength.Minutes(30))
+        start()
+        publish(other.itemId, "other-generation")
+        progress.saveOutsideSession(other, 0, 2 * TRACK_MS, "old-print", StopKind.EXACT)
+        progress.requireContinuityChoice(other, "print-other")
+
+        // The book opens only after the listener chooses where to start, so the session refuses it.
+        assertThat(controller.resolve(other, null)).isNull()
+        ticks.testScheduler.runCurrent()
+
+        assertThat(controller.sleep).isEqualTo(SleepState.Timed(30, clock.elapsed + 30 * MINUTE))
+        assertThat(hub.state.value.sleep).isEqualTo(controller.sleep)
+        assertThat(hub.state.value.sleepRemainingMs).isEqualTo(30 * MINUTE)
+        assertThat(player.wantsToPlay).isTrue()
+    }
+
+    @Test
+    fun anAcceptedSwitchEndsTheOutgoingBooksTimer() = runBlocking {
+        sleep.choose(SleepLength.Minutes(30))
+        start()
+        publish(other.itemId, "other-generation")
+        assertThat(controller.sleep).isInstanceOf(SleepState.Timed::class.java)
+
+        val resolved = controller.resolve(other, null)
+
+        assertThat(resolved).isNotNull()
+        assertThat(controller.loadedKey).isEqualTo(other)
+        assertThat(controller.sleep).isEqualTo(SleepState.Off)
+        assertThat(hub.state.value.sleep).isEqualTo(SleepState.Off)
+        assertThat(hub.state.value.sleepRemainingMs).isNull()
+    }
+
+    /** Publishes a two-track edition of [itemId] like the book the controller starts on. */
+    private suspend fun publish(itemId: String, generationId: String) {
+        val staged = files.staging(generationId).also { it.mkdirs() }
+        val tracks = (0..1).map { ordinal ->
+            val name = "%03d.mp3".format(ordinal)
+            File(staged, name).writeBytes(byteArrayOf(1))
+            ManifestTrack(ordinal, "file-$ordinal", 1, 1, name, ordinal * TRACK_MS, TRACK_MS, extension = "mp3")
+        }
+        editions.publish(
+            EditionManifest(generationId = generationId, jobId = null, profileId = key.profileId, itemId = itemId, fingerprint = "print-$itemId", title = "Book", tracks = tracks, chapters = emptyList()),
+        )
+    }
+
     private fun start() {
         controller.beforePlay()
         player.play()
@@ -296,6 +379,7 @@ class SleepTimerTest {
         var item: MediaItem? = null
         var wantsToPlay = false
         var volume = 1f
+        var position = POSITION_MS
         private var audible = false
         private var listener: Player.Listener? = null
 
@@ -312,7 +396,7 @@ class SleepTimerTest {
                 "setVolume" -> { volume = args[0] as Float; null }
                 "getPlaybackState" -> Player.STATE_READY
                 "getPlayerError" -> null
-                "getCurrentPosition" -> POSITION_MS
+                "getCurrentPosition" -> position
                 "getCurrentMediaItem" -> item
                 "getPlaybackParameters" -> PlaybackParameters.DEFAULT
                 "getPlaybackSuppressionReason" -> Player.PLAYBACK_SUPPRESSION_REASON_NONE
@@ -342,6 +426,7 @@ class SleepTimerTest {
     private companion object {
         const val TRACK_MS = 90_000L
         const val POSITION_MS = 30_000L
+        const val LAST_TRACK_MS = 150_000L
         const val MINUTE = 60_000L
         const val STEP_MS = 50L
     }
