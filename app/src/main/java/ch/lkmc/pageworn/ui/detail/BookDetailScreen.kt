@@ -39,7 +39,10 @@ import ch.lkmc.pageworn.ui.model.KeyAction
 import ch.lkmc.pageworn.ui.model.StartAction
 import ch.lkmc.pageworn.ui.theme.PagewornTheme
 
-/** The ribbon marks a saved place, so it belongs only to a book that resumes from one. */
+/**
+ * The ribbon marks a saved place, so it belongs only to a book that resumes from one. A fresh
+ * play and a finished replay both start at zero, so they deliberately show no ribbon.
+ */
 internal fun showsPlaceRibbon(action: DetailAction): Boolean =
     (action as? DetailAction.Play)?.start == StartAction.RESUME
 

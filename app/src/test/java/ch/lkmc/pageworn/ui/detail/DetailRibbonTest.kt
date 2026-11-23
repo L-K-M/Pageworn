@@ -9,6 +9,7 @@ class DetailRibbonTest {
     @Test
     fun onlyAResumeKeyMarksASavedPlace() {
         assertThat(showsPlaceRibbon(DetailAction.Play(StartAction.RESUME, showsPause = false, starting = false))).isTrue()
+        assertThat(showsPlaceRibbon(DetailAction.Play(StartAction.RESUME, showsPause = true, starting = true))).isTrue()
         assertThat(showsPlaceRibbon(DetailAction.Play(StartAction.PLAY, showsPause = true, starting = true))).isFalse()
         assertThat(showsPlaceRibbon(DetailAction.Play(StartAction.REPLAY, showsPause = false, starting = false))).isFalse()
     }
