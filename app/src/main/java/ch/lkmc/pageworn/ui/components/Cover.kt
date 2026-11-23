@@ -136,7 +136,9 @@ fun BookCover(face: BookFace, size: Dp, showRibbon: Boolean = false, modifier: M
                 // Lettering is part of the cover art: it scales with the cover, not with the font
                 // scale, and the row or player beside it carries the readable title. Small covers
                 // stay plain cloth. It appears only when no art will come, not while it loads.
-                if (size >= MIN_LETTERED_COVER && artState is CoverArt.Missing) {
+                // Keep the lettering composed while it fades out, or it would vanish a frame
+                // before the art fades in.
+                if (size >= MIN_LETTERED_COVER && (artState is CoverArt.Missing || letteringAlpha > 0f)) {
                     val titleSize = with(density) { (size * 0.15f).toSp() }
                     val authorSize = with(density) { (size * 0.10f).toSp() }
                     Column(Modifier.fillMaxSize().padding(size * 0.09f).clearAndSetSemantics {}.graphicsLayer { alpha = letteringAlpha }, horizontalAlignment = Alignment.CenterHorizontally) {
