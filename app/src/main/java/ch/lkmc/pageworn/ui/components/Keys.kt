@@ -90,8 +90,10 @@ private fun Key(face: Int, inlay: Int?, title: String, faceWidth: Dp, faceHeight
         }
         if (focused) {
             // The ring surrounds the face rather than covering its rim or inlay.
+            // The target box above has a fixed size, so drawing a larger ring here cannot move
+            // the key or its row when focus arrives.
             Box(
-                Modifier.size(maxOf(faceWidth, faceHeight) + KEY_FOCUS_OUTSET * 2)
+                Modifier.size(faceWidth + KEY_FOCUS_OUTSET * 2, faceHeight + KEY_FOCUS_OUTSET * 2)
                     .border(2.dp, PagewornTheme.colors.primaryInk, RoundedCornerShape(percent = 50)),
             )
         }
