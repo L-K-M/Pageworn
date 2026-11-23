@@ -6,16 +6,25 @@ These tasks build on the offline-first player, its paper surfaces, Spectral titl
 
 - **Keep chapter work off the playback tick.** PR #34. `PlayerStates.player` now carries the timeline's own segment list and current index instead of formatting every chapter row four times a second; the lazy sheet formats only visible rows. The regression test asserts two live states share one list while the index advances.
 - **Name the state of every library transfer.** PR #35. Library rows pair the progress icon with the state word at every text size, not only from 150 percent, so paused and waiting downloads no longer read as bare rings.
+- **Protect writes during cover cache eviction.** PR #25 limits eviction to published thumbnails and reclaims abandoned temporary files on the next process's first write.
+- **Return from missing book details.** PR #27 distinguishes loading from a missing book. An API 37 removal test checks the return to Downloaded and the saved place.
+- **Retry a download in place.** PR #28 adds Retry to Library and details while retaining Pause and Cancel where available.
+- **Mark a saved place on the details cover.** PR #29 shows the ribbon for Resume and leaves fresh and finished books unmarked.
+- **Bound cover decoding.** PR #30 samples against the longer edge across Compose, cached remote art and widgets. A 256 × 8192 portrait decodes to 8 × 256 for a 128 px target.
 
 ## Listening and browsing performance
 
 ### Bound thumbnail cache bookkeeping
 
-**Evidence.** `RemoteCovers.write` renames a temp file and then calls `evictIfNeeded`, which lists and deletes every file under the byte cap, including another key's `cover-*.tmp` before its rename. `RemoteCovers` also retains mutexes for keys after requests finish, and expiry records for failed keys can survive until a successful retry.
+**Evidence.** The thumbnail cache walks the directory for older revisions and eviction after publication. It retains mutexes for keys after requests finish, and expiry records for failed keys can survive until a successful retry.
 
-**First change.** Measure retained keys, directory walks and elapsed time for 5,000 distinct thumbnails at two widths, with a warm cache and an unreachable server. Restrict eviction and byte accounting to committed thumbnails. If bookkeeping grows with historical requests, bound the lock table and prune expired failure entries. Measure filesystem cost separately before introducing an index.
+**First change.** Measure retained keys, directory walks and elapsed time for 5,000 distinct thumbnails at two widths, with a warm cache and an unreachable server. If bookkeeping grows with historical requests, bound the lock table and prune expired failure entries. Measure filesystem cost separately before introducing an index.
 
-**Acceptance.** Concurrent calls for the same key still share one fetch, including when a waiter cancels. A staged temp file survives eviction under a tight byte limit. Verify the ten-minute retry boundary, replacement of older revisions, and eviction under the byte limit.
+**Acceptance.** Concurrent calls for the same key still share one fetch, including when a waiter cancels. Preserve the staged-file and abandoned-write regressions from PR #25. Verify the ten-minute retry boundary, replacement of older revisions, and eviction under the byte limit.
+
+### Measure long chapter lists in details
+
+BookDetailScreen lays out the entire chapter list in a scrolling column. Compare opening a three-chapter book and one with 500 chapters, separating time to first interactive frame from ongoing player or widget updates. Try keyed lazy rows if composition or measurement dominates. Check that the last chapter and removal action remain reachable at 200% text, and that a repaired edition shows its new titles. Initial debug-emulator frame samples varied too much to infer a phone frame-rate improvement.
 
 ### Keep the exact MP3 index off the first-play path
 
@@ -40,12 +49,6 @@ These tasks build on the offline-first player, its paper surfaces, Spectral titl
 **First change.** Decide between an item-detail fetch cached by profile, item and revision, and carrying format information in a schema change. Then have details and the Library row share one verdict. Never mark a book unsupported because the network was unavailable.
 
 **Acceptance.** Opening an unsupported book shows the disabled action before any tap, starts no job and requests no audio. An offline previously downloaded book still opens and plays. A cached verdict cannot outlive the item's revision.
-
-### Handle a detail link whose book is gone
-
-**Evidence.** `DetailViewModel.build` returns null when both the catalog row and the edition are absent, and `AppNavHost` renders nothing for null. Removing the last local copy, or opening a stale link after a server-side removal and catalog refresh, leaves a blank paper screen with no route except Back.
-
-**First change.** Distinguish loading from missing and offer a route to Downloaded. Verify that removing a book keeps its saved place.
 
 ## Layout and navigation
 
