@@ -45,6 +45,7 @@ import ch.lkmc.pageworn.ui.settings.SleepSettingsScreen
 import ch.lkmc.pageworn.ui.state.AddressesViewModel
 import ch.lkmc.pageworn.ui.state.ConnectMode
 import ch.lkmc.pageworn.ui.state.ConnectViewModel
+import ch.lkmc.pageworn.ui.state.DetailState
 import ch.lkmc.pageworn.ui.state.DetailViewModel
 import ch.lkmc.pageworn.ui.state.DownloadedViewModel
 import ch.lkmc.pageworn.ui.state.LibraryViewModel
@@ -187,21 +188,27 @@ fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, op
             }
             val detail: DetailViewModel = viewModel(key = mediaId) { DetailViewModel(container, key) }
             val state by detail.state.collectAsStateWithLifecycle()
-            state?.let {
-                val notice = problem?.takeIf { p -> p.key == key }?.let(PlayerStates::notice)
-                BookDetailScreen(
-                    state = if (notice == null) it else it.copy(message = notice),
-                    onBack = { navController.popBackStack() },
-                    onDownload = detail::download,
-                    onPlayPause = { player.playPause(key, it) },
-                    onRepair = detail::download,
-                    onPauseTransfer = detail::pauseTransfer,
-                    onResumeTransfer = detail::resumeTransfer,
-                    onCancelTransfer = detail::cancelTransfer,
-                    onSelectSegment = { start -> player.playFrom(key, start) },
-                    onRemove = detail::remove,
-                )
+            val book = when (val result = state) {
+                DetailState.Loading -> return@composable
+                DetailState.Missing -> {
+                    LaunchedEffect(key) { navController.popBackStack() }
+                    return@composable
+                }
+                is DetailState.Available -> result.book
             }
+            val notice = problem?.takeIf { p -> p.key == key }?.let(PlayerStates::notice)
+            BookDetailScreen(
+                state = if (notice == null) book else book.copy(message = notice),
+                onBack = { navController.popBackStack() },
+                onDownload = detail::download,
+                onPlayPause = { player.playPause(key, it) },
+                onRepair = detail::download,
+                onPauseTransfer = detail::pauseTransfer,
+                onResumeTransfer = detail::resumeTransfer,
+                onCancelTransfer = detail::cancelTransfer,
+                onSelectSegment = { start -> player.playFrom(key, start) },
+                onRemove = detail::remove,
+            )
         }
         composable(Routes.SETTINGS) {
             val settings: SettingsViewModel = viewModel { SettingsViewModel(container) }

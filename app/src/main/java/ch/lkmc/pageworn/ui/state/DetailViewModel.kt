@@ -27,6 +27,12 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
 
+internal sealed interface DetailState {
+    data object Loading : DetailState
+    data object Missing : DetailState
+    data class Available(val book: BookDetailUiState) : DetailState
+}
+
 /** Book details: the catalog entry or the downloaded edition, whichever exists, with its local state. */
 class DetailViewModel(private val container: AppContainer, private val key: BookKey) : ViewModel() {
     private val db = container.database
@@ -50,9 +56,10 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
 
     private val actions = TransferActions(container)
 
-    val state: StateFlow<BookDetailUiState?> = combine(inputs, container.playbackHub.state, actions.refusal) { i, live, refusal ->
-        build(i, i.edition?.let { plans.plan(it) }, live)?.let { built -> refusal?.let { built.copy(message = it.text) } ?: built }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    internal val state: StateFlow<DetailState> = combine(inputs, container.playbackHub.state, actions.refusal) { i, live, refusal ->
+        val book = build(i, i.edition?.let { plans.plan(it) }, live) ?: return@combine DetailState.Missing
+        DetailState.Available(if (refusal != null) book.copy(message = refusal.text) else book)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DetailState.Loading)
 
     /** Download, or Repair download: stages a fresh generation and keeps the saved place. */
     fun download() = actions.download(key)
