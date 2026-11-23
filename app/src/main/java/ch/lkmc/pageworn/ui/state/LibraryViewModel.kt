@@ -36,6 +36,8 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Library: the chosen library's last published catalog, with each row showing the book's local
@@ -110,6 +112,9 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
     /** True while a catalog refresh runs, so the pull-to-refresh indicator spins. */
     private val refreshing = MutableStateFlow(false)
 
+    /** Serializes refreshes; see [refreshCatalog]. */
+    private val refreshLock = Mutex()
+
     private data class Conditions(val notice: ServerNotice?, val checked: Boolean, val refusal: DownloadRefusal?, val refreshing: Boolean)
 
     private val conditions = combine(container.accounts.notice, librariesChecked, actions.refusal, refreshing) { notice, checked, refusal, refreshing -> Conditions(notice, checked, refusal, refreshing) }
@@ -147,11 +152,15 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
 
     private fun refreshCatalog(libraryId: String?) {
         container.appScope.launch {
-            refreshing.value = true
-            try {
-                if (container.accounts.refreshLibraryAndCatalog(libraryId)) librariesChecked.value = true
-            } finally {
-                refreshing.value = false
+            // Pull-to-refresh and library switches can overlap; one refresh at a time keeps
+            // the spinner honest about work actually in flight.
+            refreshLock.withLock {
+                refreshing.value = true
+                try {
+                    if (container.accounts.refreshLibraryAndCatalog(libraryId)) librariesChecked.value = true
+                } finally {
+                    refreshing.value = false
+                }
             }
         }
     }
@@ -162,6 +171,11 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
 
     fun setSort(sort: CatalogSort) = container.settings.setLibrarySort(sort)
 
+    /**
+     * Switches the catalog to [libraryId] and refreshes it. The pull-to-refresh spinner stays
+     * up during the switch on purpose: the list below is about to be replaced wholesale, so a
+     * spinning indicator is the honest signal rather than a flicker.
+     */
     fun selectLibrary(libraryId: String) {
         container.appScope.launch {
             container.accounts.chooseLibrary(libraryId)
