@@ -101,8 +101,8 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
         val position = if (isLive) live.positionMs else i.progress?.positionMs
         return BookDetailUiState(
             face = BookFace(key, title, authors, cover),
-            narrator = edition?.narrators ?: book?.narrators,
-            durationText = durationMs?.let { Format.hoursMinutes(it) },
+            narrator = shownNarrator(edition?.narrators, book?.narrators),
+            durationText = durationMs?.let { Format.bookLength(it) },
             sizeText = sizeBytes?.let { Format.bytes(it) },
             action = action,
             message = message,
@@ -114,3 +114,10 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
         )
     }
 }
+
+/**
+ * The narrator to print: the edition's, else the catalog's. Audiobookshelf sends an empty string
+ * for a book without one, which must not print a bare "Narrated by".
+ */
+internal fun shownNarrator(editionNarrators: String?, bookNarrators: String?): String? =
+    listOf(editionNarrators, bookNarrators).firstNotNullOfOrNull { it?.trim()?.takeIf(String::isNotEmpty) }
