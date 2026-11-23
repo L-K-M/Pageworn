@@ -191,7 +191,9 @@ class DownloadedViewModel(private val container: AppContainer) : ViewModel() {
         container.editionStore.observeEverything(),
         combine(container.database.progress().observeEverything(), showings) { progress, showing -> progress to showing },
         container.database.transfers().observeActive(),
-        container.playbackHub.state,
+        // The rows' time-left text is minute-resolution, so the playing book's position is
+        // coarsened to whole minutes: the list rebuilds at most once a minute, not per tick.
+        container.playbackHub.state.map { it.minuteCoarse() }.distinctUntilChanged(),
         container.notices.downloadedStatus,
     ) { editions, (progress, showing), transfers, live, status ->
         if (showing != orderedFor) heldOrder = emptyList()

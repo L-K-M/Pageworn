@@ -67,6 +67,20 @@ data class LivePlayback(
 
     /** This state without its moving clock, for lists that draw only each book's key. */
     fun transportOnly(): LivePlayback = copy(positionMs = 0, sleepRemainingMs = null)
+
+    /**
+     * This state for lists whose time readouts are minute-resolution, like Downloaded's
+     * "2 h 12 min left": the position is coarsened up to whole minutes, so a playing book
+     * rebuilds them at most once a minute instead of on every playback tick, and a nonzero
+     * position stays nonzero. Transport flags (pause, starting, failure) stay exact, so
+     * keys still change the moment they do.
+     */
+    fun minuteCoarse(): LivePlayback =
+        copy(positionMs = if (positionMs == 0L) 0L else (positionMs + MINUTE_MS - 1) / MINUTE_MS * MINUTE_MS, sleepRemainingMs = null)
+
+    private companion object {
+        const val MINUTE_MS = 60_000L
+    }
 }
 
 class PlaybackHub {
