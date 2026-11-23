@@ -12,17 +12,17 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
 /**
- * A Library row's metadata line: an active or queued transfer is the ring alone, while a
- * resting one pairs its state text with any failure message, so it never reads as progress
+ * A Library row's metadata line: a transfer always shows its state text, paired with any
+ * failure message, so a paused or waiting transfer never reads as active progress
  * (docs/02-interface.md, catalog rows).
  */
 class CatalogRowMessageTest {
     private val face = BookFace(BookKey("profile", "item"), "Title", null, CoverImage.Cloth)
 
     @Test
-    fun activeOrQueuedTransferShowsNoStateText() {
-        assertThat(RowBuilders.catalogRowMessage(row(TransferPhase.TRANSFERRING, "Downloading"))).isNull()
-        assertThat(RowBuilders.catalogRowMessage(row(TransferPhase.QUEUED, "Waiting to download"))).isNull()
+    fun activeOrQueuedTransferShowsItsStateText() {
+        assertThat(RowBuilders.catalogRowMessage(row(TransferPhase.TRANSFERRING, "Downloading"))).isEqualTo("Downloading")
+        assertThat(RowBuilders.catalogRowMessage(row(TransferPhase.QUEUED, "Waiting to download"))).isEqualTo("Waiting to download")
     }
 
     @Test
@@ -44,8 +44,8 @@ class CatalogRowMessageTest {
     }
 
     @Test
-    fun activeTransferWithAMessageStillShowsTheMessage() {
-        assertThat(RowBuilders.catalogRowMessage(row(TransferPhase.TRANSFERRING, "Downloading", "Retrying soon."))).isEqualTo("Retrying soon.")
+    fun activeTransferPairsStateTextWithAMessage() {
+        assertThat(RowBuilders.catalogRowMessage(row(TransferPhase.TRANSFERRING, "Downloading", "Retrying soon."))).isEqualTo("Downloading · Retrying soon.")
     }
 
     @Test
