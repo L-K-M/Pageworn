@@ -72,6 +72,8 @@ The same lifetime question applies to `EditionStore.bookLocks` and
 forever, and to `ServerAccess.connections`, which is replaced rather than
 evicted when a policy changes.
 
+**First change.** Tie plan-cache entries to the published generation, clear them when an edition is removed, or bound the map. No behavior change is needed beyond memory.
+
 **First change.** Tie entries to the published generation, clear them when an edition is removed, or bound the map. Give book locks and handed-out session counters the same treatment: keep them while a book is reachable in the session, then let them go. No behavior change is needed beyond memory.
 
 ### Rebuild Downloaded rows only when their inputs change
