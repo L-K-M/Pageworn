@@ -16,12 +16,13 @@ import ch.lkmc.pageworn.data.db.TransferEntity
 import ch.lkmc.pageworn.playback.LivePlayback
 import ch.lkmc.pageworn.ui.model.Copy
 import ch.lkmc.pageworn.ui.model.EmptyState
+import ch.lkmc.pageworn.ui.model.Format
 import ch.lkmc.pageworn.ui.model.LibraryChoice
 import ch.lkmc.pageworn.ui.model.LibraryUiState
 import ch.lkmc.pageworn.ui.model.StatusLine
 import ch.lkmc.pageworn.ui.model.UiAction
-import java.text.DateFormat
-import java.util.Date
+import java.time.ZoneId
+import java.util.Locale
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -201,7 +202,7 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
 
     private fun statusOf(notice: ServerNotice?, listing: CatalogListing): StatusLine? {
         if (notice != null) return when (notice) {
-            ServerNotice.Unreachable -> StatusLine(Copy.UNREACHABLE + (listing.lastRefreshAt?.let { " " + Copy.lastRefresh(DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(it))) } ?: ""), UiAction.RETRY, Copy.RETRY)
+            ServerNotice.Unreachable -> StatusLine(Copy.UNREACHABLE + (listing.lastRefreshAt?.let { " " + Copy.lastRefresh(Format.refreshedAt(it, container.liveClock.wallMillis(), ZoneId.systemDefault(), Locale.getDefault())) } ?: ""), UiAction.RETRY, Copy.RETRY)
             ServerNotice.SignedOut -> StatusLine(Copy.SESSION_EXPIRED, UiAction.SIGN_IN, Copy.SIGN_IN)
             is ServerNotice.CertificateChanged -> StatusLine(Copy.certificateChanged(notice.label), UiAction.OPEN_ADDRESSES, Copy.SERVER_ADDRESSES)
             is ServerNotice.CertificateUnrecognized -> StatusLine(Copy.UNRECOGNIZED_CERTIFICATE, UiAction.OPEN_ADDRESSES, Copy.SERVER_ADDRESSES)

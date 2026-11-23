@@ -1,6 +1,10 @@
 package ch.lkmc.pageworn.ui.model
 
 import ch.lkmc.pageworn.catalog.CatalogSort
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import java.util.Locale
 
 /** The listener-facing sentences of docs/01-product.md ("Copy and recovery"), verbatim. */
@@ -110,6 +114,24 @@ object Format {
         val h = totalMinutes / 60
         val m = totalMinutes % 60
         return if (h > 0) String.format(Locale.US, "%d h %02d min", h, m) else "$m min"
+    }
+
+    /**
+     * When a refresh happened, for "Last refreshed …": "today at 8:25 PM", "yesterday at 8:25 PM",
+     * "on Nov 20 at 8:25 PM", or with the year when it is not this year's.
+     */
+    fun refreshedAt(atMs: Long, nowMs: Long, zone: ZoneId, locale: Locale): String {
+        val at = Instant.ofEpochMilli(atMs).atZone(zone)
+        val today = Instant.ofEpochMilli(nowMs).atZone(zone).toLocalDate()
+        val time = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale).format(at)
+        return when (at.toLocalDate()) {
+            today -> "today at $time"
+            today.minusDays(1) -> "yesterday at $time"
+            else -> {
+                val pattern = if (at.year == today.year) "MMM d" else "MMM d, yyyy"
+                "on ${DateTimeFormatter.ofPattern(pattern, locale).format(at)} at $time"
+            }
+        }
     }
 
     /** "Book · 2 h 08 min of 4 h 20 min". */
