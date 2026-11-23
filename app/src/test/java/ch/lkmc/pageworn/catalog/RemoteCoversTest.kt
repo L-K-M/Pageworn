@@ -100,14 +100,26 @@ class RemoteCoversTest {
     @Test fun evictionLeavesAnUnpublishedThumbnailAlone() = runBlocking {
         val dir = folder.newFolder()
         val covers = covers(dir, fetch = { _, _, _ -> ByteArray(100) }, maxBytes = 150)
+        val victim = checkNotNull(covers.thumbnail("old-item", 1L, 200))
+        victim.setLastModified(2_000)
         val staged = File.createTempFile("cover-", ".tmp", dir)
         staged.writeBytes(ByteArray(100))
         staged.setLastModified(1_000)
 
         val published = covers.thumbnail("another-item", 1L, 200)
 
+        assertThat(victim.exists()).isFalse()
         assertThat(staged.length()).isEqualTo(100L)
         assertThat(published?.length()).isEqualTo(100L)
+    }
+
+    @Test fun firstWriteReclaimsAnInterruptedWritersTemporaryFile() = runBlocking {
+        val dir = folder.newFolder()
+        val orphan = File.createTempFile("cover-", ".tmp", dir)
+        val covers = covers(dir, fetch = { _, _, _ -> byteArrayOf(1) })
+
+        assertThat(covers.thumbnail("item", 1L, 200)).isNotNull()
+        assertThat(orphan.exists()).isFalse()
     }
 
     @Test fun cachedFileNameHidesTheRawItemId() = runBlocking {
