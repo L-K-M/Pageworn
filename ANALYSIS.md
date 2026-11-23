@@ -216,6 +216,12 @@ BookDetailScreen lays out the entire chapter list in a scrolling column. Compare
 - Chapter skip commands in the media notification overflow, so bedtime chapter turns do not need the phone unlocked.
 - A native confirmation before removing a server address; a mis-tap in a wrapping action row currently revokes a paired alias.
 
+## Investigated and deliberately left unchanged
+
+- **Volume after a faded timed stop.** The player keeps the faded volume after a timer expires and restores it in `beforePlay`. The existing fade test asserts that behaviour, and the contract's “restore full volume for the next start” is met there. A failure or focus loss during the fade also reaches the next start at full volume; changing this would need a test decision first.
+- **Debouncing Library search.** A flow `debounce` in `LibraryViewModel` fails the Robolectric JVM tests because `shadowOf(mainLooper).idle()` does not advance delayed tasks, so the listing never arrives. If this is taken up, either teach the tests to advance the clock (`idleFor`) or throttle with a test clock rather than wall time.
+- **A book of one part still has both bars, finished books stay finished until Replay, and an end-of-book seek within 250 ms marks the book finished.** These are specified and tested; recorded here only so they are not “simplified” later.
+
 ## Test reliability
 
 ### Diagnose the intermittent concurrent refresh failure
