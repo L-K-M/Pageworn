@@ -2,7 +2,6 @@ package ch.lkmc.pageworn.ui
 
 import android.content.res.Configuration
 import android.graphics.Bitmap
-import android.graphics.Color
 import android.os.Build
 import android.os.ParcelFileDescriptor
 import androidx.compose.ui.graphics.asAndroidBitmap
@@ -28,7 +27,9 @@ import androidx.test.platform.app.InstrumentationRegistry
 import ch.lkmc.pageworn.MainActivity
 import ch.lkmc.pageworn.debug.DemoLibrary
 import ch.lkmc.pageworn.testing.Fixtures
+import ch.lkmc.pageworn.testing.SAME_PAPER_TOLERANCE
 import ch.lkmc.pageworn.testing.TestApp
+import ch.lkmc.pageworn.testing.centreLuminance
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import java.io.File
@@ -39,7 +40,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/** M1 visual and touch-target check at 200% system text in both system themes. */
+/** M1 visual and touch-target check at 200% system text, with the phone light and dark: both keep the day paper. */
 @RunWith(AndroidJUnit4::class)
 class LargeTextScreensTest {
     @get:Rule val composeRule = createEmptyComposeRule()
@@ -76,7 +77,7 @@ class LargeTextScreensTest {
     }
 
     @Test
-    fun lightAndDarkDestinationsKeepLargeTextVisibleAndTargetsTouchable() {
+    fun lightAndDarkPhoneKeepDayPaperLargeTextVisibleAndTargetsTouchable() {
         val light = checkAndCapture("Downloaded", listOf("Field Notes on Rain", "The Night Orchard", "Boundary Book"), "m1-downloaded-light-200")
         bookmark("Library").performClick()
         checkAndCapture("Library", listOf("The Night Orchard", "The Glass Coast", "Field Notes on Rain", "Small Hours", "Boundary Book"), "m1-library-light-200")
@@ -85,11 +86,11 @@ class LargeTextScreensTest {
         waitForTheme(Configuration.UI_MODE_NIGHT_YES)
         composeRule.waitForIdle()
         bookmark("Downloaded").performClick()
-        val dark = checkAndCapture("Downloaded", listOf("Field Notes on Rain", "The Night Orchard", "Boundary Book"), "m1-downloaded-dark-200")
+        val dark = checkAndCapture("Downloaded", listOf("Field Notes on Rain", "The Night Orchard", "Boundary Book"), "m1-downloaded-phone-dark-200")
         bookmark("Library").performClick()
-        checkAndCapture("Library", listOf("The Night Orchard", "The Glass Coast", "Field Notes on Rain", "Small Hours", "Boundary Book"), "m1-library-dark-200")
+        checkAndCapture("Library", listOf("The Night Orchard", "The Glass Coast", "Field Notes on Rain", "Small Hours", "Boundary Book"), "m1-library-phone-dark-200")
 
-        assertThat(centreLuminance(dark)).isLessThan(centreLuminance(light))
+        assertThat(centreLuminance(dark)).isWithin(SAME_PAPER_TOLERANCE).of(centreLuminance(light))
     }
 
     private fun checkAndCapture(heading: String, titles: List<String>, name: String): Bitmap {
@@ -150,18 +151,5 @@ class LargeTextScreensTest {
     private fun shell(command: String) {
         val descriptor = instrumentation.uiAutomation.executeShellCommand(command)
         ParcelFileDescriptor.AutoCloseInputStream(descriptor).use { it.readBytes() }
-    }
-
-    private fun centreLuminance(bitmap: Bitmap): Double {
-        var total = 0.0
-        var count = 0
-        for (y in bitmap.height / 3 until bitmap.height * 2 / 3 step 8) {
-            for (x in bitmap.width / 4 until bitmap.width * 3 / 4 step 8) {
-                val pixel = bitmap.getPixel(x, y)
-                total += .2126 * Color.red(pixel) + .7152 * Color.green(pixel) + .0722 * Color.blue(pixel)
-                count++
-            }
-        }
-        return total / count
     }
 }

@@ -3,9 +3,11 @@ package ch.lkmc.pageworn
 import android.content.Context
 import android.content.Intent
 import android.graphics.BitmapFactory
+import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.CompositionLocalProvider
@@ -47,7 +49,10 @@ class MainActivity : ComponentActivity() {
     private var openBook by mutableStateOf<BookLink?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
+        // The paper stays light when the phone is dark, so the bars always draw dark icons. The
+        // styles stay automatic, which keeps Android's scrim behind 3-button navigation.
+        val overPaper = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { false }
+        enableEdgeToEdge(statusBarStyle = overPaper, navigationBarStyle = overPaper)
         super.onCreate(savedInstanceState)
         takeLinks(intent)
         val container = (application as PagewornApp).container

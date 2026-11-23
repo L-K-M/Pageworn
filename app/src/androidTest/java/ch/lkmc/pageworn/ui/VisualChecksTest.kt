@@ -39,7 +39,9 @@ import androidx.test.platform.app.InstrumentationRegistry
 import ch.lkmc.pageworn.MainActivity
 import ch.lkmc.pageworn.debug.DemoLibrary
 import ch.lkmc.pageworn.testing.Fixtures
+import ch.lkmc.pageworn.testing.SAME_PAPER_TOLERANCE
 import ch.lkmc.pageworn.testing.TestApp
+import ch.lkmc.pageworn.testing.centreLuminance
 import com.google.common.truth.Truth.assertWithMessage
 import java.io.File
 import kotlinx.coroutines.runBlocking
@@ -55,9 +57,9 @@ import org.junit.runner.RunWith
  * Covered: one section or book heading per state and no app-name line (V01); bookmark Role.Tab and
  * Selected semantics with touch and keyboard switching (V02); transport key labels, system media
  * pause and a separate download pause control (V03); speed, chapter and sleep sheets with their
- * spoken values and exactly one selected radio, night theme utilities and a player screenshot
- * (V04); 200 percent text, high contrast, reduced motion and landscape with reachable targets
- * (V05).
+ * spoken values and exactly one selected radio, and with the phone dark the day paper, visible
+ * utilities and a player screenshot (V04); 200 percent text, high contrast, reduced motion and
+ * landscape with reachable targets (V05).
  *
  * Manual: fabric colours and active tail movement, TalkBack focus order and announcements beyond
  * the asserted semantics, notification appearance, pencil icon legibility, animation smoothness
@@ -174,7 +176,7 @@ class VisualChecksTest {
     }
 
     @Test
-    fun v04SheetsAnnounceSpeedAndTimerChoiceAndNightUtilitiesStayVisible() {
+    fun v04SheetsAnnounceSpeedAndTimerChoiceAndUtilitiesStayVisibleWhenThePhoneIsDark() {
         launchMain()
         openFullPlayer()
 
@@ -212,6 +214,8 @@ class VisualChecksTest {
         composeRule.onAllNodes(selectedRadio()).assertCountEquals(1)
         dismissSheet()
 
+        composeRule.waitForIdle()
+        val light = capturePlayer("v04-player-phone-light")
         nightModeChanged = true
         shell("cmd uimode night yes")
         waitForNight()
@@ -222,7 +226,9 @@ class VisualChecksTest {
         composeRule.onNodeWithText("Speed").assertIsDisplayed()
         composeRule.onNodeWithText("Chapters").assertIsDisplayed()
         composeRule.onNodeWithText("Sleep").assertIsDisplayed()
-        capturePlayerNight()
+        val dark = capturePlayer("v04-player-phone-dark")
+        assertWithMessage("player luminance with the phone dark").that(centreLuminance(dark))
+            .isWithin(SAME_PAPER_TOLERANCE).of(centreLuminance(light))
     }
 
     @Test
@@ -397,12 +403,13 @@ class VisualChecksTest {
         }
     }
 
-    private fun capturePlayerNight() {
+    private fun capturePlayer(name: String): Bitmap {
         val bitmap = composeRule.onRoot().captureToImage().asAndroidBitmap()
         val directory = File(checkNotNull(TestApp.context.getExternalFilesDir(null)), "screens")
         check(directory.isDirectory || directory.mkdirs()) { "Could not create $directory" }
-        val output = File(directory, "v04-player-night-api${Build.VERSION.SDK_INT}.png")
+        val output = File(directory, "$name-api${Build.VERSION.SDK_INT}.png")
         output.outputStream().use { stream -> check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)) }
+        return bitmap
     }
 
     private fun applyV05Environment() {

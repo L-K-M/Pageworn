@@ -3,9 +3,7 @@ package ch.lkmc.pageworn.ui.theme
 import android.content.Context
 import android.provider.Settings
 import android.view.accessibility.AccessibilityManager
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -27,12 +25,11 @@ data class PagewornColors(
     val secondaryInk: Color,
     val accent: Color,
     val inkOnAccent: Color,
-    /** The inlay ivory of the keys, which are the same by day and night. */
+    /** The inlay ivory of the keys. */
     val inkOnKey: Color,
     val cloth: Color,
     /** Rims and handles. */
     val brass: Color,
-    val dark: Boolean,
 ) {
     /** The outline that bounds a field, which has to stand out from the paper at 3:1. */
     fun controlEdge(highContrast: Boolean): Color = secondaryInk.copy(alpha = if (highContrast) 1f else CONTROL_EDGE_ALPHA)
@@ -77,8 +74,10 @@ private val typography = PagewornTypography(
     time = TextStyle(fontFamily = spectral, fontSize = 14.sp, lineHeight = 19.sp, fontFeatureSettings = "tnum"),
 )
 
-private val day = PagewornColors(Color(0xFFF3EBD9), Color(0xFFFAF5E9), Color(0xFF30251E), Color(0xFF625243), Color(0xFF833828), Color(0xFFF3EBD9), Color(0xFFF3EBD9), Color(0xFF233831), Color(0xFFA67C45), false)
-private val night = PagewornColors(Color(0xFF201C19), Color(0xFF29231F), Color(0xFFF2E7D4), Color(0xFFC4B49F), Color(0xFFF0A489), Color(0xFF201C19), Color(0xFFF3EBD9), Color(0xFF172722), Color(0xFFB9936A), true)
+// The one designed palette. The app keeps it when the phone is in dark mode: the owner found the
+// earlier night palette unfinished, and another theme would need every colour and material redone
+// (docs/02-interface.md, Type, color and layout).
+private val day = PagewornColors(Color(0xFFF3EBD9), Color(0xFFFAF5E9), Color(0xFF30251E), Color(0xFF625243), Color(0xFF833828), Color(0xFFF3EBD9), Color(0xFFF3EBD9), Color(0xFF233831), Color(0xFFA67C45))
 
 private val LocalColors = staticCompositionLocalOf { day }
 private val LocalType = staticCompositionLocalOf { typography }
@@ -91,19 +90,18 @@ object PagewornTheme {
 }
 
 @Composable
-fun PagewornTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
+fun PagewornTheme(content: @Composable () -> Unit) {
     val context = LocalContext.current
     val reducedMotion = runCatching { Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f }.getOrDefault(false)
     val highContrast = runCatching {
         val manager = context.getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager
         manager?.javaClass?.methods?.firstOrNull { it.name == "isHighTextContrastEnabled" }?.invoke(manager) as? Boolean ?: false
     }.getOrDefault(false)
-    val colors = if (darkTheme) night else day
+    val colors = day
     // Unfilled tracks, chips and outlines are secondary ink washed into the paper, so no Material
     // default (lavender containers) shows through on sliders, progress bars or fields.
     val track = lerp(colors.paper, colors.secondaryInk, 0.22f)
-    val base = if (darkTheme) darkColorScheme() else lightColorScheme()
-    val scheme = base.copy(
+    val scheme = lightColorScheme(
         primary = colors.accent, onPrimary = colors.inkOnAccent,
         primaryContainer = track, onPrimaryContainer = colors.primaryInk,
         secondary = colors.accent, onSecondary = colors.inkOnAccent,
