@@ -145,9 +145,18 @@ class AccountService(
             is ServerResult.Failed -> return signInFailure(result.error)
             is ServerResult.Ok -> result.value
         }
-        val libraries = (connection.client.libraries(account.tokens.accessToken) as? ServerResult.Ok)?.value
+        val libraries = when (val result = connection.client.libraries(account.tokens.accessToken)) {
+            is ServerResult.Ok -> result.value
+            // A library list that cannot be read is a transport or server problem, not evidence
+            // that this address leads to another server. Revoke the fresh session and let the
+            // listener retry, rather than storing an empty profile or reporting a mismatch.
+            is ServerResult.Failed -> {
+                runCatching { connection.client.logout(account.tokens.refreshToken) }
+                return signInFailure(result.error)
+            }
+        }
 
-        val profile = db.profiles().current() ?: return createProfile(address, account, libraries.orEmpty())
+        val profile = db.profiles().current() ?: return createProfile(address, account, libraries)
         if (account.accountId != profile.accountId) {
             // Revoke the session just created; nothing on the phone changes.
             connection.client.logout(account.tokens.refreshToken)
@@ -159,7 +168,7 @@ class AccountService(
             return SignInResult.Connected(profile.profileId)
         }
         val evidence = profile.pairingLibraryId
-        val library = libraries?.firstOrNull { it.libraryId == evidence }
+        val library = libraries.firstOrNull { it.libraryId == evidence }
         if (evidence != null && library == null) {
             connection.client.logout(account.tokens.refreshToken)
             return SignInResult.PairingMismatch
