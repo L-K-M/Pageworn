@@ -13,8 +13,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,6 +47,7 @@ import ch.lkmc.pageworn.ui.model.BookFace
 import ch.lkmc.pageworn.ui.model.CoverImage
 import ch.lkmc.pageworn.ui.theme.LocalReducedMotion
 import ch.lkmc.pageworn.ui.theme.PagewornTheme
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -74,34 +79,60 @@ fun BookCover(face: BookFace, size: Dp, showRibbon: Boolean = false, modifier: M
     val sizePx = with(density) { size.roundToPx() }
     val loader = LocalCoverLoader.current
     val previewPainter = LocalCoverPainter.current?.invoke(face)
-    // While art is loading the cover shows plain cloth; only a load that came back empty
-    // earns the generated lettering, so fetched art does not pop over it.
+    // While art is loading the cover shows plain cloth (or the previous cover's art, see
+    // baseArt below); only a load that came back empty earns the generated lettering.
     val artState by produceState<CoverArt>(CoverArt.Loading, face.cover, sizePx, loader) {
-        // Drop the previous key's art first, so changed art fades in fresh instead of popping.
         value = CoverArt.Loading
         value = when (val source = face.cover) {
             is CoverImage.Local -> withContext(Dispatchers.IO) {
-                runCatching {
+                try {
                     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                     BitmapFactory.decodeFile(source.file.absolutePath, bounds)
                     val sample = generateSequence(1) { it * 2 }.first { bounds.outWidth / it <= sizePx * 2 || it >= 128 }
                     BitmapFactory.decodeFile(source.file.absolutePath, BitmapFactory.Options().apply { inSampleSize = sample })?.asImageBitmap()
-                }.getOrNull()?.let(CoverArt::Loaded) ?: CoverArt.Missing
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    null
+                }?.let(CoverArt::Loaded) ?: CoverArt.Missing
             }
-            is CoverImage.Remote -> runCatching { loader.load(source, sizePx) }.getOrNull()?.let(CoverArt::Loaded) ?: CoverArt.Missing
+            is CoverImage.Remote -> try {
+                loader.load(source, sizePx)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                null
+            }?.let(CoverArt::Loaded) ?: CoverArt.Missing
             CoverImage.Cloth -> CoverArt.Missing
         }
     }
+    // A changed cover keeps the previous art on screen while the new one loads; the new art
+    // then fades in over it instead of dropping the old one in a single frame.
+    var baseArt by remember { mutableStateOf<ImageBitmap?>(null) }
+    var overlayArt by remember { mutableStateOf<ImageBitmap?>(null) }
+    LaunchedEffect(artState) {
+        when (val s = artState) {
+            is CoverArt.Loading -> { baseArt = overlayArt ?: baseArt; overlayArt = null }
+            is CoverArt.Loaded -> overlayArt = s.image
+            is CoverArt.Missing -> overlayArt = null
+        }
+    }
+    val overlayAlpha by animateFloatAsState(
+        targetValue = if (overlayArt != null) 1f else 0f,
+        animationSpec = tween(if (LocalReducedMotion.current) 0 else COVER_FADE_MS),
+        label = "coverOverlayArt",
+    )
     // The place ribbon scales with the cover (48 x 72 px art, 2:3), sits near the spine and hangs
     // below the lower edge from behind the book.
     val ribbonWidth = maxOf(size * 0.1f, 10.dp)
     val ribbonPeek = maxOf(size * 0.11f, 8.dp)
     // Art keeps its shape: the book is as tall or as wide as the square allows.
-    val art = (artState as? CoverArt.Loaded)?.image?.takeIf { previewPainter == null }
-    val artAlpha by animateFloatAsState(
-        targetValue = if (art != null) 1f else 0f,
+    val art = (overlayArt ?: baseArt)?.takeIf { previewPainter == null }
+    // The settled art fades out when a load came back empty, so cloth and lettering take over.
+    val baseAlpha by animateFloatAsState(
+        targetValue = if (artState is CoverArt.Missing) 0f else 1f,
         animationSpec = tween(if (LocalReducedMotion.current) 0 else COVER_FADE_MS),
-        label = "coverArt",
+        label = "coverBaseArt",
     )
     // The lettering fades with the same spec, so the fallback does not pop in either.
     val letteringAlpha by animateFloatAsState(
@@ -148,9 +179,13 @@ fun BookCover(face: BookFace, size: Dp, showRibbon: Boolean = false, modifier: M
                         face.author?.let { Text(it, color = Color(0xFFF4E4C8), style = PagewornTheme.type.metadata.copy(fontSize = authorSize, lineHeight = authorSize * 1.2f), textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis) }
                     }
                 }
-                // Fetched art fades in over the cloth rather than popping onto it.
-                art?.let { bitmap ->
-                    Image(bitmap = bitmap, contentDescription = null, modifier = Modifier.fillMaxSize().graphicsLayer { alpha = artAlpha }, contentScale = ContentScale.Fit)
+                // The settled art sits under the fading-in overlay; both crossfade with cloth
+                // and lettering rather than popping.
+                baseArt?.let { bitmap ->
+                    Image(bitmap = bitmap, contentDescription = null, modifier = Modifier.fillMaxSize().graphicsLayer { alpha = baseAlpha }, contentScale = ContentScale.Fit)
+                }
+                overlayArt?.let { bitmap ->
+                    Image(bitmap = bitmap, contentDescription = null, modifier = Modifier.fillMaxSize().graphicsLayer { alpha = overlayAlpha }, contentScale = ContentScale.Fit)
                 }
             }
         }
