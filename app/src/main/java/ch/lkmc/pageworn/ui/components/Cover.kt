@@ -42,8 +42,14 @@ import ch.lkmc.pageworn.ui.theme.PagewornTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** Below this size a generated cover shows plain cloth without lettering. */
+/** Below this size a generated cover shows only the initial of its title. */
 private val MIN_LETTERED_COVER = 64.dp
+
+/** Gold leaf on the cloth: the lettering of a generated cover. */
+private val COVER_LETTERING = Color(0xFFF4E4C8)
+
+/** Leading words a small cover skips, so "The Night Orchard" reads N rather than T. */
+private val LEADING_ARTICLES = setOf("the", "a", "an")
 
 /** The cover frame of a book row in Library and Downloaded, and the smaller one from 150% text. */
 val ROW_COVER = 72.dp
@@ -106,20 +112,40 @@ fun BookCover(face: BookFace, size: Dp, showRibbon: Boolean = false, modifier: M
                 Image(painterResource(R.drawable.pw_cover_cloth), null, Modifier.fillMaxSize(), contentScale = ContentScale.FillBounds)
                 // Lettering is part of the cover art: it scales with the cover, not with the font
                 // scale, and the row or player beside it carries the readable title. Small covers
-                // stay plain cloth.
+                // show only the title's initial.
                 if (size >= MIN_LETTERED_COVER) {
                     val titleSize = with(density) { (size * 0.15f).toSp() }
                     val authorSize = with(density) { (size * 0.10f).toSp() }
                     Column(Modifier.fillMaxSize().padding(size * 0.09f).clearAndSetSemantics {}, horizontalAlignment = Alignment.CenterHorizontally) {
                         Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                            Text(face.title, color = Color(0xFFF4E4C8), style = PagewornTheme.type.rowTitle.copy(fontWeight = FontWeight.Medium, fontSize = titleSize, lineHeight = titleSize * 1.15f), textAlign = TextAlign.Center, maxLines = 4, overflow = TextOverflow.Ellipsis)
+                            Text(face.title, color = COVER_LETTERING, style = PagewornTheme.type.rowTitle.copy(fontWeight = FontWeight.Medium, fontSize = titleSize, lineHeight = titleSize * 1.15f), textAlign = TextAlign.Center, maxLines = 4, overflow = TextOverflow.Ellipsis)
                         }
-                        face.author?.let { Text(it, color = Color(0xFFF4E4C8), style = PagewornTheme.type.metadata.copy(fontSize = authorSize, lineHeight = authorSize * 1.2f), textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                        face.author?.let { Text(it, color = COVER_LETTERING, style = PagewornTheme.type.metadata.copy(fontSize = authorSize, lineHeight = authorSize * 1.2f), textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                    }
+                } else {
+                    coverInitial(face.title)?.let { initial ->
+                        val initialSize = with(density) { (size * 0.46f).toSp() }
+                        Box(Modifier.fillMaxSize().clearAndSetSemantics {}, contentAlignment = Alignment.Center) {
+                            Text(initial, color = COVER_LETTERING, style = PagewornTheme.type.rowTitle.copy(fontWeight = FontWeight.Medium, fontSize = initialSize, lineHeight = initialSize))
+                        }
                     }
                 }
             }
         }
     }
+}
+
+/**
+ * The letter a small generated cover carries: the first letter or digit of the title, after a
+ * leading article when more words follow. Null when the title has none.
+ */
+internal fun coverInitial(title: String): String? {
+    val words = title.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
+    val first = words.firstOrNull() ?: return null
+    val word = if (words.size > 1 && first.lowercase() in LEADING_ARTICLES) words[1] else first
+    val index = word.indexOfFirst { it.isLetterOrDigit() }.takeIf { it >= 0 } ?: return null
+    val end = if (word[index].isHighSurrogate() && index + 1 < word.length) index + 2 else index + 1
+    return word.substring(index, end).uppercase()
 }
 
 private const val CORNER = 0.04f
