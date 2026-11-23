@@ -146,7 +146,7 @@ class ConnectViewModel(private val container: AppContainer, val mode: ConnectMod
 
     private fun connected() {
         _state.value = _state.value.copy(busy = false, password = "")
-        if (mode == ConnectMode.FIRST || mode == ConnectMode.LAUNCH_BLOCKED) {
+        if (refreshesCatalog(mode)) {
             container.appScope.launch {
                 container.accounts.refreshLibraryAndCatalog()
             }
@@ -154,3 +154,10 @@ class ConnectViewModel(private val container: AppContainer, val mode: ConnectMod
         onConnected?.invoke()
     }
 }
+
+/**
+ * Whether a successful connect of [mode] should refresh the libraries and catalog. Signing in
+ * again changes what the account may read, so a cached catalog is stale until it does.
+ */
+internal fun refreshesCatalog(mode: ConnectMode) =
+    mode == ConnectMode.FIRST || mode == ConnectMode.LAUNCH_BLOCKED || mode == ConnectMode.SIGN_IN
