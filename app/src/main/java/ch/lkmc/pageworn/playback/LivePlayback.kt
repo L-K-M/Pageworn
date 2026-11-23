@@ -1,21 +1,31 @@
 package ch.lkmc.pageworn.playback
 
 import ch.lkmc.pageworn.core.BookKey
+import ch.lkmc.pageworn.core.sleep.SleepLength
 import ch.lkmc.pageworn.core.timeline.Division
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
-/** The sleep request the playback service holds. */
+/** The sleep timer the playback service runs for the playing book. */
 sealed interface SleepState {
-    data object Off : SleepState
+    /** The length a fresh timer of the same kind runs for, or null when none runs. */
+    val length: SleepLength?
+
+    data object Off : SleepState {
+        override val length: SleepLength? get() = null
+    }
 
     /** Pause after a wall-clock duration; [deadlineElapsedMs] is on the elapsed-realtime clock. */
-    data class Timed(val minutes: Int, val deadlineElapsedMs: Long) : SleepState
+    data class Timed(val minutes: Int, val deadlineElapsedMs: Long) : SleepState {
+        override val length: SleepLength get() = SleepLength.Minutes(minutes)
+    }
 
     /** Pause at the end of the current chapter, track or book; [boundaryMs] is book time. */
-    data class EndOf(val division: Division, val boundaryMs: Long, val atBookEnd: Boolean) : SleepState
+    data class EndOf(val division: Division, val boundaryMs: Long, val atBookEnd: Boolean) : SleepState {
+        override val length: SleepLength get() = SleepLength.EndOfSegment
+    }
 }
 
 /**
@@ -30,7 +40,7 @@ data class LivePlayback(
     val positionMs: Long = 0,
     val speed: Float = 1f,
     val sleep: SleepState = SleepState.Off,
-    /** Remaining sleep time in milliseconds (wall time for timed mode, book time for end-of modes). */
+    /** Wall time in milliseconds until the running timer stops playback, at the current speed. */
     val sleepRemainingMs: Long? = null,
     /** Set after a playback failure: the place is saved and the transport is disabled until repair. */
     val failed: Boolean = false,

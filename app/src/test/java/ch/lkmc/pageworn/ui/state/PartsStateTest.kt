@@ -28,7 +28,7 @@ class PartsStateTest {
         assertThat(player.segmentsLabel).isEqualTo("Parts")
         assertThat(player.segments).hasSize(26)
         assertThat(player.segments.single { it.current }.title).isEqualTo("Part 13")
-        assertThat(player.sleep.endLabel).isEqualTo("End of part")
+        assertThat(player.sleep.options.last().label).isEqualTo("End of part")
     }
 
     @Test

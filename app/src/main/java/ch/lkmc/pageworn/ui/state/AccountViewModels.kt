@@ -38,7 +38,8 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
         else container.database.addresses().observe(profile.profileId).flatMapLatest { addresses -> flowOf(profile to addresses) }
     }.combine(confirming) { (profile, addresses), confirm ->
         SettingsUiState(profile?.accountName, addresses.any { it.sessionState == SessionState.SIGNED_IN }, "Pageworn ${BuildConfig.VERSION_NAME}", confirm)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState(null, false, "Pageworn ${BuildConfig.VERSION_NAME}"))
+    }.combine(container.sleepSettings.settings) { settings, sleep -> settings.copy(sleepSummary = sleepSummary(sleep)) }
+    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState(null, false, "Pageworn ${BuildConfig.VERSION_NAME}"))
 
     fun askSignOut() { confirming.value = true }
     fun dismissSignOut() { confirming.value = false }

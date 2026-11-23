@@ -1,5 +1,6 @@
 package ch.lkmc.pageworn.ui.model
 
+import ch.lkmc.pageworn.core.sleep.SleepLength
 import ch.lkmc.pageworn.catalog.CatalogSort
 import ch.lkmc.pageworn.core.BookKey
 import java.io.File
@@ -192,17 +193,19 @@ data class MiniPlayerUi(
     val start: StartAction = StartAction.PLAY,
 )
 
-enum class SleepChoice { OFF, MINUTES_15, MINUTES_30, MINUTES_45, MINUTES_60, END_OF_SEGMENT }
+/** One row of the Sleep sheet: Off when [length] is null, a preset, or End of chapter. */
+data class SleepOption(val length: SleepLength?, val label: String)
 
 data class SleepUi(
-    val selected: SleepChoice,
-    /** "End of chapter", "End of track" or "End of part" for this edition. */
-    val endLabel: String,
-    /** Live remaining time for the active choice, e.g. "12 min 40 sec remaining". */
+    /** Off, the listener's presets, then "End of chapter", "End of track" or "End of part". */
+    val options: List<SleepOption>,
+    /** The mode's length, or null while sleep mode is off. */
+    val selected: SleepLength?,
+    /** Live remaining time of a running timer, e.g. "12 min 40 sec remaining". */
     val remainingText: String?,
     /** Accessible value of the Sleep utility, e.g. "Sleep, 14 minutes remaining". */
     val utilityDescription: String,
-    /** The active choice under the Sleep utility, "12 min" or "End of chapter"; null when off. */
+    /** Under the Sleep utility: a running countdown ("12:40"), else the mode's length ("30 min"); null when off. */
     val shortTarget: String? = null,
 )
 
@@ -290,6 +293,27 @@ data class SettingsUiState(
     val signedIn: Boolean,
     val versionText: String,
     val confirmSignOut: Boolean = false,
+    /** The Sleep timer row's summary, e.g. "15, 30, 45 and 60 minutes · Automatic off". */
+    val sleepSummary: String = "15, 30, 45 and 60 minutes · Automatic off",
+)
+
+/** One timer length offered on the Sleep timer page. */
+data class SleepPresetRow(val minutes: Int, val label: String)
+
+/** The Sleep timer page: presets, the automatic window and what the picker shows. */
+data class SleepSettingsUiState(
+    val presets: List<SleepPresetRow> = emptyList(),
+    /** At least two lengths stay, so the last one keeps no Remove. */
+    val canRemove: Boolean = false,
+    /** Eight is the most the player offers. */
+    val canAdd: Boolean = true,
+    val automatic: Boolean = false,
+    /** The window in the device's own short clock format, e.g. "22:00". */
+    val fromText: String = "",
+    val untilText: String = "",
+    /** The same times as minutes after midnight, for a TimePicker. */
+    val startMinute: Int = 22 * 60,
+    val endMinute: Int = 7 * 60,
 )
 
 data class AddressRow(

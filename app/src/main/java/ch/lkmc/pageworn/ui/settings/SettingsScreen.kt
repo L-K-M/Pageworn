@@ -30,10 +30,12 @@ import ch.lkmc.pageworn.ui.model.SettingsUiState
 import ch.lkmc.pageworn.ui.theme.PagewornTheme
 
 @Composable
-fun SettingsScreen(state: SettingsUiState, onBack: () -> Unit, onOpenAddresses: () -> Unit, onSignOut: () -> Unit, onConfirmSignOut: () -> Unit, onDismissSignOut: () -> Unit, onSignIn: () -> Unit, onExportDiagnostics: () -> Unit, onOpenLicences: () -> Unit, exportFailed: Boolean = false) {
+fun SettingsScreen(state: SettingsUiState, onBack: () -> Unit, onOpenAddresses: () -> Unit, onOpenSleep: () -> Unit, onSignOut: () -> Unit, onConfirmSignOut: () -> Unit, onDismissSignOut: () -> Unit, onSignIn: () -> Unit, onExportDiagnostics: () -> Unit, onOpenLicences: () -> Unit, exportFailed: Boolean = false) {
     PaperScreen("Settings", onBack) {
         SectionLabel("Server")
         PaperCard { DisclosureRow("Server addresses", "Where Pageworn finds your server", onClick = onOpenAddresses) }
+        SectionLabel("Sleep")
+        PaperCard { DisclosureRow("Sleep timer", state.sleepSummary, onClick = onOpenSleep) }
         SectionLabel("Account")
         PaperCard {
             Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(start = 16.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {

@@ -9,17 +9,31 @@ import androidx.media3.common.Player
  * book item, Next would do nothing and Previous would restart the book, so both are reported as
  * available and turned into forward 30 s and back 15 s, matching the player's own keys.
  */
-class BookPlayer(player: Player, private val beforePlay: () -> Unit = {}) : ForwardingPlayer(player) {
+class BookPlayer(
+    player: Player,
+    private val beforePlay: () -> Unit = {},
+    /** Play or Pause while a sleep timer fades the book out: true when that kept it playing. */
+    private val keepPlayingDuringFade: () -> Boolean = { false },
+) : ForwardingPlayer(player) {
 
     /** Every way of starting playback (keys, headset, notification, car) passes through here. */
     override fun play() {
-        if (!playWhenReady) beforePlay()
+        if (!playWhenReady) beforePlay() else keepPlayingDuringFade()
         super.play()
     }
 
     override fun setPlayWhenReady(playWhenReady: Boolean) {
-        if (playWhenReady && !this.playWhenReady) beforePlay()
+        when {
+            playWhenReady && !this.playWhenReady -> beforePlay()
+            playWhenReady -> keepPlayingDuringFade()
+            keepPlayingDuringFade() -> return
+        }
         super.setPlayWhenReady(playWhenReady)
+    }
+
+    override fun pause() {
+        if (keepPlayingDuringFade()) return
+        super.pause()
     }
 
 

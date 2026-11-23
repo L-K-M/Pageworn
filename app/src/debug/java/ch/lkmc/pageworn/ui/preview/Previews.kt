@@ -1,5 +1,6 @@
 package ch.lkmc.pageworn.ui.preview
 
+import ch.lkmc.pageworn.core.sleep.SleepLength
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -76,13 +77,17 @@ fun DownloadedPreview() { PagewornTheme { DownloadedExample() } }
 @Composable
 fun DownloadedLargeTypePreview() { PagewornTheme { DownloadedExample() } }
 
+private val previewSleepOptions = listOf(SleepOption(null, "Off")) +
+    listOf(15, 30, 45, 60).map { SleepOption(SleepLength.Minutes(it), "$it minutes") } +
+    SleepOption(SleepLength.EndOfSegment, "End of chapter")
+
 private val player = PlayerUiState(
     face = orchard, segmentLine = "Chapter 4 · The Gate", segmentName = "Chapter", segmentStartMs = 119 * 60_000L + 40_000L,
     segmentEndMs = 140 * 60_000L + 40_000L, positionMs = 128 * 60_000L,
     elapsedText = "8:20", remainingText = "−12:40", bookLine = "Book · 2 h 08 min of 4 h 20 min",
     bookDurationMs = 260 * 60_000L,
     showsPause = true, transportEnabled = true, speed = 1f,
-    sleep = SleepUi(SleepChoice.OFF, "End of chapter", null, "Sleep, off"),
+    sleep = SleepUi(previewSleepOptions, null, null, "Sleep, off"),
     segmentsLabel = "Chapters", segments = listOf(
         SegmentRow(4, "The Gate", "21 min", false, true, 0),
     ), hasPlace = true,
@@ -103,6 +108,6 @@ fun PlayerDayPreview() { PagewornTheme { PlayerExample(player) } }
 @Composable
 fun PlayerNightSleepPreview() {
     PagewornTheme(darkTheme = true) {
-        PlayerExample(player.copy(sleep = SleepUi(SleepChoice.END_OF_SEGMENT, "End of chapter", "12 min 40 sec remaining", "Sleep, end of chapter")), showSleepSheet = true)
+        PlayerExample(player.copy(sleep = SleepUi(previewSleepOptions, SleepLength.EndOfSegment, "12 min 40 sec remaining", "Sleep, 12 minutes 40 seconds remaining", "12:40")), showSleepSheet = true)
     }
 }
