@@ -60,6 +60,8 @@ class ServerClientTest {
             "books.example.com:8443" to "https://books.example.com:8443/",
             "localhost:13378/abs" to "https://localhost:13378/abs/",
             "192.168.1.5:13378" to "https://192.168.1.5:13378/",
+            "LOCALHOST:13378" to "https://localhost:13378/",
+            "[::1]:13378" to "https://[::1]:13378/",
         )
         for ((input, expected) in cases) {
             val actual = parseBaseUrl(input, true) as BaseUrlParse.Valid
@@ -67,7 +69,7 @@ class ServerClientTest {
         }
         val cleartext = parseBaseUrl("http://h/a", false) as BaseUrlParse.NeedsCleartextChoice
         assertThat(cleartext.baseUrl.origin).isEqualTo("http://h")
-        for (input in listOf("https://user:pass@h", "https://h/a?q=1", "https://h/a#part", "ftp://h", "https://", "mailto:listener")) {
+        for (input in listOf("https://user:pass@h", "https://h/a?q=1", "https://h/a#part", "ftp://h", "https://", "mailto:listener", "tel:1234567")) {
             assertThat(parseBaseUrl(input, true)).isInstanceOf(BaseUrlParse.Invalid::class.java)
         }
         val base = (parseBaseUrl("https://h/abs/", false) as BaseUrlParse.Valid).baseUrl

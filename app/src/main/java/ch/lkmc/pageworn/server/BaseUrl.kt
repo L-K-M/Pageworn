@@ -28,8 +28,8 @@ sealed interface BaseUrlParse {
 /** A leading URI scheme and its colon (RFC 3986 section 3.1). */
 private val SCHEME = Regex("^[A-Za-z][A-Za-z0-9+.-]*:")
 
-/** A scheme-less host followed by a port, then a path or the end. */
-private val HOST_AND_PORT = Regex("^[A-Za-z0-9.-]+:[0-9]+(/|$)")
+/** A scheme-less host followed by a port of up to five digits, then a path or the end. */
+private val HOST_AND_PORT = Regex("^[A-Za-z0-9.-]+:[0-9]{1,5}(/|$)")
 
 fun parseBaseUrl(input: String, cleartextAllowed: Boolean): BaseUrlParse {
     val trimmed = input.trim()
