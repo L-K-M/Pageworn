@@ -45,6 +45,10 @@ import kotlinx.coroutines.withContext
 /** Below this size a generated cover shows plain cloth without lettering. */
 private val MIN_LETTERED_COVER = 64.dp
 
+/** The cover frame of a book row in Library and Downloaded, and the smaller one from 150% text. */
+val ROW_COVER = 72.dp
+val ROW_COVER_LARGE_TYPE = 60.dp
+
 fun interface CoverLoader { suspend fun load(cover: CoverImage.Remote, sizePx: Int): ImageBitmap? }
 val LocalCoverLoader = androidx.compose.runtime.staticCompositionLocalOf<CoverLoader> { CoverLoader { _, _ -> null } }
 /** Allows debug previews to provide bundled art without referencing it in production. */

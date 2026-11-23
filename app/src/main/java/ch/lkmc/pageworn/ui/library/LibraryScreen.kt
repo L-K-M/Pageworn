@@ -50,6 +50,9 @@ import ch.lkmc.pageworn.ui.components.BookCover
 import ch.lkmc.pageworn.ui.components.EmptyStateView
 import ch.lkmc.pageworn.ui.components.PencilIcon
 import ch.lkmc.pageworn.ui.components.PlayPauseKey
+import ch.lkmc.pageworn.ui.components.ROW_COVER
+import ch.lkmc.pageworn.ui.components.ROW_COVER_LARGE_TYPE
+import ch.lkmc.pageworn.ui.components.ROW_KEY
 import ch.lkmc.pageworn.ui.components.SectionHeader
 import ch.lkmc.pageworn.ui.components.StatusLineView
 import ch.lkmc.pageworn.ui.components.TextAction
@@ -104,8 +107,8 @@ private fun CatalogBookRow(row: CatalogRow, onOpenBook: (BookKey) -> Unit, onDow
     val face = row.face
     val compact = LocalDensity.current.fontScale >= 1.5f
     Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 14.dp, top = 9.dp, bottom = 9.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 16.dp)) {
-            val coverSize = if (compact) 76.dp else 96.dp
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 14.dp)) {
+            val coverSize = if (compact) ROW_COVER_LARGE_TYPE else ROW_COVER
             Box(Modifier.width(coverSize).clickable(role = Role.Button) { onOpenBook(face.key) }.semantics { contentDescription = "Open ${face.title}" }) { BookCover(face, coverSize, showRibbon = (row.action as? CatalogAction.Ready)?.start == StartAction.RESUME) }
             // The Play key says it is downloaded to the eye, and the title's state to TalkBack.
             Column(Modifier.weight(1f).semantics(mergeDescendants = true) { if (row.action is CatalogAction.Ready) stateDescription = "Downloaded" }) {
@@ -133,8 +136,8 @@ private fun CatalogBookRow(row: CatalogRow, onOpenBook: (BookKey) -> Unit, onDow
 @Composable
 private fun CatalogActionView(row: CatalogRow, onDownload: (BookKey) -> Unit, onPlayPause: (BookKey, KeyAction) -> Unit, onPauseTransfer: (String) -> Unit, onResumeTransfer: (String) -> Unit) {
     when (val action = row.action) {
-        CatalogAction.Download -> IconButton(onClick = { onDownload(row.face.key) }, modifier = Modifier.size(56.dp)) { PencilIcon(R.drawable.pw_pencil_download, "Download ${row.face.title}", 34.dp) }
-        is CatalogAction.Ready -> PlayPauseKey(action.showsPause, row.face.title, 46.dp, starting = action.starting, start = action.start) { onPlayPause(row.face.key, it) }
+        CatalogAction.Download -> IconButton(onClick = { onDownload(row.face.key) }, modifier = Modifier.size(48.dp)) { PencilIcon(R.drawable.pw_pencil_download, "Download ${row.face.title}", 26.dp) }
+        is CatalogAction.Ready -> PlayPauseKey(action.showsPause, row.face.title, ROW_KEY, starting = action.starting, start = action.start) { onPlayPause(row.face.key, it) }
         is CatalogAction.Transferring -> {
             val t = action.transfer
             val callback = when { t.canPause -> ({ onPauseTransfer(t.jobId) }); t.canResume -> ({ onResumeTransfer(t.jobId) }); else -> null }
@@ -166,7 +169,7 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                PencilIcon(R.drawable.pw_pencil_search, null, 24.dp)
+                PencilIcon(R.drawable.pw_pencil_search, null, 20.dp)
                 Box(Modifier.weight(1f).padding(vertical = 10.dp)) {
                     if (query.isEmpty()) Text(SEARCH_HINT, color = colors.secondaryInk, style = PagewornTheme.type.empty)
                     field()
@@ -179,7 +182,7 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
     )
 }
 
-/** Lines a transfer's action up under its title. */
-private val ACTIONS_INDENT = 104.dp
+/** Lines a transfer's action up under its title: the cover and gap less the action's own padding. */
+private val ACTIONS_INDENT = ROW_COVER + 14.dp - 8.dp
 
 private const val SEARCH_HINT = "Search title or author"

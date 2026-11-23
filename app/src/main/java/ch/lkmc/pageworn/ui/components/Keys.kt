@@ -141,7 +141,10 @@ private fun StartingArc(size: Dp) {
     }
 }
 
-private val MIN_KEY_TARGET = 56.dp
+private val MIN_KEY_TARGET = 48.dp
+
+/** The Play key of a book row and of the mini-player. */
+val ROW_KEY = 40.dp
 private const val ROUND_INLAY = 0.43f
 private const val WIDE_INLAY = 0.74f
 private const val SKIP_ASPECT = 0.55f
@@ -217,5 +220,5 @@ fun SkipKey(back: Boolean, width: Dp, onClick: () -> Unit, enabled: Boolean = tr
 
 @Composable
 fun TransferPauseKey(title: String, onClick: () -> Unit) {
-    Key(R.drawable.pw_transfer_pause, null, "Pause download of $title", 36.dp, 36.dp, true, null, starting = false, onClick = onClick)
+    Key(R.drawable.pw_transfer_pause, null, "Pause download of $title", 32.dp, 32.dp, true, null, starting = false, onClick = onClick)
 }

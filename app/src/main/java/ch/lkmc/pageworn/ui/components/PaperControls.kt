@@ -80,7 +80,7 @@ fun BackAction(onBack: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        PencilIcon(R.drawable.pw_pencil_collapse, null, 22.dp, Modifier.rotate(QUARTER_TURN))
+        PencilIcon(R.drawable.pw_pencil_collapse, null, 20.dp, Modifier.rotate(QUARTER_TURN))
         Text("Back", color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.ribbonLabel)
     }
 }
@@ -123,9 +123,9 @@ fun PaperCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.()
 @Composable
 fun DisclosureRow(label: String, detail: String? = null, expanded: Boolean? = null, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 64.dp)
+        Modifier.fillMaxWidth().heightIn(min = 56.dp)
             .semantics { expanded?.let { stateDescription = if (it) "Expanded" else "Collapsed" } }
-            .clickable(role = Role.Button, onClick = onClick).padding(horizontal = 16.dp, vertical = 12.dp),
+            .clickable(role = Role.Button, onClick = onClick).padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -145,14 +145,14 @@ fun PaperButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifie
     val focused by interaction.collectIsFocusedAsState()
     val colors = PagewornTheme.colors
     Box(
-        modifier.heightIn(min = 52.dp).widthIn(min = 144.dp)
+        modifier.heightIn(min = 48.dp).widthIn(min = 128.dp)
             .alpha(if (enabled) 1f else DISABLED_ALPHA)
             .shadow(if (pressed || !enabled) 0.dp else 3.dp, KEY_SHAPE)
             .background(Brush.verticalGradient(if (pressed) listOf(LEATHER_LOW, LEATHER_LOW) else listOf(LEATHER_HIGH, LEATHER_LOW)), KEY_SHAPE)
             .border(if (focused) 3.dp else 2.dp, if (focused) colors.primaryInk else colors.brass, KEY_SHAPE)
             .clip(KEY_SHAPE)
             .clickable(interactionSource = interaction, indication = null, enabled = enabled, role = Role.Button, onClick = onClick)
-            .padding(horizontal = 26.dp, vertical = 10.dp),
+            .padding(horizontal = 22.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(label, color = colors.inkOnKey, style = PagewornTheme.type.rowTitle)

@@ -70,7 +70,7 @@ private enum class PlayerSheet { SPEED, SEGMENTS, SLEEP }
 
 private const val ROWS_ABOVE_CURRENT = 2
 private val UTILITY_SHAPE = RoundedCornerShape(12.dp)
-private val UTILITY_ICON = 36.dp
+private val UTILITY_ICON = 28.dp
 
 /** Preview hook for the documented night sheet; production starts with all sheets closed. */
 val LocalPreviewSleepSheet = staticCompositionLocalOf { false }
@@ -84,15 +84,15 @@ fun PlayerScreen(state: PlayerUiState, onCollapse: () -> Unit, onPlayPause: (Key
     BoxWithConstraints(Modifier.fillMaxSize().paperBackground().statusBarsPadding().navigationBarsPadding()) {
         val short = maxHeight < 700.dp
         val narrow = maxWidth < 360.dp
-        val coverSize = if (short) 160.dp else minOf(maxWidth * .58f, 240.dp)
-        val playSize = if (short || narrow) 84.dp else 100.dp
-        val skipWidth = if (narrow) 78.dp else 96.dp
+        val coverSize = if (short) 136.dp else minOf(maxWidth * .5f, 200.dp)
+        val playSize = if (short || narrow) 68.dp else 80.dp
+        val skipWidth = if (narrow) 66.dp else 80.dp
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).heightIn(min = maxHeight).padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
-                androidx.compose.material3.IconButton(onClick = onCollapse, modifier = Modifier.heightIn(min = 48.dp)) { PencilIcon(R.drawable.pw_pencil_collapse, "Collapse player", 30.dp) }
+                androidx.compose.material3.IconButton(onClick = onCollapse, modifier = Modifier.heightIn(min = 48.dp)) { PencilIcon(R.drawable.pw_pencil_collapse, "Collapse player", 24.dp) }
             }
             BookCover(state.face, coverSize, showRibbon = state.hasPlace)
-            Text(state.face.title, Modifier.padding(top = if (short) 14.dp else 22.dp).semantics { heading() }, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.playerTitle, textAlign = TextAlign.Center)
+            Text(state.face.title, Modifier.padding(top = if (short) 10.dp else 16.dp).semantics { heading() }, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.playerTitle, textAlign = TextAlign.Center)
             state.face.author?.let { Text(it, Modifier.padding(top = 2.dp), color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.author.copy(fontSize = PagewornTheme.type.rowTitle.fontSize), textAlign = TextAlign.Center) }
             state.failureMessage?.let {
                 Text(it, Modifier.padding(top = 8.dp), color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status)
@@ -125,8 +125,8 @@ fun PlayerScreen(state: PlayerUiState, onCollapse: () -> Unit, onPlayPause: (Key
                 Utility("Sleep", state.sleep.utilityDescription, target = state.sleep.shortTarget, onClick = { sheet = PlayerSheet.SLEEP }) { PencilIcon(R.drawable.pw_pencil_sleep, null, UTILITY_ICON) }
             }
             Spacer(Modifier.weight(1f))
-            if (LocalDensity.current.fontScale >= 1.5f) Column(Modifier.fillMaxWidth().padding(top = 18.dp, bottom = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) { utilities() }
-            else Row(Modifier.fillMaxWidth().padding(top = 18.dp, bottom = 24.dp), horizontalArrangement = Arrangement.SpaceEvenly) { utilities() }
+            if (LocalDensity.current.fontScale >= 1.5f) Column(Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) { utilities() }
+            else Row(Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 16.dp), horizontalArrangement = Arrangement.SpaceEvenly) { utilities() }
         }
     }
     when (sheet) {
@@ -139,7 +139,7 @@ fun PlayerScreen(state: PlayerUiState, onCollapse: () -> Unit, onPlayPause: (Key
 
 @Composable
 private fun Utility(label: String, description: String, target: String? = null, onClick: () -> Unit, icon: @Composable () -> Unit) {
-    Column(Modifier.heightIn(min = 72.dp).widthIn(min = 48.dp).clip(UTILITY_SHAPE).clickable(role = Role.Button, onClick = onClick).semantics { contentDescription = description }.padding(horizontal = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(Modifier.heightIn(min = 60.dp).widthIn(min = 48.dp).clip(UTILITY_SHAPE).clickable(role = Role.Button, onClick = onClick).semantics { contentDescription = description }.padding(horizontal = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         icon()
         Text(label, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.ribbonLabel)
         target?.let { Text(it, color = PagewornTheme.colors.accent, style = PagewornTheme.type.status) }
@@ -161,7 +161,7 @@ private fun SegmentsSheet(segmentName: String, segments: List<SegmentRow>, onSel
         LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false), list) {
             items(segments, key = { it.index }) { segment ->
                 PaperRule()
-                Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(role = Role.Button) { onSelect(segment.startMs) }.semantics { if (segment.current) stateDescription = "Current ${segmentName.lowercase()}" }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(role = Role.Button) { onSelect(segment.startMs) }.semantics { if (segment.current) stateDescription = "Current ${segmentName.lowercase()}" }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     if (segment.current) Image(painterResource(R.drawable.pw_place_ribbon), null, Modifier.padding(end = 8.dp).size(12.dp, 18.dp))
                     Text(segment.title, Modifier.weight(1f), color = if (segment.generated) PagewornTheme.colors.secondaryInk else PagewornTheme.colors.primaryInk, style = PagewornTheme.type.rowTitle)
                     Text(segment.durationText, Modifier.padding(start = 8.dp), color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.metadata)

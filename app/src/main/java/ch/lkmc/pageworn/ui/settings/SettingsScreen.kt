@@ -36,7 +36,7 @@ fun SettingsScreen(state: SettingsUiState, onBack: () -> Unit, onOpenAddresses: 
         PaperCard { DisclosureRow("Server addresses", "Where Pageworn finds your server", onClick = onOpenAddresses) }
         SectionLabel("Account")
         PaperCard {
-            Row(Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(start = 16.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(start = 16.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f).padding(vertical = 10.dp)) {
                     state.accountName?.let { Text(it, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.rowTitle) }
                     Text(if (state.signedIn) "Signed in" else "Signed out", color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.metadata)

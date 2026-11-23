@@ -32,6 +32,9 @@ import ch.lkmc.pageworn.ui.components.BookCover
 import ch.lkmc.pageworn.ui.components.EmptyStateView
 import ch.lkmc.pageworn.ui.components.PaperRule
 import ch.lkmc.pageworn.ui.components.PlayPauseKey
+import ch.lkmc.pageworn.ui.components.ROW_COVER
+import ch.lkmc.pageworn.ui.components.ROW_COVER_LARGE_TYPE
+import ch.lkmc.pageworn.ui.components.ROW_KEY
 import ch.lkmc.pageworn.ui.components.SectionHeader
 import ch.lkmc.pageworn.ui.components.StatusLineView
 import ch.lkmc.pageworn.ui.components.TextAction
@@ -78,8 +81,8 @@ private fun DownloadTransferRow(row: TransferRow, onOpenBook: (BookKey) -> Unit,
     val compact = LocalDensity.current.fontScale >= 1.5f
     val transfer = row.transfer
     Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 14.dp, top = 9.dp, bottom = 9.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 16.dp)) {
-            val coverSize = if (compact) 76.dp else 92.dp
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 14.dp)) {
+            val coverSize = if (compact) ROW_COVER_LARGE_TYPE else ROW_COVER
             Box(Modifier.width(coverSize).clickable(role = Role.Button) { onOpenBook(row.face.key) }.semantics { contentDescription = "Open ${row.face.title}" }) { BookCover(row.face, coverSize) }
             Column(Modifier.weight(1f)) {
                 Text(row.face.title, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.rowTitle)
@@ -102,24 +105,24 @@ private fun DownloadTransferRow(row: TransferRow, onOpenBook: (BookKey) -> Unit,
 private fun DownloadedBookRow(row: ReadyBookRow, onOpenBook: (BookKey) -> Unit, onPlayPause: (BookKey, KeyAction) -> Unit) {
     val compact = LocalDensity.current.fontScale >= 1.5f
     Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 14.dp, top = 9.dp, bottom = 9.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 16.dp)) {
-            val coverSize = if (compact) 76.dp else 92.dp
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 14.dp)) {
+            val coverSize = if (compact) ROW_COVER_LARGE_TYPE else ROW_COVER
             Box(Modifier.width(coverSize).clickable(role = Role.Button) { onOpenBook(row.face.key) }.semantics { contentDescription = "Open ${row.face.title}" }) { BookCover(row.face, coverSize, showRibbon = row.hasPlace) }
             Column(Modifier.weight(1f)) {
                 Text(row.face.title, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.rowTitle)
                 row.face.author?.let { Text(it, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.author) }
                 when (val badge = row.badge) {
-                    ReadyBadge.New -> Text("New", Modifier.padding(top = 4.dp).background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = .6f), RoundedCornerShape(100)).padding(horizontal = 14.dp, vertical = 3.dp), color = PagewornTheme.colors.accent, style = PagewornTheme.type.status)
+                    ReadyBadge.New -> Text("New", Modifier.padding(top = 4.dp).background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = .6f), RoundedCornerShape(100)).padding(horizontal = 10.dp, vertical = 3.dp), color = PagewornTheme.colors.accent, style = PagewornTheme.type.status)
                     is ReadyBadge.InProgress -> Text(badge.text, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status)
                     ReadyBadge.Finished -> Text("Finished", color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status)
                     is ReadyBadge.RepairNeeded -> { Text("Repair needed", color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status); Text(badge.message, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status) }
                 }
             }
-            if (!compact && row.playable) PlayPauseKey(row.showsPause, row.face.title, 46.dp, starting = row.starting, start = row.start) { onPlayPause(row.face.key, it) }
+            if (!compact && row.playable) PlayPauseKey(row.showsPause, row.face.title, ROW_KEY, starting = row.starting, start = row.start) { onPlayPause(row.face.key, it) }
         }
-        if (compact && row.playable) PlayPauseKey(row.showsPause, row.face.title, 46.dp, starting = row.starting, start = row.start) { onPlayPause(row.face.key, it) }
+        if (compact && row.playable) PlayPauseKey(row.showsPause, row.face.title, ROW_KEY, starting = row.starting, start = row.start) { onPlayPause(row.face.key, it) }
     }
 }
 
-/** Lines a transfer's actions up under its title. */
-private val ACTIONS_INDENT = 100.dp
+/** Lines a transfer's actions up under its title: the cover and gap less the action's own padding. */
+private val ACTIONS_INDENT = ROW_COVER + 14.dp - 8.dp

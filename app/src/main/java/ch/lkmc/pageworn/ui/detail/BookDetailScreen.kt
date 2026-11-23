@@ -42,7 +42,7 @@ import ch.lkmc.pageworn.ui.theme.PagewornTheme
 fun BookDetailScreen(state: BookDetailUiState, onBack: () -> Unit, onDownload: () -> Unit, onPlayPause: (KeyAction) -> Unit, onRepair: () -> Unit, onPauseTransfer: (String) -> Unit, onResumeTransfer: (String) -> Unit, onCancelTransfer: (String) -> Unit, onSelectSegment: (Long) -> Unit, onRemove: () -> Unit) {
     Column(Modifier.fillMaxSize().paperBackground().statusBarsPadding().navigationBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Row(Modifier.fillMaxWidth()) { BackAction(onBack) }
-        BookCover(state.face, 208.dp, showRibbon = state.action is DetailAction.Play)
+        BookCover(state.face, 168.dp, showRibbon = state.action is DetailAction.Play)
         Text(state.face.title, Modifier.padding(top = 20.dp).semantics { heading() }, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.playerTitle, textAlign = TextAlign.Center)
         state.face.author?.let { Text(it, Modifier.padding(top = 2.dp), color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.author, textAlign = TextAlign.Center) }
         PaperRule(Modifier.fillMaxWidth(.78f).padding(vertical = 10.dp))
@@ -53,7 +53,7 @@ fun BookDetailScreen(state: BookDetailUiState, onBack: () -> Unit, onDownload: (
             when (val action = state.action) {
                 DetailAction.Download -> PaperButton(Copy.DOWNLOAD, onDownload, Modifier.semantics { contentDescription = "Download ${state.face.title}" })
                 DetailAction.DownloadDisabled, DetailAction.Unsupported -> PaperButton(Copy.DOWNLOAD, {}, Modifier.semantics { contentDescription = "Download ${state.face.title}"; stateDescription = state.message ?: if (action == DetailAction.Unsupported) Copy.UNSUPPORTED_FORMAT else Copy.DOWNLOAD_DISABLED }, enabled = false)
-                is DetailAction.Play -> PlayPauseKey(action.showsPause, state.face.title, 84.dp, starting = action.starting, start = action.start, onClick = onPlayPause)
+                is DetailAction.Play -> PlayPauseKey(action.showsPause, state.face.title, 68.dp, starting = action.starting, start = action.start, onClick = onPlayPause)
                 DetailAction.Repair -> PaperButton(Copy.REPAIR_DOWNLOAD, onRepair, Modifier.semantics { contentDescription = "Repair download of ${state.face.title}" })
                 is DetailAction.Transferring -> {
                     val t = action.transfer

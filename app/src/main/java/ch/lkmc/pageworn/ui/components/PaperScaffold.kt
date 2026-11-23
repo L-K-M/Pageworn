@@ -77,7 +77,7 @@ private const val TAB_NOTCH_APEX = 239f / 300f
 
 /** Smallest size a bookmark label shrinks to so that it stays on one line. */
 private val TAB_LABEL_MIN_SIZE = 10.sp
-private val TAB_LABEL_SIZE = 19.sp
+private val TAB_LABEL_SIZE = 16.sp
 
 /** How much of each tile shows over its flat colour. */
 private const val PAPER_DAY_ALPHA = 0.55f
@@ -111,11 +111,12 @@ fun BindingFooter(destination: Destination, onSelect: (Destination) -> Unit, mod
     val largeType = LocalDensity.current.fontScale >= 1.5f
     // Fabric is measured at the centre, from the paper seam to the apex of the fishtail notch
     // (docs/08-assets-and-implementation.md, Navigation bookmarks); the tails hang below it.
-    val tabWidth = if (largeType) 152.dp else 138.dp
+    // At 200% text “Downloaded” needs the wide tab even at the label's smallest size.
+    val tabWidth = if (largeType) 152.dp else 112.dp
     val tabHeight = tabWidth * TAB_ASPECT
-    val exposed = if (largeType) 72.dp else 56.dp
+    val exposed = if (largeType) 56.dp else 44.dp
     val tabTop = exposed - tabHeight * TAB_NOTCH_APEX
-    val bandHeight = if (largeType) 106.dp else 86.dp
+    val bandHeight = if (largeType) 86.dp else 68.dp
     val context = LocalContext.current
     val cloth = remember(context) { BitmapFactory.decodeResource(context.resources, R.drawable.pw_binding_cloth).asImageBitmap() }
     Column(modifier.background(colors.cloth).drawBehind { if (!highContrast) tile(cloth, CLOTH_ALPHA) }) {
@@ -123,7 +124,7 @@ fun BindingFooter(destination: Destination, onSelect: (Destination) -> Unit, mod
         Row(Modifier.fillMaxWidth().height(bandHeight).clipToBounds().selectableGroup()) {
             for (item in Destination.entries) {
                 val selected = item == destination
-                val shift by animateDpAsState(if (selected) 8.dp else 0.dp, animationSpec = tween(if (reducedMotion) 0 else 140), label = "bookmark")
+                val shift by animateDpAsState(if (selected) 6.dp else 0.dp, animationSpec = tween(if (reducedMotion) 0 else 140), label = "bookmark")
                 Box(Modifier.weight(1f).height(bandHeight).selectable(selected = selected, role = Role.Tab, onClick = { onSelect(item) }), contentAlignment = Alignment.TopCenter) {
                     Box(Modifier.size(width = tabWidth, height = bandHeight), contentAlignment = Alignment.TopCenter) {
                         if (!highContrast) Image(
@@ -188,10 +189,10 @@ fun MainScaffold(destination: Destination, onSelectDestination: (Destination) ->
 
 @Composable
 fun SectionHeader(title: String, onOpenSettings: () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(start = 22.dp, end = 14.dp, top = 14.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(title, Modifier.weight(1f).semantics { heading() }, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.heading)
         androidx.compose.material3.IconButton(onClick = onOpenSettings, modifier = Modifier.size(48.dp)) {
-            PencilIcon(R.drawable.pw_pencil_settings, "Settings", 34.dp)
+            PencilIcon(R.drawable.pw_pencil_settings, "Settings", 24.dp)
         }
     }
 }

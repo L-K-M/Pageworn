@@ -62,17 +62,19 @@ private val spectral = FontFamily(
     Font(R.font.spectral_medium_italic, FontWeight.Medium, androidx.compose.ui.text.font.FontStyle.Italic),
 )
 
+// Ordinary Android proportions rather than the mockups' larger ones, which were too large on the
+// owner's 360 dp phone (docs/02-interface.md, Type, color and layout).
 private val typography = PagewornTypography(
-    heading = TextStyle(fontFamily = spectral, fontSize = 34.sp, lineHeight = 40.sp, fontWeight = FontWeight.Bold),
-    playerTitle = TextStyle(fontFamily = spectral, fontSize = 28.sp, lineHeight = 34.sp, fontWeight = FontWeight.Bold),
-    sheetTitle = TextStyle(fontFamily = spectral, fontSize = 24.sp, lineHeight = 30.sp, fontWeight = FontWeight.Bold),
-    rowTitle = TextStyle(fontFamily = spectral, fontSize = 18.sp, lineHeight = 23.sp, fontWeight = FontWeight.SemiBold),
-    author = TextStyle(fontFamily = spectral, fontSize = 16.sp, lineHeight = 21.sp),
-    ribbonLabel = TextStyle(fontFamily = spectral, fontSize = 16.sp, lineHeight = 22.sp),
+    heading = TextStyle(fontFamily = spectral, fontSize = 26.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold),
+    playerTitle = TextStyle(fontFamily = spectral, fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold),
+    sheetTitle = TextStyle(fontFamily = spectral, fontSize = 20.sp, lineHeight = 26.sp, fontWeight = FontWeight.Bold),
+    rowTitle = TextStyle(fontFamily = spectral, fontSize = 16.sp, lineHeight = 21.sp, fontWeight = FontWeight.SemiBold),
+    author = TextStyle(fontFamily = spectral, fontSize = 15.sp, lineHeight = 20.sp),
+    ribbonLabel = TextStyle(fontFamily = spectral, fontSize = 15.sp, lineHeight = 20.sp),
     metadata = TextStyle(fontFamily = FontFamily.Default, fontSize = 14.sp, lineHeight = 20.sp),
     status = TextStyle(fontFamily = FontFamily.Default, fontSize = 14.sp, lineHeight = 20.sp),
     empty = TextStyle(fontFamily = FontFamily.Default, fontSize = 16.sp, lineHeight = 22.sp),
-    time = TextStyle(fontFamily = spectral, fontSize = 15.sp, lineHeight = 20.sp, fontFeatureSettings = "tnum"),
+    time = TextStyle(fontFamily = spectral, fontSize = 14.sp, lineHeight = 19.sp, fontFeatureSettings = "tnum"),
 )
 
 private val day = PagewornColors(Color(0xFFF3EBD9), Color(0xFFFAF5E9), Color(0xFF30251E), Color(0xFF625243), Color(0xFF833828), Color(0xFFF3EBD9), Color(0xFFF3EBD9), Color(0xFF233831), Color(0xFFA67C45), false)

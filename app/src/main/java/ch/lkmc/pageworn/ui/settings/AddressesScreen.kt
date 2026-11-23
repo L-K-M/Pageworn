@@ -43,7 +43,7 @@ import ch.lkmc.pageworn.ui.theme.PagewornTheme
 fun AddressesScreen(state: AddressesUiState, onBack: () -> Unit, onAdd: () -> Unit, onEditLabel: (String, String) -> Unit, onMoveUp: (String) -> Unit, onMoveDown: (String) -> Unit, onToggleEnabled: (String) -> Unit, onTest: (String) -> Unit, onRemove: (String) -> Unit, onTrust: (String) -> Unit, onAllowLocalNetwork: (String) -> Unit, onSignIn: (String) -> Unit, onSetAutomatic: (Boolean) -> Unit, onPin: (String) -> Unit) {
     PaperScreen("Server addresses", onBack) {
         PaperCard {
-            Row(Modifier.fillMaxWidth().heightIn(min = 64.dp).selectable(state.automatic, role = Role.RadioButton) { onSetAutomatic(true) }.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).selectable(state.automatic, role = Role.RadioButton) { onSetAutomatic(true) }.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 RadioButton(state.automatic, onClick = null)
                 Column(Modifier.padding(start = 12.dp)) {
                     Text("Automatic", color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.rowTitle)
