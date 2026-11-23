@@ -20,6 +20,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.core.FakeClock
 import ch.lkmc.pageworn.core.progress.StopKind
+import ch.lkmc.pageworn.core.sleep.SleepWindow
 import ch.lkmc.pageworn.core.timeline.RawChapter
 import ch.lkmc.pageworn.data.db.AddressEntity
 import ch.lkmc.pageworn.data.db.BookProgressEntity
@@ -291,8 +292,9 @@ class SleepPlaybackTest {
         val book = TestApp.publishBoundaryBook()
         onMain {
             val c = load(book, 115_000)
+            // At rest, choosing sets the mode only; the timer starts with playback.
             c.setSleep(PagewornCommands.SLEEP_END_OF_SEGMENT)
-            assertEndTarget(140_000)
+            assertThat(container.playbackHub.state.value.sleep).isEqualTo(SleepState.Off)
             // Shorten the real wait by seeking within the same chapter before locking.
             c.seekTo(138_500)
             c.awaitUntil(description = "ready near the chapter end") {
@@ -305,16 +307,15 @@ class SleepPlaybackTest {
                 c.awaitUntil(description = "exactly at the next chapter") {
                     isPlaying && currentPosition in 139_980..140_250
                 }
-                c.pause()
-                c.awaitUntil(description = "paused") { !isPlaying }
-                c.setSleep(PagewornCommands.SLEEP_END_OF_SEGMENT)
+                // The mode stays on: this start targets the end of the chapter it is in.
+                liveWhen { it.isPlaying && it.sleep != SleepState.Off }
                 assertEndTarget(210_000)
                 c.seekTo(73_500)
-                c.awaitUntil(description = "ready in the previous chapter") {
-                    playbackState == Player.STATE_READY && currentPosition in 73_470..73_530
-                }
-                assertEndTarget(75_000)
+                liveWhen { it.positionMs in 73_470..74_000 && (it.sleep as? SleepState.EndOf)?.boundaryMs == 75_000L }
                 assertBoundary(c, book, 75_000, finished = false)
+                c.pause()
+                c.awaitUntil(description = "paused") { !isPlaying }
+                assertThat(container.playbackHub.state.value.sleep).isEqualTo(SleepState.Off)
             }
         }
     }
@@ -356,7 +357,6 @@ class SleepPlaybackTest {
         onMain {
             val c = load(book, 208_500)
             c.setSleep(PagewornCommands.SLEEP_END_OF_SEGMENT)
-            assertEndTarget(210_000)
             withLockedScreen { assertBoundary(c, book, 210_000, finished = true) }
         }
     }
@@ -367,9 +367,9 @@ class SleepPlaybackTest {
         onMain {
             val c = load(book, 89_000)
             c.setSleep(PagewornCommands.SLEEP_END_OF_SEGMENT)
-            assertEndTarget(90_000)
             withLockedScreen {
                 assertBoundary(c, book, 90_000, finished = false)
+                c.setSleep(PagewornCommands.SLEEP_OFF)
                 c.play()
                 c.awaitUntil(description = "playing track B from its start") {
                     isPlaying && currentPeriodIndex == 1 && currentPosition in 89_980..90_250
@@ -387,7 +387,6 @@ class SleepPlaybackTest {
         onMain {
             val c = load(book, 80_000)
             c.setSleep(PagewornCommands.SLEEP_END_OF_SEGMENT)
-            assertEndTarget(100_000)
             c.seekTo(98_500)
             c.awaitUntil(description = "ready near the end of the interlude") {
                 playbackState == Player.STATE_READY && currentPosition in 98_470..98_530
@@ -457,12 +456,156 @@ class SleepPlaybackTest {
             c.setSleep(PagewornCommands.SLEEP_TIMED, 15)
             c.pause()
             liveWhen { !it.isPlaying && !it.playWhenReady }
-            val ordinary = saved(book) { it.stopKind == StopKind.ORDINARY && it.positionMs in 599_900..601_000 }
+            saved(book) { it.stopKind == StopKind.ORDINARY && it.positionMs in 599_900..601_000 }
+            // Let the pause settle where the player stopped before taking its place.
+            delay(500)
+            val ordinary = checkNotNull(container.progressStore.read(book))
+            // The pause ended the timer, so its deadline passing changes nothing.
+            assertThat(container.playbackHub.state.value.sleep).isEqualTo(SleepState.Off)
             clock.advance(15 * 60_000L)
-            awaitSleepStop("timer while already paused")
+            delay(PlaybackController.TICK_MS * 2)
             assertThat(container.progressStore.read(book)).isEqualTo(ordinary)
             clock.advance(10 * 60_000L)
             resumeAt(ordinary.positionMs - 10_000)
+        }
+    }
+
+    @Test
+    fun a13dEveryStartRunsTheFullLengthAndABookSwitchStartsAFreshTimer() {
+        val book = TestApp.publishBoundaryBook()
+        val other = TestApp.publishBoundaryBook(itemId = "other-book", title = "Other Book")
+        onMain {
+            val c = load(book, 10_000)
+            c.setSleep(PagewornCommands.SLEEP_TIMED, 30)
+            assertThat(container.playbackHub.state.value.sleep).isEqualTo(SleepState.Off)
+
+            c.play()
+            liveWhen { it.isPlaying }
+            assertThat(container.playbackHub.state.value.sleep).isEqualTo(SleepState.Timed(30, clock.elapsed + 30 * 60_000L))
+            clock.advance(10 * 60_000L)
+            c.pause()
+            liveWhen { !it.playWhenReady && it.sleep == SleepState.Off }
+
+            clock.advance(60_000L)
+            c.play()
+            liveWhen { it.isPlaying }
+            assertThat(container.playbackHub.state.value.sleep).isEqualTo(SleepState.Timed(30, clock.elapsed + 30 * 60_000L))
+
+            clock.advance(5 * 60_000L)
+            c.setMediaItem(MediaItem.Builder().setMediaId(other.mediaId).build())
+            c.prepare()
+            c.play()
+            val switched = liveWhen { it.key == other && it.isPlaying && it.sleep is SleepState.Timed }
+            assertThat(switched.sleep).isEqualTo(SleepState.Timed(30, clock.elapsed + 30 * 60_000L))
+            c.pause()
+        }
+    }
+
+    @Test
+    fun a13eTheVolumeFadesBeforeATimedStopAndPlayDuringTheFadeKeepsPlaying() {
+        val book = TestApp.publishBoundaryBook()
+        onMain {
+            val c = load(book, 10_000)
+            c.setSleep(PagewornCommands.SLEEP_TIMED, 15)
+            c.play()
+            val deadline = (liveWhen { it.isPlaying && it.sleep is SleepState.Timed }.sleep as SleepState.Timed).deadlineElapsedMs
+            assertThat(c.volume).isEqualTo(1f)
+
+            clock.elapsed = deadline - 1_500
+            c.awaitUntil(description = "fading") { volume in 0.01f..0.5f }
+            // Pause during the fade keeps the book playing with a fresh timer at full volume.
+            c.pause()
+            val kept = liveWhen { it.sleep is SleepState.Timed && (it.sleep as SleepState.Timed).deadlineElapsedMs > deadline }
+            assertThat((kept.sleep as SleepState.Timed).deadlineElapsedMs).isEqualTo(clock.elapsed + 15 * 60_000L)
+            c.awaitUntil(description = "full volume again") { volume == 1f && isPlaying }
+
+            withLockedScreen {
+                clock.elapsed = (kept.sleep as SleepState.Timed).deadlineElapsedMs - 1_000
+                c.awaitUntil(description = "fading again") { volume < 0.2f }
+                clock.elapsed += 1_000
+                val stopped = awaitSleepStop("timed stop after the fade")
+                saved(book) { it.stopKind == StopKind.TIMED && it.positionMs in (stopped.positionMs - 100)..(stopped.positionMs + 100) }
+            }
+            c.play()
+            c.awaitUntil(description = "full volume after the stop") { isPlaying && volume == 1f }
+            c.pause()
+        }
+    }
+
+    @Test
+    fun a13eEndOfChapterFadesAtDoubleSpeedAndStillStopsOnTheBoundary() {
+        val book = TestApp.publishBoundaryBook()
+        onMain {
+            val c = load(book, 133_000)
+            c.setPlaybackSpeed(2f)
+            c.setSleep(PagewornCommands.SLEEP_END_OF_SEGMENT)
+            withLockedScreen {
+                c.play()
+                c.awaitUntil(description = "full volume well before the boundary") { isPlaying && currentPosition in 133_000..133_900 && volume == 1f }
+                // 3 s of wall time at 2x is the last 6 s of the chapter.
+                c.awaitUntil(10_000, "fading in the chapter's last seconds") { currentPosition >= 137_500 && volume < 0.5f }
+                // No key is pressed here: a Play or Pause during the fade would keep the book playing.
+                val stopped = awaitSleepStop("end of chapter after the fade at 2x")
+                assertWithMessage("stopped at ${stopped.positionMs} ms").that(stopped.positionMs in 139_950..140_100).isTrue()
+                saved(book) { it.positionMs == 140_000L && it.stopKind == StopKind.EXACT }
+            }
+        }
+    }
+
+    @Test
+    fun a13fAPlaySoonAfterAStopRunsTheSameLengthUntilOffIsChosen() {
+        val book = TestApp.publishBoundaryBook()
+        onMain {
+            val c = load(book, 10_000)
+            c.setSleep(PagewornCommands.SLEEP_TIMED, 15)
+            c.play()
+            liveWhen { it.isPlaying }
+            clock.advance(15 * 60_000L)
+            awaitSleepStop("first timed stop")
+            // The automatic window ends: the mode turns off, the stop is still recent.
+            container.sleepSettings.choose(null)
+
+            clock.advance(4 * 60_000L)
+            c.play()
+            val again = liveWhen { it.isPlaying && it.sleep is SleepState.Timed }
+            assertThat((again.sleep as SleepState.Timed).minutes).isEqualTo(15)
+            clock.advance(15 * 60_000L)
+            awaitSleepStop("second timed stop")
+
+            c.setSleep(PagewornCommands.SLEEP_OFF)
+            c.play()
+            liveWhen { it.isPlaying }
+            delay(PlaybackController.TICK_MS * 2)
+            assertThat(container.playbackHub.state.value.sleep).isEqualTo(SleepState.Off)
+            c.pause()
+        }
+    }
+
+    @Test
+    fun a13hTheWindowBeginningStartsTheTimerOfABookThatIsPlaying() {
+        val book = TestApp.publishBoundaryBook()
+        val local = java.time.Instant.ofEpochMilli(clock.wall).atZone(java.time.ZoneId.systemDefault())
+        val startMinute = (local.hour * 60 + local.minute + 2) % SleepWindow.MINUTES_PER_DAY
+        onMain {
+            val c = load(book, 10_000)
+            c.setSleep(PagewornCommands.SLEEP_TIMED, 20)
+            c.setSleep(PagewornCommands.SLEEP_OFF)
+            container.sleepSettings.setAutomatic(true, SleepWindow(startMinute, (startMinute + 2) % SleepWindow.MINUTES_PER_DAY))
+            c.play()
+            liveWhen { it.isPlaying }
+            assertThat(container.playbackHub.state.value.sleep).isEqualTo(SleepState.Off)
+
+            clock.advance(3 * 60_000L)
+            val armed = liveWhen { it.sleep is SleepState.Timed }
+            assertThat((armed.sleep as SleepState.Timed).minutes).isEqualTo(20)
+            assertThat(container.sleepSettings.settings.value.enabled).isTrue()
+
+            // The window ending lets the running timer finish.
+            clock.advance(2 * 60_000L)
+            delay(1_500)
+            assertThat(container.sleepSettings.settings.value.enabled).isFalse()
+            assertThat(container.playbackHub.state.value.sleep).isEqualTo(armed.sleep)
+            c.pause()
         }
     }
 
@@ -473,7 +616,9 @@ class SleepPlaybackTest {
 
     private suspend fun assertBoundary(c: MediaController, book: BookKey, boundary: Long, finished: Boolean) {
         c.play()
-        c.awaitUntil(description = "playing towards $boundary ms") { isPlaying }
+        // The controller shows a Play at once; the service's own state says when its timer runs.
+        liveWhen { it.isPlaying && it.sleep != SleepState.Off }
+        assertEndTarget(boundary)
         val stopped = awaitSleepStop("end of segment at $boundary ms")
         c.awaitUntil(description = "paused at the boundary") { !isPlaying && !playWhenReady }
         val observation = "boundary $boundary ms, service stopped at ${stopped.positionMs} ms, controller at ${c.currentPosition} ms"

@@ -1,5 +1,8 @@
 package ch.lkmc.pageworn.ui.state
 
+import ch.lkmc.pageworn.core.BookKey
+import ch.lkmc.pageworn.core.sleep.SleepLength
+import ch.lkmc.pageworn.data.SleepSettings
 import ch.lkmc.pageworn.core.timeline.Division
 import ch.lkmc.pageworn.core.timeline.Segment
 import ch.lkmc.pageworn.data.db.BookProgressEntity
@@ -19,7 +22,7 @@ import ch.lkmc.pageworn.ui.model.MiniPlayerUi
 import ch.lkmc.pageworn.ui.model.StartAction
 import ch.lkmc.pageworn.ui.model.PlayerUiState
 import ch.lkmc.pageworn.ui.model.SegmentRow
-import ch.lkmc.pageworn.ui.model.SleepChoice
+import ch.lkmc.pageworn.ui.model.SleepOption
 import ch.lkmc.pageworn.ui.model.SleepUi
 
 /** Builds the player and mini-player state of one book from its edition, progress and the live player. */
@@ -56,24 +59,30 @@ object PlayerStates {
     fun face(plan: EditionPlan) =
         BookFace(plan.key, plan.title, plan.author, plan.coverFile?.let { CoverImage.Local(it) } ?: CoverImage.Cloth)
 
-    fun sleep(live: LivePlayback, division: Division): SleepUi {
-        val label = endLabel(division)
-        val (choice, description) = when (val s = live.sleep) {
-            SleepState.Off -> SleepChoice.OFF to "Sleep, off"
-            is SleepState.Timed -> when (s.minutes) {
-                15 -> SleepChoice.MINUTES_15
-                30 -> SleepChoice.MINUTES_30
-                45 -> SleepChoice.MINUTES_45
-                else -> SleepChoice.MINUTES_60
-            } to "Sleep, ${Format.spokenDuration(live.sleepRemainingMs ?: 0)} remaining"
-            is SleepState.EndOf -> SleepChoice.END_OF_SEGMENT to "Sleep, ${label.lowercase()}"
+    /**
+     * The Sleep utility and sheet of [book]. A timer that runs for this book shows its countdown;
+     * otherwise the utility shows the mode's length while sleep mode is on.
+     */
+    fun sleep(live: LivePlayback, division: Division, mode: SleepSettings, book: BookKey): SleepUi {
+        val endLabel = endLabel(division)
+        val options = buildList {
+            add(SleepOption(null, "Off"))
+            mode.presets.forEach { add(SleepOption(SleepLength.Minutes(it), Format.minutes(it))) }
+            add(SleepOption(SleepLength.EndOfSegment, endLabel))
         }
-        val target = when (live.sleep) {
-            SleepState.Off -> null
-            is SleepState.EndOf -> label
-            is SleepState.Timed -> Format.minutesLeft(live.sleepRemainingMs ?: 0)
+        val selected = mode.length.takeIf { mode.enabled }
+        val remaining = live.sleepRemainingMs?.takeIf { live.key == book && live.sleep != SleepState.Off }
+        if (remaining != null) {
+            return SleepUi(
+                options, selected, Format.sleepRemaining(remaining),
+                "Sleep, ${Format.spokenDuration(remaining)} remaining", Format.countdown(remaining),
+            )
         }
-        return SleepUi(choice, label, live.sleepRemainingMs?.let { Format.sleepRemaining(it) }, description, target)
+        return when (selected) {
+            null -> SleepUi(options, null, null, "Sleep, off")
+            SleepLength.EndOfSegment -> SleepUi(options, selected, null, "Sleep, on, ${endLabel.lowercase()}", endLabel)
+            is SleepLength.Minutes -> SleepUi(options, selected, null, "Sleep, on, ${Format.minutes(selected.minutes)}", "${selected.minutes} min")
+        }
     }
 
     /**
@@ -103,6 +112,7 @@ object PlayerStates {
         edition: LocalEditionEntity?,
         progress: BookProgressEntity?,
         live: LivePlayback,
+        sleepMode: SleepSettings = SleepSettings(),
     ): PlayerUiState {
         val timeline = plan.timeline
         val isLive = live.key == plan.key
@@ -132,7 +142,7 @@ object PlayerStates {
             transportDisabledReason = failure ?: Copy.CHOOSE_START.takeIf { choiceNeeded },
             failureMessage = failure,
             speed = live.speed,
-            sleep = sleep(live, timeline.division),
+            sleep = sleep(live, timeline.division, sleepMode, plan.key),
             segmentsLabel = segmentsLabel(timeline.division),
             segments = segments(plan, position),
             hasPlace = !finished && progress != null && (progress.positionMs > 0 || isLive),

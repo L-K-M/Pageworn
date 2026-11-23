@@ -247,7 +247,7 @@ class PlayKeyTapTest {
     }
 
     @Test
-    fun sleepChosenForABookAtRestIsArmed() {
+    fun sleepChosenForABookAtRestTurnsTheModeOnWithoutStartingIt() {
         val book = TestApp.publishBoundaryBook()
         runBlocking { rest(book, 100_000) }
         container.settings.setLastActiveBook(book)
@@ -255,8 +255,10 @@ class PlayKeyTapTest {
             openPlayer()
             composeRule.onNode(hasContentDescription("Sleep, off")).performScrollTo().performClick()
             composeRule.onNode(hasText("15 minutes") and hasClickAction()).performClick()
-            val armed = awaitLive("a timer") { it.sleep is SleepState.Timed }
-            assertThat(armed.playWhenReady).isFalse()
+            awaitNode(hasContentDescription("Sleep, on, 15 minutes"))
+            assertThat(container.sleepSettings.settings.value.enabled).isTrue()
+            assertThat(container.playbackHub.state.value.sleep).isEqualTo(SleepState.Off)
+            assertThat(container.playbackHub.state.value.playWhenReady).isFalse()
         }
     }
 

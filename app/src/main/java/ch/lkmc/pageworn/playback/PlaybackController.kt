@@ -14,9 +14,12 @@ import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.core.Clock
 import ch.lkmc.pageworn.core.progress.ResumeRewind
 import ch.lkmc.pageworn.core.progress.StopKind
+import ch.lkmc.pageworn.core.sleep.SleepLength
 import ch.lkmc.pageworn.data.EditionStore
 import ch.lkmc.pageworn.data.ProgressStore
 import ch.lkmc.pageworn.data.SettingsStore
+import ch.lkmc.pageworn.data.SleepSettings
+import ch.lkmc.pageworn.data.SleepSettingsStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -33,6 +36,7 @@ class PlaybackController(
     private val editions: EditionStore,
     private val progress: ProgressStore,
     private val settings: SettingsStore,
+    private val sleepSettings: SleepSettingsStore,
     private val clock: Clock,
     private val hub: PlaybackHub,
     private val writer: ProgressWriter,
@@ -81,14 +85,26 @@ class PlaybackController(
     private var failed = false
     private var tickJob: Job? = null
 
+    /** A start of playback whose timer starts once the player holds the book and plays it. */
+    private var timerOnPlaying = false
+
+    /** Lowers the volume over the last seconds of a timer; null while no fade runs. */
+    private var fadeJob: Job? = null
+
+    /** Sleep mode as last seen, so the controller notices the mode turning on. */
+    private var modeOn = sleepSettings.settings.value.enabled
+    private var lastScheduleCheck = Long.MIN_VALUE
+
     init {
         exo.addListener(this)
         exo.setPlaybackSpeed(settings.speed.value)
         tickJob = scope.launch { tickLoop() }
+        scope.launch { sleepSettings.settings.collect(::onSleepSettings) }
     }
 
     fun release() {
         tickJob?.cancel()
+        stopFade()
         saveSettledPause()
         checkpointIfPlaying()
         loaded?.let { editions.release(it.plan.generationId) }
@@ -116,6 +132,8 @@ class PlaybackController(
             checkpointIfPlaying()
             clearSleep()
             clippedAtMs = null
+            // Playback goes on with the new book: that is a start, with a fresh timer.
+            if (exo.playWhenReady) timerOnPlaying = true
         }
         if (outgoing != null && outgoing.key == key && !failed) {
             val start = explicitStartMs?.let { outgoing.plan.timeline.clamp(it) }
@@ -162,8 +180,19 @@ class PlaybackController(
      * the resume rewind once, from the saved place, and replays a finished book from zero.
      */
     fun beforePlay() {
-        val book = loaded ?: return
+        // A fade that stopped the last play left the volume low.
+        restoreVolume()
+        val book = loaded
+        if (book == null) {
+            timerOnPlaying = true
+            return
+        }
         expireSleepIfDue()
+        resolveStart(book)
+        startTimer(book)
+    }
+
+    private fun resolveStart(book: Loaded) {
         if (failed) {
             // The next play surfaces a failure again unless the edition was repaired.
             return
@@ -199,6 +228,8 @@ class PlaybackController(
             startResolved = false
             failed = false
             played = true
+            if (fadeJob == null) restoreVolume()
+            if (timerOnPlaying) loaded?.let(::startTimer)
         } else if (wasPlaying && exo.playbackState != Player.STATE_ENDED && exo.playerError == null) {
             val kind = pauseCause ?: StopKind.ORDINARY
             pauseCause = null
@@ -208,6 +239,14 @@ class PlaybackController(
         }
         wasPlaying = isPlaying
         publish()
+    }
+
+    override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+        // Any pause ends the timer; the next start runs a fresh one.
+        if (!playWhenReady) {
+            timerOnPlaying = false
+            clearSleep()
+        }
     }
 
     override fun onEvents(player: Player, events: Player.Events) {
@@ -271,17 +310,17 @@ class PlaybackController(
      *   first and completes normally; the failure surfaces on the next play, as does any failure
      *   that arrives while no play is requested.
      *
-     * The edition becomes Repair needed. An armed timed sleep stays armed with its deadline.
+     * The edition becomes Repair needed. The failure pause ends any other timer, like every pause.
      */
     override fun onPlayerError(error: PlaybackException) {
         val book = loaded ?: return
         val requested = exo.playWhenReady
         val seekFailed = pendingSeek
         pendingSeek = false
+        val timer = sleep as? SleepState.EndOf
         exo.playWhenReady = false
         val position = snapToBoundary(exo.currentPosition)
         Log.i(TAG, "playback failed (${error.errorCodeName}) at ${exo.currentPosition} ms, place $position ms, requested=$requested seek=$seekFailed played=$played")
-        val timer = sleep as? SleepState.EndOf
         if (!seekFailed && played && timer != null && timer.boundaryMs == position) {
             onSleepBoundary(position)
             return
@@ -399,43 +438,123 @@ class PlaybackController(
                 }
             }
             saveSettledPause()
+            checkSchedule()
             expireSleepIfDue()
+            startFadeIfDue()
             publish()
         }
     }
 
     // --- Sleep ---------------------------------------------------------------------------------
+    //
+    // Sleep mode lives in [sleepSettings]; this runs its timers (sleep behavior in
+    // docs/05-playback-and-formats.md). Every start of playback runs a fresh timer while the mode is
+    // on, any pause ends it, and the last seconds before a stop fade the volume out.
 
-    fun setSleepOff() {
-        clearSleep()
-        setAudioEnd(null, exo.currentPosition)
+    /** Turns sleep mode on with [length], or off for null. A book that is playing starts a fresh timer. */
+    fun setSleep(length: SleepLength?) {
+        // Set first: the store's collector may run inline and would otherwise arm a second time.
+        modeOn = length != null
+        sleepSettings.choose(length)
+        if (length == null) {
+            sleepSettings.forgetStop()
+            clearSleep()
+            setAudioEnd(null, exo.currentPosition)
+        } else if (exo.isPlaying) {
+            loaded?.let { arm(it, length) }
+        } else if (exo.playWhenReady) {
+            timerOnPlaying = true
+        }
         publish()
     }
 
-    fun setSleepTimed(minutes: Int) {
+    /**
+     * Play or Pause during the fade keeps the book playing: the volume comes back at once and a fresh
+     * timer of the same length starts. Returns false when no fade runs, so the command acts as usual.
+     */
+    fun keepPlayingDuringFade(): Boolean {
+        val book = loaded
+        if (fadeJob == null || !exo.playWhenReady || book == null) return false
+        stopFade()
+        restoreVolume()
+        when (val timer = sleep) {
+            SleepState.Off -> return false
+            is SleepState.Timed -> sleep = timer.copy(deadlineElapsedMs = clock.elapsedRealtimeMillis() + timer.minutes * MINUTE_MS)
+            is SleepState.EndOf -> {
+                // The boundary itself belongs to the next segment, whose end is the new target.
+                sleepMessage?.cancel()
+                sleepMessage = null
+                armEndOf(book, timer.boundaryMs, exo.currentPosition)
+            }
+        }
+        publish()
+        return true
+    }
+
+    /**
+     * A start of playback: runs a fresh timer when sleep mode is on, or when a timer stopped playback
+     * moments ago. Without one, a clip left by an earlier end-of-chapter timer is removed before audio
+     * can reach it.
+     */
+    private fun startTimer(book: Loaded) {
+        timerOnPlaying = false
+        if (!playerHolds(book)) {
+            timerOnPlaying = true
+            return
+        }
+        sleepSettings.refresh()
+        val mode = sleepSettings.settings.value
+        val length = if (mode.enabled) mode.length else sleepSettings.recentStop(RECENT_STOP_MS)
+        if (length == null) {
+            clearSleep()
+            setAudioEnd(null, exo.currentPosition)
+            publish()
+            return
+        }
+        arm(book, length)
+    }
+
+    private fun arm(book: Loaded, length: SleepLength) {
         clearSleep()
-        setAudioEnd(null, exo.currentPosition)
-        sleep = SleepState.Timed(minutes, clock.elapsedRealtimeMillis() + minutes * 60_000L)
+        when (length) {
+            is SleepLength.Minutes -> {
+                setAudioEnd(null, exo.currentPosition)
+                sleep = SleepState.Timed(length.minutes, clock.elapsedRealtimeMillis() + length.minutes * MINUTE_MS)
+            }
+            SleepLength.EndOfSegment -> armEndOf(book, exo.currentPosition, exo.currentPosition)
+        }
         publish()
     }
 
-    /** End of the current chapter, track or whole book, depending on the edition's division. */
-    fun setSleepEndOfSegment() {
+    /** Sleep mode turned on, by the schedule or a settings change: a book that is playing gets its timer now. */
+    private fun onSleepSettings(mode: SleepSettings) {
+        val turnedOn = mode.enabled && !modeOn
+        modeOn = mode.enabled
+        if (!turnedOn || sleep != SleepState.Off) return
         val book = loaded ?: return
-        clearSleep()
-        armEndOf(book, exo.currentPosition)
-        publish()
+        if (exo.isPlaying) arm(book, mode.length) else if (exo.playWhenReady) timerOnPlaying = true
     }
 
-    private fun armEndOf(book: Loaded, positionMs: Long) {
+    private fun checkSchedule() {
+        val now = clock.elapsedRealtimeMillis()
+        if (lastScheduleCheck != Long.MIN_VALUE && now - lastScheduleCheck in 0 until SCHEDULE_CHECK_MS) return
+        lastScheduleCheck = now
+        sleepSettings.refresh()
+    }
+
+    /**
+     * Targets the end of the segment that contains [targetFromMs]. [playerPositionMs] is where the
+     * player is, which a rebuilt source must keep.
+     */
+    private fun armEndOf(book: Loaded, targetFromMs: Long, playerPositionMs: Long) {
         val timeline = book.plan.timeline
-        val boundary = timeline.sleepBoundaryFor(positionMs)
+        val boundary = timeline.sleepBoundaryFor(targetFromMs)
         val atEnd = boundary >= timeline.durationMs
         val insideTrack = !atEnd && timeline.tracks.none { it.startMs == boundary }
         sleep = SleepState.EndOf(timeline.division, boundary, atEnd)
         // The audio sink may have queued the next chapter before the pause reaches it. Clip
         // the current file and temporarily replace the remainder with silence so it cannot leak.
-        setAudioEnd(boundary.takeIf { insideTrack }, positionMs)
+        setAudioEnd(boundary.takeIf { insideTrack }, playerPositionMs)
         if (!atEnd) {
             sleepMessage = exo.createMessage { _, _ -> onSleepBoundary(boundary) }
                 .setLooper(Looper.getMainLooper())
@@ -450,7 +569,7 @@ class PlaybackController(
         if (sleep is SleepState.EndOf) {
             sleepMessage?.cancel()
             sleepMessage = null
-            armEndOf(book, positionMs)
+            armEndOf(book, positionMs, positionMs)
         }
     }
 
@@ -460,6 +579,8 @@ class PlaybackController(
         sleepMessage?.cancel()
         sleepMessage = null
         sleep = SleepState.Off
+        stopFade()
+        sleepSettings.recordStop(SleepLength.EndOfSegment)
         if (exo.playWhenReady) {
             exo.pause()
         }
@@ -474,6 +595,8 @@ class PlaybackController(
         val timed = sleep as? SleepState.Timed ?: return
         if (clock.elapsedRealtimeMillis() < timed.deadlineElapsedMs) return
         sleep = SleepState.Off
+        stopFade()
+        sleepSettings.recordStop(timed.length)
         if (exo.isPlaying) {
             // A timed stop of audible playback: the pause saves the place with the timed stop kind.
             pauseCause = StopKind.TIMED
@@ -492,10 +615,65 @@ class PlaybackController(
         publish()
     }
 
+    /** Ends the running timer. Audio that goes on is heard at full volume again at once. */
     private fun clearSleep() {
         sleepMessage?.cancel()
         sleepMessage = null
         sleep = SleepState.Off
+        stopFade()
+        if (exo.isPlaying) restoreVolume()
+    }
+
+    /** Wall time until the running timer stops playback, or null when none runs. */
+    private fun sleepRemainingMs(positionMs: Long = exo.currentPosition): Long? = when (val timer = sleep) {
+        SleepState.Off -> null
+        is SleepState.Timed -> timer.deadlineElapsedMs - clock.elapsedRealtimeMillis()
+        is SleepState.EndOf -> ((timer.boundaryMs - positionMs) / exo.playbackParameters.speed.toDouble()).toLong()
+    }
+
+    private fun startFadeIfDue() {
+        if (fadeJob != null || !exo.isPlaying) return
+        val remaining = sleepRemainingMs() ?: return
+        if (remaining > FADE_MS + TICK_MS) return
+        fadeJob = scope.launch { fade() }
+    }
+
+    /**
+     * Follows the time left with the volume, falling with its square so the last words do not drop
+     * away all at once. A timed timer stops from here, on the fade's finer step; the chapter
+     * message stops an end-of-chapter timer on its boundary. A seek that moves the end away ends
+     * the fade at full volume.
+     */
+    private suspend fun fade() {
+        while (true) {
+            val remaining = sleepRemainingMs()
+            if (remaining == null) {
+                // The timer ended; whatever ended it decided the volume.
+                fadeJob = null
+                return
+            }
+            if (remaining > FADE_MS + TICK_MS) {
+                fadeJob = null
+                restoreVolume()
+                return
+            }
+            val share = remaining.coerceIn(0, FADE_MS).toFloat() / FADE_MS
+            exo.volume = share * share
+            if (sleep is SleepState.Timed && remaining <= 0) {
+                expireSleepIfDue()
+                return
+            }
+            delay(FADE_STEP_MS)
+        }
+    }
+
+    private fun stopFade() {
+        fadeJob?.cancel()
+        fadeJob = null
+    }
+
+    private fun restoreVolume() {
+        if (exo.volume != 1f) exo.volume = 1f
     }
 
     private fun setAudioEnd(endMs: Long?, positionMs: Long) {
@@ -516,11 +694,7 @@ class PlaybackController(
         val position = if (book != null && held && !failed && exo.playerError == null) {
             book.plan.timeline.clamp(exo.currentPosition)
         } else book?.saved?.positionMs ?: 0L
-        val remaining = when (val s = sleep) {
-            is SleepState.Timed -> (s.deadlineElapsedMs - clock.elapsedRealtimeMillis()).coerceAtLeast(0)
-            is SleepState.EndOf -> (s.boundaryMs - position).coerceAtLeast(0)
-            SleepState.Off -> null
-        }
+        val remaining = sleepRemainingMs(position)?.coerceAtLeast(0)
         hub.publish(
             LivePlayback(
                 key = book?.key,
@@ -554,6 +728,18 @@ class PlaybackController(
         /** A checkpoint at least every five seconds of media advancement; 4 s plus one tick at 2×. */
         const val CHECKPOINT_MEDIA_MS = 4_000L
         const val BOUNDARY_SNAP_MS = 500L
+
+        private const val MINUTE_MS = 60_000L
+
+        /** The volume falls to silence over the last three seconds before a timer stops playback. */
+        const val FADE_MS = 3_000L
+        private const val FADE_STEP_MS = 50L
+
+        /** A Play this soon after a timer stopped playback runs a timer of the same length again. */
+        const val RECENT_STOP_MS = 5 * 60_000L
+
+        /** How often a playing service looks for a passed edge of the sleep schedule. */
+        private const val SCHEDULE_CHECK_MS = 1_000L
     }
 }
 

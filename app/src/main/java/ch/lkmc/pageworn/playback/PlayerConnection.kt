@@ -9,10 +9,10 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
 import ch.lkmc.pageworn.core.BookKey
+import ch.lkmc.pageworn.core.sleep.SleepLength
 import ch.lkmc.pageworn.data.EditionStore
 import ch.lkmc.pageworn.data.ProgressStore
 import ch.lkmc.pageworn.data.db.EditionState
-import ch.lkmc.pageworn.ui.model.SleepChoice
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -172,19 +172,12 @@ class PlayerConnection(
 
     fun setSpeed(speed: Float) = launchInOrder { connected().setPlaybackSpeed(speed) }
 
-    /** Sets sleep for [key]. A book at rest is loaded paused first, so the timer has a book to stop. */
-    fun setSleep(key: BookKey, choice: SleepChoice) = launchInOrder {
-        val c = connected()
-        if (hub.state.value.key != key) {
-            if (choice == SleepChoice.OFF || !editions.checkBeforeOpening(key)) return@launchInOrder
-            if (progress.read(key)?.pendingContinuityChoice == true) return@launchInOrder
-            c.pause()
-            c.setMediaItem(MediaItem.Builder().setMediaId(key.mediaId).build())
-            c.prepare()
-            // A custom command overtakes queued player commands: wait until the player has the book.
-            withTimeoutOrNull(START_TIMEOUT_MS) { hub.state.first { it.key == key && it.held } } ?: return@launchInOrder
-        }
-        c.sendCustomCommand(SessionCommand(PagewornCommands.SET_SLEEP, Bundle.EMPTY), sleepArguments(choice)).await()
+    /**
+     * Turns sleep mode on with [length], or off for null. The session applies it, so a book that is
+     * playing starts or ends its timer in turn with the other commands; a book at rest needs nothing.
+     */
+    fun setSleep(length: SleepLength?) = launchInOrder {
+        connected().sendCustomCommand(SessionCommand(PagewornCommands.SET_SLEEP, Bundle.EMPTY), sleepArguments(length)).await()
     }
 
     /** Pauses and unloads [key] and waits for its readers to go, so its audio can be removed. */
@@ -200,22 +193,14 @@ class PlayerConnection(
         }
     }
 
-    private fun sleepArguments(choice: SleepChoice): Bundle {
+    private fun sleepArguments(length: SleepLength?): Bundle {
         val args = Bundle()
-        when (choice) {
-            SleepChoice.OFF -> args.putString(PagewornCommands.ARG_SLEEP_MODE, PagewornCommands.SLEEP_OFF)
-            SleepChoice.END_OF_SEGMENT -> args.putString(PagewornCommands.ARG_SLEEP_MODE, PagewornCommands.SLEEP_END_OF_SEGMENT)
-            else -> {
+        when (length) {
+            null -> args.putString(PagewornCommands.ARG_SLEEP_MODE, PagewornCommands.SLEEP_OFF)
+            SleepLength.EndOfSegment -> args.putString(PagewornCommands.ARG_SLEEP_MODE, PagewornCommands.SLEEP_END_OF_SEGMENT)
+            is SleepLength.Minutes -> {
                 args.putString(PagewornCommands.ARG_SLEEP_MODE, PagewornCommands.SLEEP_TIMED)
-                args.putInt(
-                    PagewornCommands.ARG_SLEEP_MINUTES,
-                    when (choice) {
-                        SleepChoice.MINUTES_15 -> 15
-                        SleepChoice.MINUTES_30 -> 30
-                        SleepChoice.MINUTES_45 -> 45
-                        else -> 60
-                    },
-                )
+                args.putInt(PagewornCommands.ARG_SLEEP_MINUTES, length.minutes)
             }
         }
         return args

@@ -23,6 +23,7 @@ import ch.lkmc.pageworn.data.EditionFiles
 import ch.lkmc.pageworn.data.EditionStore
 import ch.lkmc.pageworn.data.ProgressStore
 import ch.lkmc.pageworn.data.SettingsStore
+import ch.lkmc.pageworn.data.SleepSettingsStore
 import ch.lkmc.pageworn.data.db.PagewornDatabase
 import ch.lkmc.pageworn.formats.FormatSupport
 import ch.lkmc.pageworn.formats.MediaProbe
@@ -72,6 +73,7 @@ class AppContainer(private val app: PagewornApp) {
 
     val database: PagewornDatabase by lazy { PagewornDatabase.build(app) }
     val settings: SettingsStore by lazy { SettingsStore(app) }
+    val sleepSettings: SleepSettingsStore by lazy { SleepSettingsStore(app, liveClock) }
     val progressStore: ProgressStore by lazy { ProgressStore(database.progress(), liveClock) }
     val editionFiles: EditionFiles by lazy { EditionFiles(File(app.filesDir, "audio")) }
     val editionStore: EditionStore by lazy { EditionStore(database, editionFiles, liveClock) }

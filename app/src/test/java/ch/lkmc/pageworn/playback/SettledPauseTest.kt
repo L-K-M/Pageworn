@@ -18,6 +18,7 @@ import ch.lkmc.pageworn.data.EditionStore
 import ch.lkmc.pageworn.data.ManifestTrack
 import ch.lkmc.pageworn.data.ProgressStore
 import ch.lkmc.pageworn.data.SettingsStore
+import ch.lkmc.pageworn.data.SleepSettingsStore
 import ch.lkmc.pageworn.data.db.PagewornDatabase
 import ch.lkmc.pageworn.data.db.ProfileEntity
 import com.google.common.truth.Truth.assertThat
@@ -77,6 +78,7 @@ class SettledPauseTest {
             editions = editions,
             progress = ProgressStore(db.progress(), clock),
             settings = SettingsStore(context),
+            sleepSettings = SleepSettingsStore(context, clock),
             clock = clock,
             hub = hub,
             writer = ProgressWriter { _, _, position, _, _, _, _, _ -> writes += position },
@@ -152,7 +154,8 @@ class SettledPauseTest {
 
         val exo = Proxy.newProxyInstance(ExoPlayer::class.java.classLoader, arrayOf(ExoPlayer::class.java)) { _, method, args ->
             when (method.name) {
-                "addListener", "removeListener", "setPlaybackSpeed" -> null
+                "addListener", "removeListener", "setPlaybackSpeed", "setVolume" -> null
+                "getVolume" -> 1f
                 "setPlayWhenReady" -> { wantsToPlay = args[0] as Boolean; null }
                 "getPlayWhenReady" -> wantsToPlay
                 "isPlaying" -> audible

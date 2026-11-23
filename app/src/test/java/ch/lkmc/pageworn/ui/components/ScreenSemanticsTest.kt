@@ -80,7 +80,7 @@ class ScreenSemanticsTest {
     @Test
     fun signOutAsksOnce() {
         val state = SettingsUiState("listener", signedIn = true, versionText = "Pageworn", confirmSignOut = true)
-        compose.setContent { PagewornTheme(darkTheme = false) { SettingsScreen(state, {}, {}, {}, {}, {}, {}, {}, {}) } }
+        compose.setContent { PagewornTheme(darkTheme = false) { SettingsScreen(state, {}, {}, {}, {}, {}, {}, {}, {}, {}) } }
 
         compose.onAllNodesWithText("Sign out?", substring = true).assertCountEquals(1)
     }

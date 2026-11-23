@@ -54,6 +54,7 @@ class PlaybackService : MediaLibraryService() {
             editions = container.editionStore,
             progress = container.progressStore,
             settings = container.settings,
+            sleepSettings = container.sleepSettings,
             clock = container.liveClock,
             hub = container.playbackHub,
             // Reads the container's writer at call time, so a writer a test installs later applies.
@@ -65,7 +66,7 @@ class PlaybackService : MediaLibraryService() {
             scope = scope,
         )
         controller = playback
-        val player = BookPlayer(exo, playback::beforePlay)
+        val player = BookPlayer(exo, playback::beforePlay, playback::keepPlayingDuringFade)
         val cb = BookSessionCallback(packageName, container, { playback }, items)
         callback = cb
         session = MediaLibrarySession.Builder(this, player, cb)
