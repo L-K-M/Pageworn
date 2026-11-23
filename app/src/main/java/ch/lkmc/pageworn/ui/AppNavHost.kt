@@ -193,6 +193,7 @@ fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, op
                     state = if (notice == null) it else it.copy(message = notice),
                     onBack = { navController.popBackStack() },
                     onDownload = detail::download,
+                    onRetry = detail::download,
                     onPlayPause = { player.playPause(key, it) },
                     onRepair = detail::download,
                     onPauseTransfer = detail::pauseTransfer,

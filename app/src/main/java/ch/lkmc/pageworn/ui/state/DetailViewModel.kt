@@ -66,16 +66,23 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
         removed,
     ) { i, live, refusal, removed ->
         build(i, i.edition?.let { plans.plan(it) }, live)?.let { built ->
-            // A refusal about a transfer or edition that still exists is newer and actionable,
-            // so it outranks the removal confirmation. Once the book is gone, the removal is the
-            // newest fact.
-            if (refusal != null && (i.edition != null || i.transfer != null)) {
-                built.copy(message = refusal.text)
-            } else if (removed && i.edition == null && i.transfer == null) {
-                // The saved place survives the removal, and the listener should hear so.
-                built.copy(message = Copy.AUDIO_REMOVED)
-            } else {
-                built
+            val removalIsNewest = removed && i.edition == null && i.transfer == null
+            val refusalHere = refusal?.takeIf { it.key == key && !removalIsNewest }
+            when {
+                // A refusal about this book is newer and actionable while the book still
+                // exists, and outranks the removal confirmation. Once the book is gone, the
+                // removal is the newest fact.
+                refusalHere != null -> {
+                    // Only the primary Download action gives way. A playable, transferring or
+                    // repairing book keeps its own control and carries the message beside it.
+                    val action = if (built.action == DetailAction.Download) refusalHere.disabledAction ?: built.action else built.action
+                    built.copy(message = refusalHere.text, action = action)
+                }
+                removalIsNewest -> {
+                    // The saved place survives the removal, and the listener should hear so.
+                    built.copy(message = Copy.AUDIO_REMOVED)
+                }
+                else -> built
             }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
