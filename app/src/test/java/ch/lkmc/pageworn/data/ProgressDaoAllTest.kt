@@ -17,23 +17,34 @@ import org.robolectric.annotation.Config
 @Config(sdk = [34])
 class ProgressDaoAllTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
+    private lateinit var db: PagewornDatabase
 
     @After
     fun tearDown() {
+        if (::db.isInitialized) db.close()
         context.deleteDatabase(PagewornDatabase.NAME)
     }
 
     @Test
     fun allReturnsEverySavedPlaceInOneQuery() = runBlocking<Unit> {
-        val db = PagewornDatabase.build(context)
+        db = PagewornDatabase.build(context)
         db.progress().upsert(place("a", 1_000))
         db.progress().upsert(place("b", 2_000))
+        db.progress().upsert(place("c", 3_000, profileId = "other-profile"))
 
-        assertThat(db.progress().all().map { it.itemId }.toSet()).containsExactly("a", "b")
+        assertThat(db.progress().all().map { it.profileId to it.itemId }).containsExactly(
+            "profile" to "a",
+            "profile" to "b",
+            "other-profile" to "c",
+        )
     }
 
-    private fun place(itemId: String, positionMs: Long) = BookProgressEntity(
-        profileId = "profile", itemId = itemId, positionMs = positionMs, durationAtSaveMs = 60_000,
+    private fun place(
+        itemId: String,
+        positionMs: Long,
+        profileId: String = "profile",
+    ) = BookProgressEntity(
+        profileId = profileId, itemId = itemId, positionMs = positionMs, durationAtSaveMs = 60_000,
         editionFingerprint = "print-$itemId", finished = false, updatedAt = 7,
         stopKind = StopKind.EXACT, lastListenedAt = null, playbackGeneration = 1, writeSequence = 1,
     )
