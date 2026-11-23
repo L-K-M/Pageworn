@@ -22,6 +22,7 @@ import ch.lkmc.pageworn.ui.model.StatusLine
 import ch.lkmc.pageworn.ui.model.UiAction
 import java.text.DateFormat
 import java.util.Date
+import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
@@ -109,8 +110,11 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
 
     private val actions = TransferActions(container)
 
-    /** True while a catalog refresh runs, so the pull-to-refresh indicator spins. */
+    /** True while a catalog refresh runs or waits, so the pull-to-refresh indicator spins. */
     private val refreshing = MutableStateFlow(false)
+
+    /** How many refreshes are queued or running; drives [refreshing]. */
+    private val queuedRefreshes = AtomicInteger(0)
 
     /** Serializes refreshes; see [refreshCatalog]. */
     private val refreshLock = Mutex()
@@ -152,17 +156,25 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
 
     private fun refreshCatalog(libraryId: String?) {
         container.appScope.launch {
+            queueRefresh()
             // Pull-to-refresh and library switches can overlap; one refresh at a time keeps
             // the spinner honest about work actually in flight.
-            refreshLock.withLock {
-                refreshing.value = true
-                try {
-                    if (container.accounts.refreshLibraryAndCatalog(libraryId)) librariesChecked.value = true
-                } finally {
-                    refreshing.value = false
-                }
-            }
+            refreshLock.withLock { runRefresh(libraryId) }
+            dequeueRefresh()
         }
+    }
+
+    private suspend fun runRefresh(libraryId: String?) {
+        if (container.accounts.refreshLibraryAndCatalog(libraryId)) librariesChecked.value = true
+    }
+
+    private suspend fun queueRefresh() {
+        queuedRefreshes.incrementAndGet()
+        refreshing.value = true
+    }
+
+    private suspend fun dequeueRefresh() {
+        if (queuedRefreshes.decrementAndGet() == 0) refreshing.value = false
     }
 
     fun setQuery(value: String) {
@@ -178,8 +190,14 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
      */
     fun selectLibrary(libraryId: String) {
         container.appScope.launch {
-            container.accounts.chooseLibrary(libraryId)
-            refreshCatalog(libraryId)
+            queueRefresh()
+            // The switch and its refresh hold the same lock, so no pull-to-refresh can
+            // interleave between choosing the library and loading its catalog.
+            refreshLock.withLock {
+                container.accounts.chooseLibrary(libraryId)
+                runRefresh(libraryId)
+            }
+            dequeueRefresh()
         }
     }
 
