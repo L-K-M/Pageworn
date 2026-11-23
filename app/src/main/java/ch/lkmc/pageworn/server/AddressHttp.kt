@@ -35,6 +35,12 @@ class AddressHttp(
     private val trust = AddressTrustManager(platformTrust, policy.confirmedCertSha256)
     private val client: OkHttpClient
 
+    /**
+     * How long a reachability probe may take in all: the connect budget, then as long again for
+     * the answer. Only probes are bounded this way; downloads keep the client's read timeout.
+     */
+    private val probeBudgetMs = 2 * connectTimeoutMs
+
     @Volatile
     var passedNormalValidation: Boolean = policy.passedNormalValidation
         private set
@@ -76,7 +82,7 @@ class AddressHttp(
      */
     suspend fun execute(request: Request, operation: DiagnosticOperation = DiagnosticOperation.REQUEST): ServerResult<Response> {
         val startedAtMillis = diagnostics?.nowMillis() ?: 0L
-        val result = sendOnce(request)
+        val result = sendOnce(request, operation)
         val status = when (result) {
             is ServerResult.Ok -> NetworkDiagnostics.statusOf(result.value.code)
             is ServerResult.Failed -> NetworkDiagnostics.statusOf(result.error)
@@ -85,8 +91,12 @@ class AddressHttp(
         return result
     }
 
-    private suspend fun sendOnce(request: Request): ServerResult<Response> = try {
-        val response = client.newCall(request).await()
+    private suspend fun sendOnce(request: Request, operation: DiagnosticOperation): ServerResult<Response> = try {
+        val call = client.newCall(request)
+        // docs/04: a short bounded timeout per address. The connect timeout alone lets a server that
+        // accepts and then stays silent hold each probe for the ten-second read timeout.
+        if (operation == DiagnosticOperation.STATUS) call.timeout().timeout(probeBudgetMs, java.util.concurrent.TimeUnit.MILLISECONDS)
+        val response = call.await()
         if (request.url.isHttps && policy.confirmedCertSha256 == null) passedNormalValidation = true
         ServerResult.Ok(response)
     } catch (error: IOException) {
