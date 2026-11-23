@@ -87,7 +87,13 @@ private fun Key(face: Int, inlay: Int?, title: String, faceWidth: Dp, faceHeight
             // The inlays are square: sized by the face's height, they keep their shape on the wide skips.
             if (inlay != null) Image(painterResource(inlay), null, Modifier.size(if (faceWidth > faceHeight) faceHeight * WIDE_INLAY else faceHeight * ROUND_INLAY))
             if (starting) StartingArc(minOf(faceWidth, faceHeight))
-            if (focused) Box(Modifier.matchParentSize().border(2.dp, PagewornTheme.colors.primaryInk, RoundedCornerShape(percent = 50)))
+        }
+        if (focused) {
+            // The ring surrounds the face rather than covering its rim or inlay.
+            Box(
+                Modifier.size(maxOf(faceWidth, faceHeight) + KEY_FOCUS_OUTSET * 2)
+                    .border(2.dp, PagewornTheme.colors.primaryInk, RoundedCornerShape(percent = 50)),
+            )
         }
     }
 }
@@ -142,6 +148,8 @@ private fun StartingArc(size: Dp) {
 }
 
 private val MIN_KEY_TARGET = 48.dp
+/** Space between a key face and its keyboard focus ring. */
+private val KEY_FOCUS_OUTSET = 4.dp
 
 /** The Play key of a book row and of the mini-player. */
 val ROW_KEY = 40.dp
