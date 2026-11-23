@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ch.lkmc.pageworn.AppContainer
 import ch.lkmc.pageworn.core.BookKey
-import ch.lkmc.pageworn.core.timeline.Division
 import ch.lkmc.pageworn.data.db.BookProgressEntity
 import ch.lkmc.pageworn.data.db.CatalogBookEntity
 import ch.lkmc.pageworn.data.db.EditionState
@@ -63,7 +62,11 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
 
     /** Removes the downloaded audio; the saved place stays (docs/03-android-and-data.md). */
     fun remove() {
-        viewModelScope.launch { container.editionStore.remove(key) }
+        // Not the screen's scope: leaving details must not stop between releasing and removing.
+        container.appScope.launch {
+            container.playerConnection.releaseBook(key)
+            container.editionStore.remove(key)
+        }
     }
 
     private fun build(i: Inputs, plan: EditionPlan?, live: LivePlayback): BookDetailUiState? {
@@ -84,7 +87,7 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
         val action = when {
             i.transfer != null -> DetailAction.Transferring(RowBuilders.transferUi(i.transfer))
             edition?.state == EditionState.REPAIR_NEEDED -> DetailAction.Repair
-            edition != null -> DetailAction.Play(StartAction.of(hasPlace, finished = i.progress?.finished == true), isPlaying = isLive && live.isPlaying)
+            edition != null -> DetailAction.Play(StartAction.of(hasPlace, finished = i.progress?.finished == true), live.showsPause(key), live.waitsForAudio(key))
             i.profile?.canDownload == false -> DetailAction.DownloadDisabled
             else -> DetailAction.Download
         }
@@ -96,7 +99,6 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
             else -> null
         }
         val position = if (isLive) live.positionMs else i.progress?.positionMs
-        val division = plan?.timeline?.division
         return BookDetailUiState(
             face = BookFace(key, title, authors, cover),
             narrator = edition?.narrators ?: book?.narrators,
@@ -105,11 +107,7 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
             action = action,
             message = message,
             description = edition?.description,
-            segmentsTitle = when (division) {
-                Division.CHAPTERS -> "Chapters"
-                Division.TRACKS -> "Tracks"
-                else -> null
-            },
+            segmentsTitle = plan?.let { PlayerStates.segmentsLabel(it.timeline.division) },
             segments = plan?.let { PlayerStates.segments(it, position) } ?: emptyList(),
             segmentsPlayable = edition != null && edition.state == EditionState.READY,
             canRemove = edition != null,

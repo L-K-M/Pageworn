@@ -1,5 +1,6 @@
 package ch.lkmc.pageworn.ui.model
 
+import ch.lkmc.pageworn.catalog.CatalogSort
 import ch.lkmc.pageworn.core.BookKey
 import java.io.File
 
@@ -96,7 +97,7 @@ sealed interface CatalogAction {
     data class Transferring(val transfer: TransferUi) : CatalogAction
 
     /** A locally ready book: Play, Resume or Replay key and an accessible "Downloaded" state. */
-    data class Ready(val isPlaying: Boolean, val start: StartAction) : CatalogAction
+    data class Ready(val showsPause: Boolean, val starting: Boolean, val start: StartAction) : CatalogAction
 
     data object RepairNeeded : CatalogAction
 }
@@ -115,6 +116,7 @@ data class LibraryUiState(
     val libraries: List<LibraryChoice> = emptyList(),
     val selectedLibraryId: String? = null,
     val query: String = "",
+    val sort: CatalogSort = CatalogSort.DEFAULT,
     val rows: List<CatalogRow> = emptyList(),
     val status: StatusLine? = null,
     /** When set, replaces the rows (and, for no audiobook libraries, the selector and search). */
@@ -142,11 +144,17 @@ data class ReadyBookRow(
     val badge: ReadyBadge,
     /** A saved position exists: draw the place ribbon. */
     val hasPlace: Boolean,
-    val isPlaying: Boolean,
+    /** The key shows Pause, and a tap on it pauses. */
+    val showsPause: Boolean,
+    /** Pause is shown but no audio is heard yet. */
+    val starting: Boolean,
     val playable: Boolean,
 ) {
     val start: StartAction get() = StartAction.of(hasPlace, badge == ReadyBadge.Finished)
 }
+
+/** What a Play/Pause key showed when it was tapped, which is what the tap does. */
+enum class KeyAction { PLAY, PAUSE }
 
 /** What a play key starts: a book from its beginning, its saved place, or a finished book again. */
 enum class StartAction {
@@ -177,7 +185,8 @@ data class MiniPlayerUi(
     val face: BookFace,
     /** Chapter or track label, e.g. "Chapter 4 · The Gate". */
     val subtitle: String?,
-    val isPlaying: Boolean,
+    val showsPause: Boolean,
+    val starting: Boolean,
     val enabled: Boolean,
     val disabledReason: String? = null,
     val start: StartAction = StartAction.PLAY,
@@ -187,12 +196,14 @@ enum class SleepChoice { OFF, MINUTES_15, MINUTES_30, MINUTES_45, MINUTES_60, EN
 
 data class SleepUi(
     val selected: SleepChoice,
-    /** "End of chapter", "End of track" or "End of book" for this edition. */
+    /** "End of chapter", "End of track" or "End of part" for this edition. */
     val endLabel: String,
     /** Live remaining time for the active choice, e.g. "12 min 40 sec remaining". */
     val remainingText: String?,
     /** Accessible value of the Sleep utility, e.g. "Sleep, 14 minutes remaining". */
     val utilityDescription: String,
+    /** The active choice under the Sleep utility, "12 min" or "End of chapter"; null when off. */
+    val shortTarget: String? = null,
 )
 
 data class SegmentRow(
@@ -213,26 +224,31 @@ data class ContinuityChoice(
 data class PlayerUiState(
     val face: BookFace,
     val narrator: String? = null,
-    /** Chapter or track line; null for a single undivided file. */
-    val segmentLine: String?,
+    /** Title of the chapter, track or part that holds the position. */
+    val segmentLine: String,
+    /** What such a segment is called: "Chapter", "Track" or "Part". */
+    val segmentName: String,
     val segmentStartMs: Long,
     val segmentEndMs: Long,
     val positionMs: Long,
     /** "8:20" and "−12:40". */
     val elapsedText: String,
     val remainingText: String,
-    /** "Book · 2 h 08 min of 4 h 20 min"; null when the slider already spans the book. */
-    val bookLine: String?,
-    val isPlaying: Boolean,
+    /** "Book · 2 h 08 min of 4 h 20 min". */
+    val bookLine: String,
+    val bookDurationMs: Long,
+    val showsPause: Boolean,
+    val starting: Boolean = false,
     val transportEnabled: Boolean,
+    val transportDisabledReason: String? = null,
+    /** Why the last tap on Play started nothing, below the title block. */
+    val playNotice: String? = null,
     /** Audio stopped during playback: message and Repair download below the title block. */
     val failureMessage: String? = null,
     val speed: Float,
     val sleep: SleepUi,
     /** "Chapters" or "Tracks". */
     val segmentsLabel: String,
-    val segmentsEnabled: Boolean,
-    val segmentsDisabledReason: String? = null,
     val segments: List<SegmentRow>,
     val hasPlace: Boolean,
     val finished: Boolean = false,
@@ -246,7 +262,7 @@ sealed interface DetailAction {
     data object DownloadDisabled : DetailAction
     data object Unsupported : DetailAction
     data class Transferring(val transfer: TransferUi) : DetailAction
-    data class Play(val start: StartAction, val isPlaying: Boolean) : DetailAction
+    data class Play(val start: StartAction, val showsPause: Boolean, val starting: Boolean) : DetailAction
     data object Repair : DetailAction
 }
 
@@ -259,7 +275,7 @@ data class BookDetailUiState(
     /** Message under the primary action. */
     val message: String? = null,
     val description: String?,
-    /** "Chapters", "Tracks", or null for a single undivided file. */
+    /** "Chapters", "Tracks" or "Parts"; null until the book is downloaded. */
     val segmentsTitle: String?,
     val segments: List<SegmentRow>,
     /** Chapter rows start local playback only for a downloaded book. */

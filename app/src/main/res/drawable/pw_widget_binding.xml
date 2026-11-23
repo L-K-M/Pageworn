@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The rounded cloth is the widget's outline. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape>
+            <solid android:color="@color/widget_cloth" />
+            <corners android:radius="@android:dimen/system_app_widget_background_radius" />
+        </shape>
+    </item>
+    <item>
+        <bitmap android:alpha="0.9" android:src="@drawable/pw_binding_cloth" android:tileMode="mirror" />
+    </item>
+</layer-list>

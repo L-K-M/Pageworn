@@ -46,6 +46,7 @@ class FakeCatalogSource : CatalogSource {
         authors: String? = "Author of $id",
         narrators: String? = null,
         numTracks: Int = 1,
+        addedAt: Long? = null,
     ) = CatalogEntry(
         itemId = id,
         title = title,
@@ -55,5 +56,6 @@ class FakeCatalogSource : CatalogSource {
         durationMs = 60_000L,
         sizeBytes = 1_000L,
         numTracks = numTracks,
+        addedAt = addedAt,
     )
 }

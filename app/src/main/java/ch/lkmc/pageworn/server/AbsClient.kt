@@ -252,7 +252,8 @@ class AbsClient(private val http: AddressHttp, private val json: Json = Json { i
                 CatalogEntry(item.string("id"), metadata.string("title"), metadata.optionalString("authorName"),
                     metadata.optionalString("narratorName"), item.required("updatedAt").jsonPrimitive.long,
                     media["duration"]?.jsonPrimitive?.content?.toDoubleOrNull()?.let { (it * 1000).toLong() },
-                    media["size"]?.jsonPrimitive?.content?.toLongOrNull(), tracks)
+                    media["size"]?.jsonPrimitive?.content?.toLongOrNull(), tracks,
+                    addedAt = item["addedAt"]?.jsonPrimitive?.content?.toLongOrNull())
             }, obj.required("total").jsonPrimitive.int)
         }
     }

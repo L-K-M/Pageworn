@@ -7,13 +7,13 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
+import androidx.media3.common.util.Util
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.PlayerMessage
 import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.core.Clock
 import ch.lkmc.pageworn.core.progress.ResumeRewind
 import ch.lkmc.pageworn.core.progress.StopKind
-import ch.lkmc.pageworn.core.timeline.Division
 import ch.lkmc.pageworn.data.EditionStore
 import ch.lkmc.pageworn.data.ProgressStore
 import ch.lkmc.pageworn.data.SettingsStore
@@ -68,6 +68,9 @@ class PlaybackController(
     private var lastCommittedPosition = C.TIME_UNSET
     private var wasPlaying = false
 
+    /** The save of the last pause, for as long as it is the book's latest one. */
+    private var pauseSaved: Saved? = null
+
     /** Stop kind for the pause the controller itself is about to cause (a timer). */
     private var pauseCause: StopKind? = null
 
@@ -86,7 +89,8 @@ class PlaybackController(
 
     fun release() {
         tickJob?.cancel()
-        checkpoint(StopKind.ORDINARY, listened = exo.isPlaying)
+        saveSettledPause()
+        checkpointIfPlaying()
         loaded?.let { editions.release(it.plan.generationId) }
         loaded = null
         hub.clear()
@@ -108,12 +112,15 @@ class PlaybackController(
         val outgoing = loaded
         if (outgoing != null && outgoing.key != key) {
             // Book switch: checkpoint the old book now, release its timer and reader.
-            checkpoint(StopKind.ORDINARY, listened = exo.isPlaying)
+            saveSettledPause()
+            checkpointIfPlaying()
             clearSleep()
             clippedAtMs = null
         }
         if (outgoing != null && outgoing.key == key && !failed) {
-            val start = explicitStartMs?.let { outgoing.plan.timeline.clamp(it) } ?: exo.currentPosition
+            val start = explicitStartMs?.let { outgoing.plan.timeline.clamp(it) }
+                // Asked again before the player took the book: its position is still another item's.
+                ?: if (playerHolds(outgoing)) exo.currentPosition else outgoing.saved?.positionMs ?: 0L
             if (explicitStartMs == null) startResolved = false
             else retargetSleepAfterSeek(start)
             return playableItem(outgoing.plan) to start
@@ -195,15 +202,25 @@ class PlaybackController(
         } else if (wasPlaying && exo.playbackState != Player.STATE_ENDED && exo.playerError == null) {
             val kind = pauseCause ?: StopKind.ORDINARY
             pauseCause = null
+            val before = loaded?.saved
             checkpoint(kind, listened = true)
+            pauseSaved = loaded?.saved?.takeIf { it !== before }
         }
         wasPlaying = isPlaying
         publish()
     }
 
+    override fun onEvents(player: Player, events: Player.Events) {
+        // Delivered once the session's own listener has the change, so what the UI is told never
+        // runs ahead of what controllers are told.
+        if (events.containsAny(Player.EVENT_PLAY_WHEN_READY_CHANGED, Player.EVENT_PLAYBACK_SUPPRESSION_REASON_CHANGED)) publish()
+    }
+
     override fun onPositionDiscontinuity(oldPosition: Player.PositionInfo, newPosition: Player.PositionInfo, reason: Int) {
         if (reason == Player.DISCONTINUITY_REASON_SEEK || reason == Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT) {
             // Invalidate samples from before the seek; commit the resolved position once ready there.
+            // From here the player's position is the seek's, also if that seek fails: no pause settles there.
+            pauseSaved = null
             pendingSeek = true
             pendingSeekKind = if (exo.playWhenReady) StopKind.ORDINARY else StopKind.EXACT
             played = false
@@ -231,8 +248,8 @@ class PlaybackController(
             editions.release(book.plan.generationId)
             loaded = null
             failed = false
-            publish()
         }
+        publish()
     }
 
     override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
@@ -333,6 +350,33 @@ class PlaybackController(
         save(exo.currentPosition, kind, listened = listened)
     }
 
+    /**
+     * The checkpoint when playing audio is cut off by a book switch or by the service going away. A
+     * book at rest was saved when it stopped; another write would restart its rest and replace how
+     * it stopped, and with that the resume rewind.
+     */
+    private fun checkpointIfPlaying() {
+        if (exo.isPlaying) checkpoint(StopKind.ORDINARY, listened = true)
+    }
+
+    /**
+     * The player reports where audio really stopped a moment after it reports the pause, up to
+     * about 120 ms on. Moves the pause's place there and keeps how it stopped.
+     */
+    private fun saveSettledPause() {
+        val book = loaded ?: return
+        val paused = pauseSaved ?: return
+        if (book.saved !== paused || exo.isPlaying) {
+            pauseSaved = null
+            return
+        }
+        if (pendingSeek || !playerHolds(book)) return
+        val settled = book.plan.timeline.clamp(exo.currentPosition)
+        if (settled == paused.positionMs) return
+        save(settled, paused.stopKind, listened = true)
+        pauseSaved = book.saved
+    }
+
     private fun save(positionMs: Long, kind: StopKind, finished: Boolean = false, listened: Boolean) {
         val book = loaded ?: return
         val position = book.plan.timeline.clamp(positionMs)
@@ -354,6 +398,7 @@ class PlaybackController(
                     save(position, StopKind.ORDINARY, listened = true)
                 }
             }
+            saveSettledPause()
             expireSleepIfDue()
             publish()
         }
@@ -467,7 +512,8 @@ class PlaybackController(
     private fun publish() {
         val book = loaded
         // After a failure the player may rest at a failed seek's target; the place is the saved one.
-        val position = if (book != null && playerHolds(book) && !failed) {
+        val held = book != null && playerHolds(book)
+        val position = if (book != null && held && !failed && exo.playerError == null) {
             book.plan.timeline.clamp(exo.currentPosition)
         } else book?.saved?.positionMs ?: 0L
         val remaining = when (val s = sleep) {
@@ -479,8 +525,11 @@ class PlaybackController(
             LivePlayback(
                 key = book?.key,
                 plan = book?.plan,
-                isPlaying = exo.isPlaying,
+                // While a chosen book is handed over, the audio still heard is the previous book's.
+                isPlaying = held && exo.isPlaying,
                 playWhenReady = exo.playWhenReady,
+                held = held,
+                playbackRequested = !Util.shouldShowPlayButton(exo),
                 positionMs = position,
                 speed = exo.playbackParameters.speed,
                 sleep = sleep,
@@ -505,12 +554,6 @@ class PlaybackController(
         /** A checkpoint at least every five seconds of media advancement; 4 s plus one tick at 2×. */
         const val CHECKPOINT_MEDIA_MS = 4_000L
         const val BOUNDARY_SNAP_MS = 500L
-
-        fun divisionLabel(division: Division): String = when (division) {
-            Division.CHAPTERS -> "End of chapter"
-            Division.TRACKS -> "End of track"
-            Division.WHOLE_BOOK -> "End of book"
-        }
     }
 }
 

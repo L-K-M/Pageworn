@@ -14,6 +14,8 @@ data class CatalogEntry(
     val durationMs: Long?,
     val sizeBytes: Long?,
     val numTracks: Int,
+    /** Item `addedAt` in epoch milliseconds: when the book came to the server. */
+    val addedAt: Long? = null,
 )
 
 /** One page of `GET /api/libraries/{id}/items`, or the whole library for a `limit=0` request. */

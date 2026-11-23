@@ -364,7 +364,11 @@ class VisualChecksTest {
     /** Downloaded and Library rows may have the same key. The mini player is outside the list. */
     private fun miniPlayPause() = composeRule.onNode(playbackKeyMatcher() and !hasAnyAncestor(hasScrollToIndexAction()))
 
-    private fun clickMiniPlayPause() = miniPlayPause().performClick()
+    /** Clicks are timed by the test's clock, and within a double tap's time are one tap. */
+    private fun clickMiniPlayPause() {
+        composeRule.mainClock.advanceTimeBy(NOT_A_DOUBLE_TAP_MS)
+        miniPlayPause().performClick()
+    }
 
     private fun miniKeyDescription(): String =
         miniPlayPause().fetchSemanticsNode().config.getOrElseNullable(SemanticsProperties.ContentDescription) { null }?.first().orEmpty()
@@ -453,5 +457,6 @@ class VisualChecksTest {
     private companion object {
         /** Enough Tab presses to visit every control on the Downloaded screen. */
         const val MAX_TAB_PRESSES = 40
+        const val NOT_A_DOUBLE_TAP_MS = 500L
     }
 }

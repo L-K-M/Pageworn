@@ -2,10 +2,10 @@ package ch.lkmc.pageworn.ui.components
 
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -37,14 +37,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ImageShader
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -53,10 +59,12 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import android.graphics.BitmapFactory
 import ch.lkmc.pageworn.R
 import ch.lkmc.pageworn.ui.model.Destination
+import ch.lkmc.pageworn.ui.model.KeyAction
 import ch.lkmc.pageworn.ui.model.MiniPlayerUi
 import ch.lkmc.pageworn.ui.player.MiniPlayer
 import ch.lkmc.pageworn.ui.theme.LocalHighContrast
@@ -69,9 +77,18 @@ private const val TAB_NOTCH_APEX = 239f / 300f
 
 /** Smallest size a bookmark label shrinks to so that it stays on one line. */
 private val TAB_LABEL_MIN_SIZE = 10.sp
+private val TAB_LABEL_SIZE = 16.sp
+
+/** How much of each tile shows over its flat colour. */
+private const val PAPER_DAY_ALPHA = 0.55f
+private const val PAPER_NIGHT_ALPHA = 0.45f
+private const val CLOTH_ALPHA = 0.9f
+private const val PAGE_EDGES = 5
+private const val TAB_SHADOW_ALPHA = 0.35f
+private const val UNDERLINE_DASHES = 6
 
 private fun DrawScope.tile(image: ImageBitmap, alpha: Float) {
-    drawRect(brush = ShaderBrush(ImageShader(image, TileMode.Repeated, TileMode.Repeated)), alpha = alpha)
+    drawRect(brush = ShaderBrush(ImageShader(image, TileMode.Mirror, TileMode.Mirror)), alpha = alpha)
 }
 
 @Composable
@@ -82,11 +99,11 @@ fun Modifier.paperBackground(): Modifier {
     val image = remember(context, colors.dark) {
         BitmapFactory.decodeResource(context.resources, if (colors.dark) R.drawable.pw_paper_night else R.drawable.pw_paper_day).asImageBitmap()
     }
-    return this.background(colors.paper).drawBehind { if (!highContrast) tile(image, 0.10f) }
+    return this.background(colors.paper).drawBehind { if (!highContrast) tile(image, if (colors.dark) PAPER_NIGHT_ALPHA else PAPER_DAY_ALPHA) }
 }
 
 @Composable
-fun BindingFooter(destination: Destination, onSelect: (Destination) -> Unit, modifier: Modifier = Modifier) {
+fun BindingFooter(destination: Destination, onSelect: (Destination) -> Unit, modifier: Modifier = Modifier, topPage: Color = PagewornTheme.colors.paper) {
     val colors = PagewornTheme.colors
     val type = PagewornTheme.type
     val reducedMotion = LocalReducedMotion.current
@@ -94,25 +111,29 @@ fun BindingFooter(destination: Destination, onSelect: (Destination) -> Unit, mod
     val largeType = LocalDensity.current.fontScale >= 1.5f
     // Fabric is measured at the centre, from the paper seam to the apex of the fishtail notch
     // (docs/08-assets-and-implementation.md, Navigation bookmarks); the tails hang below it.
-    val tabWidth = if (largeType) 144.dp else 112.dp
+    // At 200% text “Downloaded” needs the wide tab even at the label's smallest size.
+    val tabWidth = if (largeType) 152.dp else 112.dp
     val tabHeight = tabWidth * TAB_ASPECT
-    val exposed = if (largeType) 64.dp else 44.dp
+    val exposed = if (largeType) 56.dp else 44.dp
     val tabTop = exposed - tabHeight * TAB_NOTCH_APEX
-    val bandHeight = if (largeType) 96.dp else 72.dp
+    val bandHeight = if (largeType) 86.dp else 68.dp
     val context = LocalContext.current
     val cloth = remember(context) { BitmapFactory.decodeResource(context.resources, R.drawable.pw_binding_cloth).asImageBitmap() }
-    Column(modifier.background(colors.cloth).drawBehind { if (!highContrast) tile(cloth, 0.25f) }) {
-        Box(Modifier.fillMaxWidth().height(4.dp).shadow(2.dp).background(colors.raisedSheet)) {
-            Box(Modifier.fillMaxWidth().height(1.dp).align(Alignment.TopCenter).background(colors.secondaryInk.copy(alpha = .25f)))
-            Box(Modifier.fillMaxWidth().height(1.dp).align(Alignment.Center).background(colors.secondaryInk.copy(alpha = .16f)))
-            Box(Modifier.fillMaxWidth().height(1.dp).align(Alignment.BottomCenter).background(colors.secondaryInk.copy(alpha = .12f)))
-        }
+    Column(modifier.background(colors.cloth).drawBehind { if (!highContrast) tile(cloth, CLOTH_ALPHA) }) {
+        PageEdges(topPage)
         Row(Modifier.fillMaxWidth().height(bandHeight).clipToBounds().selectableGroup()) {
             for (item in Destination.entries) {
                 val selected = item == destination
-                val shift by animateDpAsState(if (selected) 8.dp else 0.dp, animationSpec = tween(if (reducedMotion) 0 else 140), label = "bookmark")
+                val shift by animateDpAsState(if (selected) 6.dp else 0.dp, animationSpec = tween(if (reducedMotion) 0 else 140), label = "bookmark")
                 Box(Modifier.weight(1f).height(bandHeight).selectable(selected = selected, role = Role.Tab, onClick = { onSelect(item) }), contentAlignment = Alignment.TopCenter) {
                     Box(Modifier.size(width = tabWidth, height = bandHeight), contentAlignment = Alignment.TopCenter) {
+                        if (!highContrast) Image(
+                            painterResource(R.drawable.pw_tab_oxblood),
+                            null,
+                            Modifier.offset(x = 1.dp, y = tabTop + shift + 3.dp).wrapContentHeight(Alignment.Top, unbounded = true).requiredSize(width = tabWidth, height = tabHeight),
+                            alpha = TAB_SHADOW_ALPHA,
+                            colorFilter = ColorFilter.tint(Color.Black),
+                        )
                         Image(
                             painterResource(if (item == Destination.LIBRARY) R.drawable.pw_tab_flax else R.drawable.pw_tab_oxblood),
                             null,
@@ -124,14 +145,15 @@ fun BindingFooter(destination: Destination, onSelect: (Destination) -> Unit, mod
                             // sizes shrinks rather than breaking inside the word (asset guide).
                             BasicText(
                                 if (item == Destination.LIBRARY) "Library" else "Downloaded",
-                                Modifier.background(if (highContrast) if (item == Destination.LIBRARY) Color(0xFFFAF5E9) else Color(0xFF833828) else Color.Transparent, RoundedCornerShape(2.dp)).padding(horizontal = 4.dp),
+                                Modifier.padding(horizontal = 8.dp).drawBehind { if (selected) pencilUnderline(if (item == Destination.LIBRARY) Color(0xFF30251E) else Color(0xFFF3EBD9)) }.background(if (highContrast) if (item == Destination.LIBRARY) Color(0xFFFAF5E9) else Color(0xFF833828) else Color.Transparent, RoundedCornerShape(2.dp)).padding(horizontal = 4.dp),
                                 style = type.ribbonLabel.copy(
+                                    fontSize = TAB_LABEL_SIZE,
                                     color = if (item == Destination.LIBRARY) Color(0xFF30251E) else Color(0xFFF3EBD9),
                                     fontWeight = if (selected) androidx.compose.ui.text.font.FontWeight.SemiBold else androidx.compose.ui.text.font.FontWeight.Normal,
                                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                                 ),
                                 maxLines = 1,
-                                autoSize = TextAutoSize.StepBased(minFontSize = TAB_LABEL_MIN_SIZE, maxFontSize = type.ribbonLabel.fontSize),
+                                autoSize = TextAutoSize.StepBased(minFontSize = TAB_LABEL_MIN_SIZE, maxFontSize = TAB_LABEL_SIZE),
                             )
                         }
                     }
@@ -143,29 +165,62 @@ fun BindingFooter(destination: Destination, onSelect: (Destination) -> Unit, mod
 }
 
 @Composable
-fun MainScaffold(destination: Destination, onSelectDestination: (Destination) -> Unit, miniPlayer: MiniPlayerUi?, onOpenPlayer: () -> Unit, onMiniPlayPause: () -> Unit, content: @Composable (PaddingValues) -> Unit) {
+fun MainScaffold(destination: Destination, onSelectDestination: (Destination) -> Unit, miniPlayer: MiniPlayerUi?, onOpenPlayer: () -> Unit, onMiniPlayPause: (KeyAction) -> Unit, playNotice: String? = null, onDismissPlayNotice: () -> Unit = {}, content: @Composable (PaddingValues) -> Unit) {
     val density = LocalDensity.current
     var miniHeightPx by remember { mutableIntStateOf(0) }
     Column(Modifier.fillMaxSize().paperBackground()) {
         Box(Modifier.fillMaxWidth().weight(1f).statusBarsPadding()) {
-            val bottom = if (miniPlayer == null) 0.dp else with(density) { miniHeightPx.toDp() }
+            val covered = miniPlayer != null || playNotice != null
+            val bottom = if (covered) with(density) { miniHeightPx.toDp() } else 0.dp
             content(PaddingValues(bottom = bottom))
-            if (miniPlayer != null) {
-                Box(Modifier.align(Alignment.BottomCenter).onSizeChanged { miniHeightPx = it.height }) {
-                    MiniPlayer(miniPlayer, onOpenPlayer, onMiniPlayPause)
+            if (covered) {
+                // It lies on the list: without a pointer input of its own, a touch on its margins
+                // falls through to the row beneath.
+                Column(Modifier.align(Alignment.BottomCenter).pointerInput(Unit) {}.onSizeChanged { miniHeightPx = it.height }) {
+                    playNotice?.let { PlayNotice(it, onDismissPlayNotice) }
+                    miniPlayer?.let { MiniPlayer(it, onOpenPlayer, onMiniPlayPause) }
                 }
             }
         }
-        BindingFooter(destination, onSelectDestination)
+        val covered = miniPlayer != null || playNotice != null
+        BindingFooter(destination, onSelectDestination, topPage = if (covered) PagewornTheme.colors.raisedSheet else PagewornTheme.colors.paper)
     }
 }
 
 @Composable
 fun SectionHeader(title: String, onOpenSettings: () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp, top = 12.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(title, Modifier.weight(1f).semantics { heading() }, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.heading)
         androidx.compose.material3.IconButton(onClick = onOpenSettings, modifier = Modifier.size(48.dp)) {
-            PencilIcon(R.drawable.pw_pencil_settings, "Settings")
+            PencilIcon(R.drawable.pw_pencil_settings, "Settings", 24.dp)
         }
+    }
+}
+
+/** The closed book below the page: the edges of the pages under it, with cloth at their corners. */
+@Composable
+private fun PageEdges(top: Color) {
+    val colors = PagewornTheme.colors
+    val under = lerp(colors.paper, colors.secondaryInk, if (colors.dark) 0.12f else 0.2f)
+    val line = colors.secondaryInk.copy(alpha = if (colors.dark) 0.3f else 0.45f)
+    Canvas(Modifier.fillMaxWidth().height(15.dp).clipToBounds()) {
+        val radius = CornerRadius(12.dp.toPx())
+        val stroke = Stroke(0.7.dp.toPx())
+        for (depth in PAGE_EDGES downTo 0) {
+            val bottom = (4.dp + 2.2.dp * depth).toPx().coerceAtMost(size.height)
+            val origin = Offset(0f, -radius.y * 2)
+            val page = Size(size.width, bottom + radius.y * 2)
+            drawRoundRect(if (depth == 0) top else lerp(top, under, 0.5f + 0.5f * depth / PAGE_EDGES), origin, page, radius)
+            drawRoundRect(line, origin, page, radius, style = stroke)
+        }
+    }
+}
+
+private fun DrawScope.pencilUnderline(color: Color) {
+    val y = size.height + 3.dp.toPx()
+    val dash = size.width / (UNDERLINE_DASHES * 1.4f)
+    for (i in 0 until UNDERLINE_DASHES) {
+        val start = i * size.width / UNDERLINE_DASHES
+        drawLine(color, Offset(start + dash * 0.2f, y), Offset(start + dash, y + if (i % 2 == 0) 0f else 0.4.dp.toPx()), 2.dp.toPx(), StrokeCap.Round)
     }
 }

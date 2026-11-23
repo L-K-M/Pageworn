@@ -73,19 +73,56 @@ class BookTimelineTest {
     }
 
     @Test
-    fun divisionFallsBackToTracksThenWholeBook() {
+    fun divisionFallsBackToTracksThenTenMinuteParts() {
         val multi = BookTimeline(tracks, emptyList())
         assertThat(multi.division).isEqualTo(Division.TRACKS)
         assertThat(multi.segments.map { it.startMs to it.endMs }).containsExactly(0L to 90_000L, 90_000L to 210_000L).inOrder()
         assertThat(multi.sleepBoundaryFor(89_000)).isEqualTo(90_000)
         assertThat(multi.nextSegmentStart(10_000)).isEqualTo(90_000)
 
-        val single = BookTimeline(BookTimeline.contiguousTracks(listOf(150_000L)), emptyList())
-        assertThat(single.division).isEqualTo(Division.WHOLE_BOOK)
-        assertThat(single.segments).hasSize(1)
-        assertThat(single.sleepBoundaryFor(10_000)).isEqualTo(150_000)
-        assertThat(single.nextSegmentStart(10_000)).isNull()
+        val short = singleFile(150_000)
+        assertThat(short.division).isEqualTo(Division.PARTS)
+        assertThat(short.segments.map { it.startMs to it.endMs }).containsExactly(0L to 150_000L)
+        assertThat(short.sleepBoundaryFor(10_000)).isEqualTo(150_000)
+        assertThat(short.nextSegmentStart(10_000)).isNull()
     }
+
+    @Test
+    fun a24ASingleFileWithoutChaptersIsPartsOfTenMinutes() {
+        val book = singleFile(25 * MINUTE)
+        assertThat(book.segments.map { it.startMs to it.endMs })
+            .containsExactly(0L to 10 * MINUTE, 10 * MINUTE to 20 * MINUTE, 20 * MINUTE to 25 * MINUTE).inOrder()
+        assertThat(book.segments.all { it.generated && it.title == null }).isTrue()
+        // The boundary belongs to the part after it, as with chapters.
+        assertThat(book.segmentIndexAt(10 * MINUTE - 1)).isEqualTo(0)
+        assertThat(book.segmentIndexAt(10 * MINUTE)).isEqualTo(1)
+        assertThat(book.segmentIndexAt(25 * MINUTE)).isEqualTo(2)
+        assertThat(book.sleepBoundaryFor(12 * MINUTE)).isEqualTo(20 * MINUTE)
+        assertThat(book.sleepBoundaryFor(22 * MINUTE)).isEqualTo(25 * MINUTE)
+        assertThat(book.nextSegmentStart(12 * MINUTE)).isEqualTo(20 * MINUTE)
+        assertThat(book.previousSegmentTarget(10 * MINUTE + 2_000)).isEqualTo(0)
+    }
+
+    @Test
+    fun a24TheLastPartIsTheRemainderUnlessThatIsNoise() {
+        assertThat(singleFile(20 * MINUTE).segments.map { it.endMs }).containsExactly(10 * MINUTE, 20 * MINUTE).inOrder()
+        assertThat(singleFile(20 * MINUTE + 999).segments.map { it.endMs }).containsExactly(10 * MINUTE, 20 * MINUTE + 999).inOrder()
+        assertThat(singleFile(20 * MINUTE + 1_000).segments.map { it.endMs }).containsExactly(10 * MINUTE, 20 * MINUTE, 20 * MINUTE + 1_000).inOrder()
+        assertThat(singleFile(500).segments.map { it.endMs }).containsExactly(500L)
+        assertThat(singleFile(260 * MINUTE).segments).hasSize(26)
+    }
+
+    @Test
+    fun a24OneChapterAroundTheWholeBookIsNoChapters() {
+        val whole = { durationMs: Long -> listOf(ChapterSpan(0, durationMs, "The whole book", ChapterOrigin.SERVER)) }
+        val file = BookTimeline(BookTimeline.contiguousTracks(listOf(25 * MINUTE)), whole(25 * MINUTE))
+        assertThat(file.segments).hasSize(3)
+        val files = BookTimeline(tracks, whole(210_000))
+        assertThat(files.division).isEqualTo(Division.TRACKS)
+        assertThat(files.segments).hasSize(2)
+    }
+
+    private fun singleFile(durationMs: Long) = BookTimeline(BookTimeline.contiguousTracks(listOf(durationMs)), emptyList())
 
     @Test
     fun secondsConvertOnceRoundingToNearestMillisecond() {
@@ -98,5 +135,9 @@ class BookTimelineTest {
     @Test(expected = IllegalArgumentException::class)
     fun nonContiguousTracksAreRejected() {
         BookTimeline(listOf(TrackSpan(0, 0, 90_000), TrackSpan(1, 91_000, 10_000)), emptyList())
+    }
+
+    private companion object {
+        const val MINUTE = 60_000L
     }
 }

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The pages under the paper: each starts above the view, so only its foot shows. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:bottom="0dp" android:top="-24dp">
+        <shape>
+            <solid android:color="@color/widget_page_under" />
+            <stroke android:width="0.7dp" android:color="@color/widget_page_line" />
+            <corners android:radius="9dp" />
+        </shape>
+    </item>
+    <item android:bottom="2.5dp" android:top="-24dp">
+        <shape>
+            <solid android:color="@color/widget_page_middle" />
+            <stroke android:width="0.7dp" android:color="@color/widget_page_line" />
+            <corners android:radius="9dp" />
+        </shape>
+    </item>
+    <item android:bottom="5dp" android:top="-24dp">
+        <shape>
+            <solid android:color="@color/widget_paper" />
+            <stroke android:width="0.7dp" android:color="@color/widget_page_line" />
+            <corners android:radius="9dp" />
+        </shape>
+    </item>
+</layer-list>

@@ -14,8 +14,10 @@ import androidx.media3.extractor.SeekMap
 import androidx.media3.extractor.SeekPoint
 import androidx.media3.extractor.TrackOutput
 import androidx.media3.extractor.mp3.Mp3Extractor
+import java.io.EOFException
 import java.io.File
 import java.io.RandomAccessFile
+import java.util.Collections
 
 /**
  * Exact seeking for local MP3 files.
@@ -69,12 +71,30 @@ class Mp3FrameIndex private constructor(
     }
 
     companion object {
+        /** Enough for the tracks on both sides of the place in the current book and the one before. */
+        private const val CACHED_INDEXES = 4
+
+        private data class Stamp(val path: String, val length: Long, val modifiedAt: Long)
+
+        private val cache: MutableMap<Stamp, Mp3FrameIndex> = Collections.synchronizedMap(
+            object : LinkedHashMap<Stamp, Mp3FrameIndex>(CACHED_INDEXES, 0.75f, true) {
+                override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Stamp, Mp3FrameIndex>) = size > CACHED_INDEXES
+            },
+        )
+
+        /** [scan], once per unchanged file: a book opened again starts without another scan. */
+        fun of(file: File): Mp3FrameIndex? {
+            val stamp = Stamp(file.path, file.length(), file.lastModified())
+            return cache[stamp] ?: scan(file)?.also { cache[stamp] = it }
+        }
+
         /** Scans [file]; returns null when it does not look like a plain MPEG audio stream. */
         fun scan(file: File): Mp3FrameIndex? = runCatching { scanOrThrow(file) }.getOrNull()
 
         private fun scanOrThrow(file: File): Mp3FrameIndex? {
-            RandomAccessFile(file, "r").use { raf ->
-                val length = raf.length()
+            RandomAccessFile(file, "r").use { raw ->
+                val raf = WindowedFile(raw)
+                val length = raw.length()
                 var pos = 0L
                 val head = ByteArray(10)
                 // Skip ID3v2 tags (there may be several).
@@ -102,8 +122,8 @@ class Mp3FrameIndex private constructor(
                     scanFrom++
                 }
                 if (first < 0) return null
-                val positions = ArrayList<Long>(1 shl 14)
-                val times = ArrayList<Long>(1 shl 14)
+                val positions = LongList()
+                val times = LongList()
                 val parsed = MpegAudioUtil.Header()
                 var samples = 0L
                 var sampleRate = 0
@@ -122,14 +142,14 @@ class Mp3FrameIndex private constructor(
                     if (frameSize <= 0 || p + frameSize > length + 1) break
                     val isInfoFrame = index == 0 && hasInfoTag(frameHead, n, parsed)
                     if (!isInfoFrame) {
-                        positions += p
-                        times += samples * 1_000_000L / sampleRate
+                        positions.add(p)
+                        times.add(samples * 1_000_000L / sampleRate)
                         samples += parsed.samplesPerFrame
                     }
                     p += frameSize
                     index++
                 }
-                if (positions.isEmpty() || sampleRate == 0) return null
+                if (positions.size == 0 || sampleRate == 0) return null
                 return Mp3FrameIndex(positions.toLongArray(), times.toLongArray(), samples * 1_000_000L / sampleRate)
             }
         }
@@ -150,9 +170,61 @@ class Mp3FrameIndex private constructor(
     }
 }
 
+/**
+ * Forward reads through one window. A ten-hour book has about 1.4 million frames: a seek and a read
+ * per frame took seconds, during which Play had nothing to play.
+ */
+private class WindowedFile(private val file: RandomAccessFile) {
+    private val window = ByteArray(WINDOW_BYTES)
+    private var windowStart = 0L
+    private var windowLength = 0
+    private val fileLength = file.length()
+    private var at = 0L
+
+    fun seek(position: Long) {
+        at = position
+    }
+
+    fun read(target: ByteArray, offset: Int, count: Int): Int {
+        val wanted = minOf(count.toLong(), fileLength - at).toInt()
+        if (wanted <= 0) return -1
+        if (at < windowStart || at + wanted > windowStart + windowLength) {
+            windowStart = at
+            windowLength = minOf(window.size.toLong(), fileLength - at).toInt()
+            file.seek(at)
+            file.readFully(window, 0, windowLength)
+        }
+        window.copyInto(target, offset, (at - windowStart).toInt(), (at - windowStart).toInt() + wanted)
+        at += wanted
+        return wanted
+    }
+
+    fun readFully(target: ByteArray) {
+        if (read(target, 0, target.size) != target.size) throw EOFException()
+    }
+
+    private companion object {
+        const val WINDOW_BYTES = 256 * 1024
+    }
+}
+
+/** Longs without a box each. */
+private class LongList {
+    private var values = LongArray(1 shl 14)
+    var size = 0
+        private set
+
+    fun add(value: Long) {
+        if (size == values.size) values = values.copyOf(size * 2)
+        values[size++] = value
+    }
+
+    fun toLongArray(): LongArray = values.copyOf(size)
+}
+
 /** Wraps [delegate] with the exact frame index of [file]. */
 class ExactSeekMp3Extractor(private val delegate: Extractor, private val file: File) : Extractor {
-    private val index: Mp3FrameIndex? by lazy { Mp3FrameIndex.scan(file) }
+    private val index: Mp3FrameIndex? by lazy { Mp3FrameIndex.of(file) }
 
     /** Time of the frame the extractor will read next after a seek, by the exact index. */
     private var pendingTrueTimeUs: Long? = 0L

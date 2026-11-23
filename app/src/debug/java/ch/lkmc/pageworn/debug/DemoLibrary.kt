@@ -22,6 +22,7 @@ import java.util.UUID
  * Nothing here talks to a server; the catalog is the synthetic one a refresh would publish.
  */
 object DemoLibrary {
+    private const val DAY_MS = 86_400_000L
     const val PROFILE = "00000000-0000-4000-8000-0000000000aa"
     const val LIBRARY = "demo-audiobooks"
     private const val REFRESH = "demo-refresh"
@@ -48,6 +49,9 @@ object DemoLibrary {
         Book(smallHours, "Small Hours", "Kit Mercer", 150_000, 1_800_901),
     )
 
+    /** Newest first, which is the gallery's order. */
+    private val addedOrder get() = listOf(nightOrchard, glassCoast, fieldNotes, smallHours, boundaryBook)
+
     suspend fun seed(context: Context, container: AppContainer, fixtures: FixtureSource, now: Long = System.currentTimeMillis()) {
         val db = container.database
         db.profiles().upsert(
@@ -57,7 +61,7 @@ object DemoLibrary {
         db.catalog().clearLibrary(PROFILE, LIBRARY)
         db.catalog().insertAll(
             catalog.sortedBy { it.title }.mapIndexed { i, b ->
-                CatalogBookEntity(PROFILE, LIBRARY, b.key.itemId, b.title, b.authors, null, i, now, b.durationMs, b.sizeBytes, REFRESH)
+                CatalogBookEntity(PROFILE, LIBRARY, b.key.itemId, b.title, b.authors, null, i, now, b.durationMs, b.sizeBytes, REFRESH, addedAt = now - addedOrder.indexOf(b.key) * DAY_MS)
             },
         )
 

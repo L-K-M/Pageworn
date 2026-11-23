@@ -7,6 +7,7 @@ import ch.lkmc.pageworn.AppContainer
 import ch.lkmc.pageworn.BuildConfig
 import ch.lkmc.pageworn.account.AddressProblem
 import ch.lkmc.pageworn.account.Outcome
+import ch.lkmc.pageworn.data.db.AddressEntity
 import ch.lkmc.pageworn.data.db.CertificateState
 import ch.lkmc.pageworn.data.db.SessionState
 import ch.lkmc.pageworn.server.BaseUrl
@@ -59,7 +60,7 @@ class AddressesViewModel(private val container: AppContainer) : ViewModel() {
         if (profile == null) flowOf(emptyList()) else container.database.addresses().observe(profile.profileId)
     }
     val state = combine(addresses, testResults, route) { rows, results, pinned ->
-        val activeId = rows.filter { it.enabled }.maxByOrNull { it.lastSuccessAt ?: Long.MIN_VALUE }?.takeIf { it.lastSuccessAt != null }?.addressId
+        val activeId = addressInUse(rows, pinned)
         AddressesUiState(rows.map { address ->
             val certificateMessage = when (address.certificateState) {
                 CertificateState.OK -> null
@@ -113,3 +114,9 @@ class AddressesViewModel(private val container: AppContainer) : ViewModel() {
     }
     private fun launch(block: suspend () -> Unit) { container.appScope.launch { block() } }
 }
+
+/** The last address that answered, among those the route may take: a pin leaves only that one. */
+internal fun addressInUse(addresses: List<AddressEntity>, pinnedId: String?): String? =
+    addresses.filter { it.enabled && it.lastSuccessAt != null && (pinnedId == null || it.addressId == pinnedId) }
+        .maxByOrNull { checkNotNull(it.lastSuccessAt) }
+        ?.addressId
