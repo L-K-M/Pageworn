@@ -227,6 +227,18 @@ class TransferCoordinator(
         wake.trySend(Unit)
     }
 
+    /**
+     * Remove download. [EditionStore.remove] cancels the book's unpublished transfer in the commit
+     * that marks the removal; then its copy stops and its staged files are deleted, as Cancel does,
+     * so a repair or replacement of a removed book neither keeps downloading nor holds the queue.
+     */
+    suspend fun remove(key: BookKey) {
+        val cancelled = editions.remove(key) ?: return
+        stopRun(cancelled.jobId)
+        reclaim(cancelled)
+        wake.trySend(Unit)
+    }
+
     /** Called when the app comes to the foreground: platform work can be scheduled only then. */
     suspend fun onForeground() {
         ensureRecovered()
