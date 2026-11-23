@@ -9,7 +9,6 @@ import ch.lkmc.pageworn.PhoneBooks
 import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.playback.LivePlayback
 import ch.lkmc.pageworn.ui.model.PlayerUiState
-import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
@@ -38,7 +37,7 @@ class RestingSpeedTest {
 
     @After
     fun tearDown() {
-        player.viewModelScope.cancel()
+        if (::player.isInitialized) player.viewModelScope.cancel()
     }
 
     @Test
@@ -47,7 +46,7 @@ class RestingSpeedTest {
         // No playback service runs, so the hub holds its empty state at 1×.
         player = PlayerViewModel(container)
 
-        assertThat(await("the resting book") { it.face.key == key }.speed).isEqualTo(1.5f)
+        await("the resting book at the stored speed") { it.face.key == key && it.speed == 1.5f }
 
         container.settings.setSpeed(1.25f)
         await("the newly chosen speed") { it.speed == 1.25f }
