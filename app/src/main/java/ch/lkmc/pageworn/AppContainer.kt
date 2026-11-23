@@ -14,6 +14,7 @@ import ch.lkmc.pageworn.account.AccountService
 import ch.lkmc.pageworn.account.AccountTransferRoutes
 import ch.lkmc.pageworn.account.Routed
 import ch.lkmc.pageworn.account.ServerAccess
+import ch.lkmc.pageworn.catalog.BookPreviews
 import ch.lkmc.pageworn.catalog.CatalogRefresher
 import ch.lkmc.pageworn.catalog.RemoteCovers
 import ch.lkmc.pageworn.core.BookKey
@@ -150,6 +151,9 @@ class AppContainer(private val app: PagewornApp) {
             (serverAccess.route { it.client.coverThumbnail(itemId, widthPx, updatedAt) } as? Routed.Done)?.value
         }, nowMs = { liveClock.wallMillis() })
     }
+
+    /** Descriptions, chapters and format checks for books that are not on the phone yet. */
+    val previews: BookPreviews by lazy { BookPreviews(AccountTransferRoutes(database, serverAccess)::manifest, FormatSupport()) }
 
     /** Downloads: the durable queue, hosted by the platform service for this Android version. */
     val transfers: TransferCoordinator by lazy {

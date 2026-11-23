@@ -3,6 +3,7 @@ package ch.lkmc.pageworn.ui.state
 import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.core.sleep.SleepLength
 import ch.lkmc.pageworn.data.SleepSettings
+import ch.lkmc.pageworn.core.timeline.BookTimeline
 import ch.lkmc.pageworn.core.timeline.Division
 import ch.lkmc.pageworn.core.timeline.Segment
 import ch.lkmc.pageworn.data.db.BookProgressEntity
@@ -49,10 +50,12 @@ object PlayerStates {
     fun segmentTitle(division: Division, segment: Segment): String =
         segment.title?.takeIf { it.isNotBlank() } ?: "${segmentName(division)} ${segment.index + 1}"
 
-    fun segments(plan: EditionPlan, positionMs: Long?): List<SegmentRow> {
-        val current = positionMs?.let { plan.timeline.segmentIndexAt(it) }
-        return plan.timeline.segments.mapIndexed { i, s ->
-            SegmentRow(i, segmentTitle(plan.timeline.division, s), Format.clock(s.durationMs), s.generated, current == i, s.startMs)
+    fun segments(plan: EditionPlan, positionMs: Long?): List<SegmentRow> = segments(plan.timeline, positionMs)
+
+    fun segments(timeline: BookTimeline, positionMs: Long?): List<SegmentRow> {
+        val current = positionMs?.let { timeline.segmentIndexAt(it) }
+        return timeline.segments.mapIndexed { i, s ->
+            SegmentRow(i, segmentTitle(timeline.division, s), Format.clock(s.durationMs), s.generated, current == i, s.startMs)
         }
     }
 

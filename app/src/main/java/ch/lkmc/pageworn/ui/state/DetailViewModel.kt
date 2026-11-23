@@ -3,7 +3,9 @@ package ch.lkmc.pageworn.ui.state
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ch.lkmc.pageworn.AppContainer
+import ch.lkmc.pageworn.catalog.BookPreview
 import ch.lkmc.pageworn.core.BookKey
+import ch.lkmc.pageworn.core.timeline.Division
 import ch.lkmc.pageworn.data.db.BookProgressEntity
 import ch.lkmc.pageworn.data.db.CatalogBookEntity
 import ch.lkmc.pageworn.data.db.EditionState
@@ -19,9 +21,11 @@ import ch.lkmc.pageworn.ui.model.CoverImage
 import ch.lkmc.pageworn.ui.model.DetailAction
 import ch.lkmc.pageworn.ui.model.Format
 import ch.lkmc.pageworn.ui.model.StartAction
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -50,8 +54,22 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
 
     private val actions = TransferActions(container)
 
-    val state: StateFlow<BookDetailUiState?> = combine(inputs, container.playbackHub.state, actions.refusal) { i, live, refusal ->
-        build(i, i.edition?.let { plans.plan(it) }, live)?.let { built -> refusal?.let { built.copy(message = it.text) } ?: built }
+    /** The server's description, chapters and format check for a book that is not on the phone. */
+    private val preview = MutableStateFlow<BookPreview?>(null)
+
+    init {
+        viewModelScope.launch {
+            // A downloaded edition carries its own description and chapters, so only a book
+            // known from the catalog alone asks the server, once, while the page shows what it has.
+            val first = inputs.first { it.book != null || it.edition != null }
+            val book = first.book?.takeIf { first.edition == null } ?: return@launch
+            if (first.profile?.profileId != key.profileId) return@launch
+            preview.value = container.previews.preview(key, book.updatedAt)
+        }
+    }
+
+    val state: StateFlow<BookDetailUiState?> = combine(inputs, container.playbackHub.state, actions.refusal, preview) { i, live, refusal, preview ->
+        build(i, i.edition?.let { plans.plan(it) }, live, preview)?.let { built -> refusal?.let { built.copy(message = it.text) } ?: built }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /** Download, or Repair download: stages a fresh generation and keeps the saved place. */
@@ -69,7 +87,7 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
         }
     }
 
-    private fun build(i: Inputs, plan: EditionPlan?, live: LivePlayback): BookDetailUiState? {
+    private fun build(i: Inputs, plan: EditionPlan?, live: LivePlayback, preview: BookPreview?): BookDetailUiState? {
         val edition = i.edition
         val book = i.book
         if (edition == null && book == null) return null
@@ -89,6 +107,7 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
             edition?.state == EditionState.REPAIR_NEEDED -> DetailAction.Repair
             edition != null -> DetailAction.Play(StartAction.of(hasPlace, finished = i.progress?.finished == true), live.showsPause(key), live.waitsForAudio(key))
             i.profile?.canDownload == false -> DetailAction.DownloadDisabled
+            preview?.unsupported == true -> DetailAction.Unsupported
             else -> DetailAction.Download
         }
         val message = when (action) {
@@ -99,6 +118,9 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
             else -> null
         }
         val position = if (isLive) live.positionMs else i.progress?.positionMs
+        // Before a download, the server's chapters show what the book holds; its generated
+        // ten-minute parts would say nothing about it.
+        val previewTimeline = preview?.timeline?.takeIf { edition == null && it.division != Division.PARTS }
         return BookDetailUiState(
             face = BookFace(key, title, authors, cover),
             narrator = edition?.narrators ?: book?.narrators,
@@ -106,9 +128,9 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
             sizeText = sizeBytes?.let { Format.bytes(it) },
             action = action,
             message = message,
-            description = edition?.description,
-            segmentsTitle = plan?.let { PlayerStates.segmentsLabel(it.timeline.division) },
-            segments = plan?.let { PlayerStates.segments(it, position) } ?: emptyList(),
+            description = edition?.description ?: preview?.description,
+            segmentsTitle = plan?.let { PlayerStates.segmentsLabel(it.timeline.division) } ?: previewTimeline?.let { PlayerStates.segmentsLabel(it.division) },
+            segments = plan?.let { PlayerStates.segments(it, position) } ?: previewTimeline?.let { PlayerStates.segments(it, positionMs = null) } ?: emptyList(),
             segmentsPlayable = edition != null && edition.state == EditionState.READY,
             canRemove = edition != null,
         )
