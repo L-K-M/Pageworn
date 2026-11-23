@@ -33,7 +33,7 @@ class PlayerStatesSleepTest {
     fun aRemovedPresetThatIsStillRunningKeepsItsRow() {
         val live = LivePlayback(key = book, sleep = SleepState.Timed(20, 0), sleepRemainingMs = 60_000)
 
-        val ui = PlayerStates.sleep(live, Division.CHAPTERS, SleepSettings(enabled = true, length = SleepLength.Minutes(30)), book)
+        val ui = PlayerStates.sleep(live, Division.CHAPTERS, SleepSettings(enabled = true, presets = listOf(15, 30, 45), length = SleepLength.Minutes(30)), book)
 
         assertThat(ui.selected).isEqualTo(SleepLength.Minutes(20))
         assertThat(ui.options.count { it.length == SleepLength.Minutes(20) }).isEqualTo(1)
@@ -85,6 +85,19 @@ class PlayerStatesSleepTest {
 
         assertThat(ui.selected).isEqualTo(SleepLength.Minutes(20))
         assertThat(ui.options.any { it.length == SleepLength.Minutes(20) }).isTrue()
+    }
+
+    @Test
+    fun unsortedStoredPresetsStillRenderAscending() {
+        val live = LivePlayback(key = book, sleep = SleepState.Timed(20, 0), sleepRemainingMs = 60_000)
+        val mode = SleepSettings(enabled = true, presets = listOf(30, 5), length = SleepLength.Minutes(20))
+
+        val ui = PlayerStates.sleep(live, Division.CHAPTERS, mode, book)
+
+        assertThat(ui.options.map { it.length }).containsExactly(
+            null, SleepLength.Minutes(5), SleepLength.Minutes(20), SleepLength.Minutes(30),
+            SleepLength.EndOfSegment,
+        ).inOrder()
     }
 
     @Test

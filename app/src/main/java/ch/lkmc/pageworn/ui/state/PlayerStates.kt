@@ -72,9 +72,9 @@ object PlayerStates {
         val selected = running ?: mode.length.takeIf { mode.enabled }
         val options = buildList {
             add(SleepOption(null, "Off"))
-            mode.presets.forEach { add(SleepOption(SleepLength.Minutes(it), Format.minutes(it))) }
+            mode.presets.sorted().forEach { add(SleepOption(SleepLength.Minutes(it), Format.minutes(it))) }
             if (selected is SleepLength.Minutes && none { it.length == selected }) {
-                // Presets are ascending; keep the synthesized length among them in order.
+                // Keep the synthesized length among the rendered presets in order.
                 add(mode.presets.count { it <= selected.minutes } + 1, SleepOption(selected, Format.minutes(selected.minutes)))
             }
             add(SleepOption(SleepLength.EndOfSegment, endLabel))
