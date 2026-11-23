@@ -16,6 +16,7 @@ import androidx.compose.ui.test.DeviceConfigurationOverride
 import androidx.compose.ui.test.FontScale
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasStateDescription
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
@@ -96,8 +97,10 @@ class ScreenSemanticsTest {
         // The action view shows the progress ring, not the state word, so each row owns its label.
         compose.onAllNodesWithText("Waiting for connection").assertCountEquals(1)
         compose.onNodeWithText("Waiting for connection").assertIsDisplayed()
+        compose.onNode(hasStateDescription("Waiting for connection, 5%")).assertExists()
         compose.onAllNodesWithText("Paused").assertCountEquals(1)
         compose.onNodeWithText("Paused").assertIsDisplayed()
+        compose.onNode(hasStateDescription("Paused, 5%")).assertExists()
     }
 
     private fun transferState(): LibraryUiState {
