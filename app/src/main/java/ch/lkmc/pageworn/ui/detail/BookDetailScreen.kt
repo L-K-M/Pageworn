@@ -18,7 +18,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -47,7 +49,7 @@ internal fun showsPlaceRibbon(action: DetailAction): Boolean =
     (action as? DetailAction.Play)?.start == StartAction.RESUME
 
 @Composable
-fun BookDetailScreen(state: BookDetailUiState, onBack: () -> Unit, onDownload: () -> Unit, onRetry: () -> Unit, onPlayPause: (KeyAction) -> Unit, onRepair: () -> Unit, onPauseTransfer: (String) -> Unit, onResumeTransfer: (String) -> Unit, onCancelTransfer: (String) -> Unit, onSelectSegment: (Long) -> Unit, onRemove: () -> Unit) {
+fun BookDetailScreen(state: BookDetailUiState, onBack: () -> Unit, onDownload: () -> Unit, onRetry: () -> Unit, onPlayPause: (KeyAction) -> Unit, onRepair: () -> Unit, onPauseTransfer: (String) -> Unit, onResumeTransfer: (String) -> Unit, onCancelTransfer: (String) -> Unit, onSelectSegment: (Long) -> Unit, onRemove: () -> Unit, onDismissPlayNotice: () -> Unit) {
     Column(Modifier.fillMaxSize().paperBackground().statusBarsPadding().navigationBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Row(Modifier.fillMaxWidth()) { BackAction(onBack) }
         BookCover(state.face, 168.dp, showRibbon = showsPlaceRibbon(state.action))
@@ -81,7 +83,13 @@ fun BookDetailScreen(state: BookDetailUiState, onBack: () -> Unit, onDownload: (
                 DetailAction.Unsupported -> Copy.UNSUPPORTED_FORMAT
                 else -> null
             }
-            message?.let { Text(it, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status) }
+            val notice = state.playNotice
+            if (notice != null) {
+                Text(notice, Modifier.semantics { liveRegion = LiveRegionMode.Polite }, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status)
+                TextAction(Copy.DISMISS, onClick = onDismissPlayNotice)
+            } else {
+                message?.let { Text(it, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status) }
+            }
         }
         state.description?.let { Text(it, Modifier.fillMaxWidth().padding(vertical = 12.dp), color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.empty) }
         state.segmentsTitle?.let { title ->

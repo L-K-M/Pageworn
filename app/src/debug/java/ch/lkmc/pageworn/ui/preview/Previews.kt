@@ -96,7 +96,7 @@ private val player = PlayerUiState(
 @Composable
 private fun PlayerExample(state: PlayerUiState, showSleepSheet: Boolean = false) {
     DemoArt { CompositionLocalProvider(LocalPreviewSleepSheet provides showSleepSheet) {
-        PlayerScreen(state = state, onCollapse = {}, onPlayPause = {}, onSkipBack = {}, onSkipForward = {}, onSeekTo = {}, onSelectSpeed = {}, onSelectSegment = {}, onSelectSleep = {}, onRepair = {}, onUsePreviousPosition = {}, onStartOver = {})
+        PlayerScreen(state = state, onCollapse = {}, onPlayPause = {}, onSkipBack = {}, onSkipForward = {}, onSeekTo = {}, onSelectSpeed = {}, onSelectSegment = {}, onSelectSleep = {}, onRepair = {}, onUsePreviousPosition = {}, onStartOver = {}, onDismissPlayNotice = {})
     } }
 }
 

@@ -77,7 +77,7 @@ val LocalPreviewSleepSheet = staticCompositionLocalOf { false }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PlayerScreen(state: PlayerUiState, onCollapse: () -> Unit, onPlayPause: (KeyAction) -> Unit, onSkipBack: () -> Unit, onSkipForward: () -> Unit, onSeekTo: (Long) -> Unit, onSelectSpeed: (Float) -> Unit, onSelectSegment: (Long) -> Unit, onSelectSleep: (SleepLength?) -> Unit, onRepair: () -> Unit, onUsePreviousPosition: () -> Unit, onStartOver: () -> Unit) {
+fun PlayerScreen(state: PlayerUiState, onCollapse: () -> Unit, onPlayPause: (KeyAction) -> Unit, onSkipBack: () -> Unit, onSkipForward: () -> Unit, onSeekTo: (Long) -> Unit, onSelectSpeed: (Float) -> Unit, onSelectSegment: (Long) -> Unit, onSelectSleep: (SleepLength?) -> Unit, onRepair: () -> Unit, onUsePreviousPosition: () -> Unit, onStartOver: () -> Unit, onDismissPlayNotice: () -> Unit) {
     val previewSleep = LocalPreviewSleepSheet.current
     var sheet by rememberSaveable(state.face.key.mediaId) { mutableStateOf<PlayerSheet?>(if (previewSleep) PlayerSheet.SLEEP else null) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -100,6 +100,8 @@ fun PlayerScreen(state: PlayerUiState, onCollapse: () -> Unit, onPlayPause: (Key
             }
             state.playNotice?.let {
                 Text(it, Modifier.padding(top = 8.dp).semantics { liveRegion = LiveRegionMode.Polite }, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status)
+                // The Play key is the copy table's "Play again"; Dismiss is the other way out.
+                TextAction(Copy.DISMISS, onClick = onDismissPlayNotice)
             }
             state.continuityChoice?.let {
                 Text("Previous position: ${it.previousPositionText} · New duration: ${it.newDurationText}", Modifier.padding(top = 8.dp), color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status)

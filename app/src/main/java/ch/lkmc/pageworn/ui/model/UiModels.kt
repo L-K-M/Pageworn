@@ -280,6 +280,8 @@ data class BookDetailUiState(
     val action: DetailAction,
     /** Message under the primary action. */
     val message: String? = null,
+    /** Why the last tap on Play started nothing; shown instead of [message], with Dismiss. */
+    val playNotice: String? = null,
     val description: String?,
     /** "Chapters", "Tracks" or "Parts"; null until the book is downloaded. */
     val segmentsTitle: String?,
