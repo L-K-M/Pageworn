@@ -96,8 +96,11 @@ fun LibraryScreen(state: LibraryUiState, listState: LazyListState, onQueryChange
         state.status?.let { line -> item(key = "status") { StatusLineView(line, onAction) } }
         if (state.empty != null) item(key = "empty") { EmptyStateView(state.empty, onAction) }
         else items(state.rows.size, key = { state.rows[it].face.key.mediaId }) { index ->
-            CatalogBookRow(state.rows[index], onOpenBook, onDownload, onPlayPause, onPauseTransfer, onResumeTransfer, onCancelTransfer)
-            if (index != state.rows.lastIndex) HorizontalDivider(Modifier.padding(horizontal = 20.dp), color = PagewornTheme.colors.secondaryInk.copy(alpha = .25f))
+            // A book that appears or moves settles into place instead of jumping.
+            Column(Modifier.animateItem()) {
+                CatalogBookRow(state.rows[index], onOpenBook, onDownload, onPlayPause, onPauseTransfer, onResumeTransfer, onCancelTransfer)
+                if (index != state.rows.lastIndex) HorizontalDivider(Modifier.padding(horizontal = 20.dp), color = PagewornTheme.colors.secondaryInk.copy(alpha = .25f))
+            }
         }
     }
 }

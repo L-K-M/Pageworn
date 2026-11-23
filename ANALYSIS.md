@@ -2,35 +2,41 @@
 
 These tasks build on the offline-first player, its paper surfaces, Spectral titles and oxblood place ribbon. The November 2026 review used the implementation at `9e4be6d`, later main revisions, the gallery images and a synthetic library on an API 37 emulator. Each task includes a way to decide whether the change helps.
 
-## Implemented in open pull requests
+## Implemented
+
+Each entry names the pull request that carried it. Entries were recorded while their PR was
+open; check its state before relying on one. Anything not listed here is still open.
+
+### Merged into main
+
+- **Verify formats with the manifest codec.** PR #39 threads the Audiobookshelf codec into the post-download verifier, so MP3 frames inside a CAF container reach the probe instead of being refused after the bytes were fetched. The probe's own codec is re-checked against the matrix and becomes the published fact. A `TrackProbe` test double covers the gate on the JVM.
+- **Keep a published cover on a transferring row.** PR #46 prefers the edition's stored cover during a repair or replacement, falling back to the server thumbnail only when no local file exists.
+- **Select the sleep length that is actually running.** PR #53 selects a carried-over timer, or a running length whose preset was removed, and lists that length while it runs so exactly one radio carries the countdown.
+- **Settle Library search before querying.** PR #58 debounces non-empty queries by 200 ms while keeping the field immediate, so a large catalog is not re-searched and re-sorted once per character.
+- **Refresh the catalog after signing in again.** PR #37 makes `SIGN_IN` refresh libraries and the catalog like the other reconnect modes, so a cached Library cannot stay stale behind a restored session.
+- **Mark a saved place on the details cover.** PR #38 shows the ribbon for Resume and leaves fresh and finished books unmarked; its companion PR #29 is still open.
+- **Draw focus rings outside keys and paper rows.** PR #57. The key ring surrounds the face, and text actions and disclosure rows gain the same pencil outline as the other controls.
+- **Treat an unreadable library list as a sign-in failure.** PR #56. A failed `/api/libraries` read revokes the fresh session and reports the address problem instead of storing an empty profile or claiming a different server; its companion PR #41 is still open.
+- **Load progress once for the car's book list.** PR #50 replaces the per-edition `book_progress` query in `readyBooks()` with one `ProgressDao.all()`.
+- **Say that a removal keeps the place.** PR #60. The long-unused `AUDIO_REMOVED` copy now appears under the detail action until a download starts or an edition returns.
+- **Bound the plan cache.** PR #45 turns `PlanCache` into an access-ordered LRU of 16 generations instead of an unbounded map.
+- **Coarsen Downloaded's live position.** PR #42 floors a playing row's place to the minute and skips unchanged live states, replacing the four-per-second rebuild of every row. A second approach in PR #43 was closed as a duplicate once #42 merged.
+- PR #48 overlaps PR #35 (transfer state text); keep one when they merge.
+
+### Open pull requests
 
 - **Keep chapter work off the playback tick.** PR #34. `PlayerStates.player` now carries the timeline's own segment list and current index instead of formatting every chapter row four times a second; the lazy sheet formats only visible rows. The regression test asserts two live states share one list while the index advances.
 - **Name the state of every library transfer.** PR #35. Library rows pair the progress icon with the state word at every text size, not only from 150 percent, so paused and waiting downloads no longer read as bare rings.
 - **Protect writes during cover cache eviction.** PR #25 limits eviction to published thumbnails and reclaims abandoned temporary files on the next process's first write.
 - **Return from missing book details.** PRs #27 and #32 distinguish loading from a missing book. An API 37 removal test checks the return to Downloaded and the saved place.
 - **Retry a download in place.** PR #28 adds Retry to Library and details while retaining Pause and Cancel where available.
-- **Mark a saved place on the details cover.** PRs #29 and #38 show the ribbon for Resume and leave fresh and finished books unmarked.
 - **Bound cover decoding.** PR #30 samples against the longer edge across Compose, cached remote art and widgets. A 256 × 8192 portrait decodes to 8 × 256 for a 128 px target.
-- **Verify formats with the manifest codec.** PR #39 threads the Audiobookshelf codec into the post-download verifier, so MP3 frames inside a CAF container reach the probe instead of being refused after the bytes were fetched. A `TrackProbe` test double covers the gate on the JVM.
-- **Hold Downloaded rows to the checkpoint clock.** PR #43 strips volatile playback fields and holds the moving position to five seconds before combining, so a playing book no longer rebuilds every row four times a second. Transport changes still pass through at once.
-- **Keep a published cover on a transferring row.** PR #46 prefers the edition's stored cover during a repair or replacement, falling back to the server thumbnail only when no local file exists.
-- **Select the sleep length that is actually running.** PR #53 selects a carried-over timer, or a running length whose preset was removed, and lists that length while it runs so exactly one radio carries the countdown.
-- **Settle Library search before querying.** PR #58 debounces non-empty queries by 200 ms while keeping the field immediate, so a large catalog is not re-searched and re-sorted once per character.
 - **Keep an end-of-chapter sleep stop exact.** PR #44. ExoPlayer reports the pause inline but `isPlaying` false later, so the pause checkpoint could store an ordinary stop over the exact boundary and turn a rested resume into a ten-second rewind. The controller arms the exact pause kind before pausing; the regression test defers that callback and fails on the old code.
 - **Read covers and file checks off the main thread.** PR #49. The System UI resumption control no longer reads up to 2 MB of cover bytes on the main thread, and opening a book verifies track sizes on the IO dispatcher rather than during media-item resolution.
 - **Keep an incomplete first load in the status line.** PR #52. The staged rows stay browsable and Retry sits between the heading block and the rows, rather than in the centred empty-state form.
 - **Disable detail Download after a refusal.** PR #54. An unsupported format or a per-book download denial replaces the primary action with the specified disabled action while the refusal lasts. The pre-tap verdict below remains open.
-- **Treat an unreadable library list as a sign-in failure.** PRs #41 and #56. A failed `/api/libraries` read revokes the fresh session and reports the address problem instead of storing an empty profile or claiming a different server.
-- **Draw focus rings outside keys and paper rows.** PR #57. The key ring surrounds the face, and text actions and disclosure rows gain the same pencil outline as the other controls.
-- **Say that a removal keeps the place.** PR #60. The long-unused `AUDIO_REMOVED` copy now appears under the detail action until a download starts or an edition returns.
-- **Refresh the catalog after signing in again.** PR #37 makes `SIGN_IN` refresh libraries and the catalog like the other reconnect modes, so a cached Library cannot stay stale behind a restored session.
-- **Coarsen Downloaded's live position.** PR #42 floors a playing row's place to the minute and skips unchanged live states; PR #43 holds it to the checkpoint clock. Both replace the four-per-second rebuild of every row.
-- **Bound the plan cache.** PR #45 turns `PlanCache` into an access-ordered LRU of 16 generations instead of an unbounded map.
-- **Load progress once for the car's book list.** PR #50 replaces the per-edition `book_progress` query in `readyBooks()` with one `ProgressDao.all()`.
 - **Show a remote book's description on its details page.** PR #55. The pinned minified listing already carries `media.metadata.description` (verified against the captured v2.38.0 fixtures), so the catalog now stores it (`catalog_book`/`catalog_staging`, schema 3) and details fall back to it when no downloaded edition snapshots its own copy. The HTML-only fallback is stripped to plain text in both parse paths.
 - **Project progress to what Library rows draw.** PR #61. Library rows use only hasPlace/finished, so the view model now projects `BookProgressEntity` to that pair with `distinctUntilChanged`; a moving position no longer re-maps every row of a large library on each checkpoint. Downloaded rows still read exact positions.
-- PR #48 overlaps PR #35 (transfer state text); keep one when they merge.
-
 - **Clear stale cover art during a source change.** PR #26 resets the Compose bitmap when the artwork source changes. The API 37 regression checks the cloth placeholder while a replacement is delayed.
 - **Keep the held shelf order without sorting again.** PR #31 uses the existing order while the membership stays the same. The JVM regression reduces three held rows from eleven progress lookups to three.
 - **Compose long chapter lists lazily.** PR #33 keeps chapter and removal actions reachable. The API 37 regression bounds the initial work for a 400-part edition and checks the controls at 320 dp.
