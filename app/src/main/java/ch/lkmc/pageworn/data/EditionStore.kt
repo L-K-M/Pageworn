@@ -15,8 +15,11 @@ import ch.lkmc.pageworn.data.db.TrackEntity
 import ch.lkmc.pageworn.data.db.TransferState
 import ch.lkmc.pageworn.playback.EditionPlan
 import ch.lkmc.pageworn.playback.EditionSource
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.File
@@ -31,6 +34,8 @@ class EditionStore(
     private val db: PagewornDatabase,
     val files: EditionFiles,
     private val clock: Clock,
+    /** Runs the cleanup that a released lease leaves behind; it outlives any one session. */
+    private val background: CoroutineScope,
 ) : EditionSource {
 
     sealed interface PublishOutcome {
@@ -49,8 +54,27 @@ class EditionStore(
         leases.merge(generationId, 1, Int::plus)
     }
 
+    /**
+     * Ends one session's hold. When the last hold on a generation that a repair or replacement
+     * superseded ends, its files go now rather than at the next start (rule 5).
+     */
     fun release(generationId: String) {
-        leases.computeIfPresent(generationId) { _, n -> if (n <= 1) null else n - 1 }
+        val stillHeld = leases.computeIfPresent(generationId) { _, n -> if (n <= 1) null else n - 1 } != null
+        if (stillHeld) return
+        // The scope has no exception handler. A failed read or delete leaves the files to the
+        // sweep at the next start, as before, rather than ending the process.
+        background.launch(Dispatchers.IO) { runCatching { deleteIfUnused(generationId) } }
+    }
+
+    /**
+     * Deletes [generationId] unless a session took it again or an edition or an active transfer
+     * still names it. A publication renames its staging directory before its commit, but the
+     * transfer row names that generation throughout, so it is never mistaken for an unused one.
+     */
+    private suspend fun deleteIfUnused(generationId: String) {
+        if (leases.containsKey(generationId)) return
+        if (generationId in db.editions().referencedGenerations()) return
+        files.deleteGeneration(generationId)
     }
 
     // --- Publication ---------------------------------------------------------------------------

@@ -25,6 +25,8 @@ import com.google.common.truth.Truth.assertThat
 import java.io.File
 import java.io.IOException
 import java.lang.reflect.Proxy
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestScope
@@ -69,7 +71,7 @@ class SettledPauseTest {
             File(staged, name).writeBytes(byteArrayOf(1))
             ManifestTrack(ordinal, "file-$ordinal", 1, 1, name, ordinal * TRACK_MS, TRACK_MS, extension = "mp3")
         }
-        val editions = EditionStore(db, files, clock)
+        val editions = EditionStore(db, files, clock, CoroutineScope(SupervisorJob()))
         editions.publish(
             EditionManifest(generationId = "generation", jobId = null, profileId = key.profileId, itemId = key.itemId, fingerprint = "print", title = "Book", tracks = tracks, chapters = emptyList()),
         )

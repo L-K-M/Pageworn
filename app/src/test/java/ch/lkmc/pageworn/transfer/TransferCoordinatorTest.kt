@@ -34,6 +34,10 @@ import ch.lkmc.pageworn.ui.state.PlayerStates
 import com.google.common.truth.Truth.assertThat
 import java.io.File
 import java.io.RandomAccessFile
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.job
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -64,13 +68,17 @@ class TransferCoordinatorTest {
     private var freeBytes = 100_000_000_000L
     private val unsupported = mutableSetOf<String>()
 
+    /** Where the store cleans up after a released lease; [settled] waits for that work. */
+    private val background = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private suspend fun settled() = background.coroutineContext.job.children.toList().joinAll()
+
     /** Markers the probe finds, by staged file name. */
     private val probedChapters = mutableMapOf<String, List<RawChapter>>()
 
     @Before fun setUp() = runBlocking {
         db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), PagewornDatabase::class.java).build()
         files = EditionFiles(folder.newFolder("media"))
-        editions = EditionStore(db, files, clock)
+        editions = EditionStore(db, files, clock, background)
         db.profiles().upsert(ProfileEntity(PROFILE, "listener", "Listener", null, null, "2.38.0", clock.wall))
         db.addresses().upsertAll(listOf(address("home", 0), address("remote", 1)))
         routes = FakeTransferServer { db.addresses().forProfile(PROFILE) }
@@ -776,6 +784,41 @@ class TransferCoordinatorTest {
         assertThat(files.published(previous.generationId).exists()).isFalse()
         assertThat(files.staging(stagedGeneration).exists()).isFalse()
         assertThat(db.progress().get(PROFILE, key.itemId)).isEqualTo(saved)
+    }
+
+    // docs/03 rule 5: a replaced copy goes once no session holds it, not at the next start.
+    @Test fun a06c_aReplacedCopyIsDeletedWhenPlaybackLetsGoOfIt() = runBlocking {
+        val key = book("a06c-held", "A" to source(61), "B" to source(62))
+        drive(enqueue(key))
+        val old = db.editions().edition(PROFILE, key.itemId)!!.generationId
+        editions.acquire(old)
+        editions.markRepairNeeded(key, old)
+        drive(enqueue(key))
+        val new = db.editions().edition(PROFILE, key.itemId)!!.generationId
+        assertThat(new).isNotEqualTo(old)
+        assertThat(files.published(old).isDirectory).isTrue()
+
+        editions.release(old)
+        settled()
+
+        assertThat(files.published(old).exists()).isFalse()
+        ready(key)
+    }
+
+    @Test fun a06c_releasingTheCurrentCopyKeepsIt() = runBlocking {
+        val key = book("a06c-current", "A" to source(63))
+        drive(enqueue(key))
+        val current = db.editions().edition(PROFILE, key.itemId)!!.generationId
+        editions.acquire(current)
+        editions.acquire(current)
+
+        editions.release(current)
+        settled()
+        editions.release(current)
+        settled()
+
+        ready(key)
+        assertThat(files.published(current).isDirectory).isTrue()
     }
 
     @Test fun a20_aTrackThatLostBytesOnTheDiskIsFoundDamagedBeforeOpening() = runBlocking {

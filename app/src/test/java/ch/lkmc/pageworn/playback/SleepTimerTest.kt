@@ -28,6 +28,8 @@ import java.io.File
 import java.lang.reflect.Proxy
 import java.time.Instant
 import java.time.ZoneId
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
@@ -78,7 +80,7 @@ class SleepTimerTest {
             File(staged, name).writeBytes(byteArrayOf(1))
             ManifestTrack(ordinal, "file-$ordinal", 1, 1, name, ordinal * TRACK_MS, TRACK_MS, extension = "mp3")
         }
-        val editions = EditionStore(db, files, clock)
+        val editions = EditionStore(db, files, clock, CoroutineScope(SupervisorJob()))
         editions.publish(
             EditionManifest(generationId = "generation", jobId = null, profileId = key.profileId, itemId = key.itemId, fingerprint = "print", title = "Book", tracks = tracks, chapters = emptyList()),
         )

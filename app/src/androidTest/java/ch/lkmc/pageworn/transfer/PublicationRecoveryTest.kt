@@ -67,7 +67,7 @@ class PublicationRecoveryTest {
 
     /** What a relaunched process builds: no state carried over from the one that died. */
     private fun relaunched(): Pair<TransferCoordinator, EditionStore> {
-        val editions = EditionStore(db, files, container.liveClock)
+        val editions = EditionStore(db, files, container.liveClock, container.appScope)
         return TransferCoordinator(db, files, editions, routes, ProbeTrackVerifier(MediaProbe(TestApp.context)), FormatSupport(), container.liveClock) to editions
     }
 

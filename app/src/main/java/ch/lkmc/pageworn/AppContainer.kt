@@ -76,7 +76,7 @@ class AppContainer(private val app: PagewornApp) {
     val sleepSettings: SleepSettingsStore by lazy { SleepSettingsStore(app, liveClock) }
     val progressStore: ProgressStore by lazy { ProgressStore(database.progress(), liveClock) }
     val editionFiles: EditionFiles by lazy { EditionFiles(File(app.filesDir, "audio")) }
-    val editionStore: EditionStore by lazy { EditionStore(database, editionFiles, liveClock) }
+    val editionStore: EditionStore by lazy { EditionStore(database, editionFiles, liveClock, appScope) }
     val playbackHub = PlaybackHub()
     val playerConnection: PlayerConnection by lazy { PlayerConnection(app, playbackHub, editionStore, progressStore) }
     val bookTransport: BookTransport by lazy { BookTransport(playerConnection, editionStore, progressStore) }
