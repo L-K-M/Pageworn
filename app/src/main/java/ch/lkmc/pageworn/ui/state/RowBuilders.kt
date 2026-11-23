@@ -158,9 +158,9 @@ object RowBuilders {
      * paused or waiting transfer never reads as active progress.
      */
     fun catalogRowMessage(row: CatalogRow): String? = when (val action = row.action) {
-        CatalogAction.DownloadDisabled -> row.message ?: Copy.DOWNLOAD_DISABLED
-        CatalogAction.Unsupported -> row.message ?: Copy.UNSUPPORTED_FORMAT
-        CatalogAction.RepairNeeded -> row.message ?: Copy.REPAIR_NEEDED
+        CatalogAction.DownloadDisabled -> row.message?.takeIf { it.isNotBlank() } ?: Copy.DOWNLOAD_DISABLED
+        CatalogAction.Unsupported -> row.message?.takeIf { it.isNotBlank() } ?: Copy.UNSUPPORTED_FORMAT
+        CatalogAction.RepairNeeded -> row.message?.takeIf { it.isNotBlank() } ?: Copy.REPAIR_NEEDED
         is CatalogAction.Transferring -> {
             val t = action.transfer
             listOfNotNull(t.stateText, row.message?.takeIf { it.isNotBlank() } ?: t.message).filter { it.isNotBlank() }.distinct().joinToString(" · ").ifEmpty { null }
