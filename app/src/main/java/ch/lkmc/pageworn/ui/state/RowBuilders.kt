@@ -176,7 +176,14 @@ object RowBuilders {
         val key = BookKey(book.profileId, book.itemId)
         val face = BookFace(key, book.title, book.authors, CoverImage.Remote(book.profileId, book.itemId, book.updatedAt))
         return when {
-            transfer != null && transfer.state.active -> CatalogRow(face, CatalogAction.Transferring(transferUi(transfer)), transferUi(transfer).message)
+            transfer != null && transfer.state.active -> {
+                // A repair or replacement keeps the published cover on the row instead of fetching
+                // a remote thumbnail that may be stale, differ from the edition, or fail offline.
+                val local = edition?.coverFile?.let { name ->
+                    editionDir?.let { dir -> File(dir, name) }?.takeIf(File::isFile)?.let { CoverImage.Local(it) }
+                }
+                CatalogRow(face.copy(cover = local ?: face.cover), CatalogAction.Transferring(transferUi(transfer)), transferUi(transfer).message)
+            }
             edition != null && edition.state == EditionState.REPAIR_NEEDED -> CatalogRow(face, CatalogAction.RepairNeeded, Copy.DAMAGED_COPY)
             edition != null -> CatalogRow(
                 face.copy(cover = edition.coverFile?.let { CoverImage.Local(File(editionDir, it)) } ?: face.cover),
