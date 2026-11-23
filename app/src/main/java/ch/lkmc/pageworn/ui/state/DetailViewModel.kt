@@ -66,8 +66,10 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
         removed,
     ) { i, live, refusal, removed ->
         build(i, i.edition?.let { plans.plan(it) }, live)?.let { built ->
-            // A refusal is newer and actionable, so it outranks the removal confirmation.
-            if (refusal != null) {
+            // A refusal about a transfer or edition that still exists is newer and actionable,
+            // so it outranks the removal confirmation. Once the book is gone, the removal is the
+            // newest fact.
+            if (refusal != null && (i.edition != null || i.transfer != null)) {
                 built.copy(message = refusal.text)
             } else if (removed && i.edition == null && i.transfer == null) {
                 // The saved place survives the removal, and the listener should hear so.
