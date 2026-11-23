@@ -343,6 +343,7 @@ Prototype lightweight filters for Listening, New and Finished, plus an optional 
 - **Keep the progress ring decorative.** The compact transfer ring repeats its percentage in visible text and semantics; the ring itself should stay cleared for TalkBack so the row reads once.
 - **Check focus indicators over texture at high contrast.** The reports claim the 3:1 focus check; repeat it over the textured paper and cloth with the final composite.
 - **Keep the search field's name and single line.** The hint disappears as soon as the query is non-empty, leaving only the pencil glyph and the semantics description, and the field becomes multi-line at 150% text. Give it the persistent floating-label treatment of the paper fields, or a compact visible label, and pin `singleLine = true`.
+- **Rotate the library selector's chevron when its menu is open**, as the disclosure rows already do.
 - **Announce transfer state changes politely.** A transfer that moves between active, paused, waiting and failed while the Library list is on screen changes only a state description. Announce the phase once when it changes for a visible row, without stealing focus.
 - **Refresh reduced-motion and high-contrast state while the process lives.** `PagewornTheme` reads both once per composition; toggling the animator duration scale or a high-text-contrast accessibility setting does not recreate the activity. Observe the change or refresh the flags on configuration change, and give the weakest secondary-ink lines an opaque backing in high contrast.
 
@@ -390,6 +391,7 @@ A shake-to-extend gesture, an “add five minutes” action on a running timer a
 - The selected bookmark's dashed pencil underline reused under a focused utility or selected radio, unifying selection cues for reduced-motion users.
 - A brief place-ribbon settle on a cover when its download completes, tying the completion notice to the object the listener will look for.
 - Chapter skip commands in the media notification overflow, so bedtime chapter turns do not need the phone unlocked.
+- Previous/next chapter keys in the phone player itself (the car has them as overflow commands; the player currently reaches chapters only through the sheet).
 - A native confirmation before removing a server address; a mis-tap in a wrapping action row currently revokes a paired alias.
 - A brief chapter-title bookplate over the cover when a chapter begins, suppressed by reduced motion.
 - A folded dog-ear on a cover once the book is finished, paired with the existing badge.
