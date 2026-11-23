@@ -108,6 +108,13 @@ fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, op
         if (openPlayer > 0) navController.navigate(Routes.PLAYER) { launchSingleTop = true }
     }
 
+    // A screen outside the sections leaves Downloaded behind, so its notice goes with it.
+    LaunchedEffect(navController) {
+        navController.currentBackStackEntryFlow.collect { entry ->
+            if (entry.destination.route != Routes.MAIN) container.notices.openedOver(main.destination.value)
+        }
+    }
+
     val problem by player.problem.collectAsStateWithLifecycle()
     val shownBook by player.player.collectAsStateWithLifecycle()
     val choosing = problem?.key?.takeIf { problem?.refusal == PlayRefusal.NEEDS_CHOICE && shownBook?.face?.key == it }
