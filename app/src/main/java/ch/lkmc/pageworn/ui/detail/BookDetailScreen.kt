@@ -36,13 +36,18 @@ import ch.lkmc.pageworn.ui.model.BookDetailUiState
 import ch.lkmc.pageworn.ui.model.Copy
 import ch.lkmc.pageworn.ui.model.DetailAction
 import ch.lkmc.pageworn.ui.model.KeyAction
+import ch.lkmc.pageworn.ui.model.StartAction
 import ch.lkmc.pageworn.ui.theme.PagewornTheme
+
+/** The ribbon marks a saved place, so it belongs only to a book that resumes from one. */
+internal fun showsPlaceRibbon(action: DetailAction): Boolean =
+    (action as? DetailAction.Play)?.start == StartAction.RESUME
 
 @Composable
 fun BookDetailScreen(state: BookDetailUiState, onBack: () -> Unit, onDownload: () -> Unit, onPlayPause: (KeyAction) -> Unit, onRepair: () -> Unit, onPauseTransfer: (String) -> Unit, onResumeTransfer: (String) -> Unit, onCancelTransfer: (String) -> Unit, onSelectSegment: (Long) -> Unit, onRemove: () -> Unit) {
     Column(Modifier.fillMaxSize().paperBackground().statusBarsPadding().navigationBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Row(Modifier.fillMaxWidth()) { BackAction(onBack) }
-        BookCover(state.face, 168.dp, showRibbon = state.action is DetailAction.Play)
+        BookCover(state.face, 168.dp, showRibbon = showsPlaceRibbon(state.action))
         Text(state.face.title, Modifier.padding(top = 20.dp).semantics { heading() }, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.playerTitle, textAlign = TextAlign.Center)
         state.face.author?.let { Text(it, Modifier.padding(top = 2.dp), color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.author, textAlign = TextAlign.Center) }
         PaperRule(Modifier.fillMaxWidth(.78f).padding(vertical = 10.dp))
