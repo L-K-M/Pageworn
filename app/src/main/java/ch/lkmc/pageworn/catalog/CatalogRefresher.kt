@@ -225,6 +225,7 @@ class CatalogRefresher(
         sizeBytes = sizeBytes,
         playable = numTracks > 0,
         addedAt = addedAt,
+        description = description,
     )
 
     private fun CatalogStagingEntity.toBook(profileId: String, libraryId: String, refreshId: String) = CatalogBookEntity(
@@ -240,11 +241,12 @@ class CatalogRefresher(
         sizeBytes = sizeBytes,
         refreshId = refreshId,
         addedAt = addedAt,
+        description = description,
     )
 
-    private fun CatalogBookEntity.toRow() = CatalogRow(itemId, title, authors, narrators, updatedAt, durationMs, sizeBytes, addedAt)
+    private fun CatalogBookEntity.toRow() = CatalogRow(itemId, title, authors, narrators, updatedAt, durationMs, sizeBytes, addedAt, description)
 
-    private fun CatalogStagingEntity.toRow() = CatalogRow(itemId, title, authors, narrators, updatedAt, durationMs, sizeBytes, addedAt)
+    private fun CatalogStagingEntity.toRow() = CatalogRow(itemId, title, authors, narrators, updatedAt, durationMs, sizeBytes, addedAt, description)
 
     companion object {
         /** Escapes the LIKE wildcards and the escape character so the query matches literally. */

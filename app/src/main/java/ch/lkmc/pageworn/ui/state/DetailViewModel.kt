@@ -106,7 +106,8 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
             sizeText = sizeBytes?.let { Format.bytes(it) },
             action = action,
             message = message,
-            description = edition?.description,
+            // A downloaded edition snapshots its own copy; a remote book reads the catalog's.
+            description = edition?.description ?: book?.description,
             segmentsTitle = plan?.let { PlayerStates.segmentsLabel(it.timeline.division) },
             segments = plan?.let { PlayerStates.segments(it, position) } ?: emptyList(),
             segmentsPlayable = edition != null && edition.state == EditionState.READY,

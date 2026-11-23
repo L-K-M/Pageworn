@@ -253,7 +253,8 @@ class AbsClient(private val http: AddressHttp, private val json: Json = Json { i
                     metadata.optionalString("narratorName"), item.required("updatedAt").jsonPrimitive.long,
                     media["duration"]?.jsonPrimitive?.content?.toDoubleOrNull()?.let { (it * 1000).toLong() },
                     media["size"]?.jsonPrimitive?.content?.toLongOrNull(), tracks,
-                    addedAt = item["addedAt"]?.jsonPrimitive?.content?.toLongOrNull())
+                    addedAt = item["addedAt"]?.jsonPrimitive?.content?.toLongOrNull(),
+                    description = metadata.optionalString("descriptionPlain") ?: metadata.optionalString("description"))
             }, obj.required("total").jsonPrimitive.int)
         }
     }

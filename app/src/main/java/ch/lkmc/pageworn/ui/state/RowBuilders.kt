@@ -158,7 +158,7 @@ object RowBuilders {
         edition: LocalEditionEntity?, editionDir: File?, transfer: TransferEntity?,
         progress: BookProgressEntity?, live: LivePlayback, canDownload: Boolean, unsupported: Boolean,
     ): CatalogRow = catalogRow(
-        CatalogBookEntity(profileId, libraryId, book.itemId, book.title, book.authors, book.narrators, 0, book.updatedAt, book.durationMs, book.sizeBytes, ""),
+        CatalogBookEntity(profileId, libraryId, book.itemId, book.title, book.authors, book.narrators, 0, book.updatedAt, book.durationMs, book.sizeBytes, "", description = book.description),
         edition, editionDir, transfer, progress, live, canDownload, unsupported,
     )
 

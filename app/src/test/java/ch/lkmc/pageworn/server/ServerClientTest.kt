@@ -176,6 +176,11 @@ class ServerClientTest {
         server.enqueue(MockResponse().setBody(withoutTracks))
         assertThat((client.itemsPage("token", "library", 0, 3) as ServerResult.Ok).value.entries.map { it.numTracks }).containsExactly(0, 0, 0)
         server.takeRequest()
+        // The minified listing carries the description; the plain form wins over the HTML one.
+        val described = Regex(""""description"\s*:\s*null""").replace(fixture("items-page0"), """"description": "<p>A tale</p>", "descriptionPlain": "A tale"""")
+        server.enqueue(MockResponse().setBody(described))
+        assertThat((client.itemsPage("token", "library", 0, 3) as ServerResult.Ok).value.entries[0].description).isEqualTo("A tale")
+        server.takeRequest()
         assertThat(server.takeRequest().path).isEqualTo("/abs/api/libraries/library/items?page=0&limit=3&sort=media.metadata.title&minified=1")
         try {
             client.itemsPage("token", "library", 0, 0)

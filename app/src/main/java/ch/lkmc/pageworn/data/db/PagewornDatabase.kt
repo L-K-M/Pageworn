@@ -26,7 +26,7 @@ import androidx.room.RoomDatabase
         TransferFileEntity::class,
         BookProgressEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 abstract class PagewornDatabase : RoomDatabase() {
@@ -48,6 +48,13 @@ abstract class PagewornDatabase : RoomDatabase() {
                 override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
                     db.execSQL("ALTER TABLE catalog_book ADD COLUMN addedAt INTEGER")
                     db.execSQL("ALTER TABLE catalog_staging ADD COLUMN addedAt INTEGER")
+                }
+            },
+            // 3: the item description, so book details can show it before a download.
+            object : androidx.room.migration.Migration(2, 3) {
+                override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                    db.execSQL("ALTER TABLE catalog_book ADD COLUMN description TEXT")
+                    db.execSQL("ALTER TABLE catalog_staging ADD COLUMN description TEXT")
                 }
             },
         )

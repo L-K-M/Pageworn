@@ -284,6 +284,25 @@ class CatalogRefresherTest {
         assertThat(source.pageCalls).isEmpty()
     }
 
+    @Test
+    fun descriptionFlowsFromListingEntryToPublishedRow() = runBlocking {
+        addLibrary("lib")
+        val source = FakeCatalogSource().apply {
+            page(0, listOf(
+                CatalogEntry(
+                    itemId = "a", title = "Alpha", authors = null, narrators = null, updatedAt = 42L,
+                    durationMs = 60_000L, sizeBytes = 1_000L, numTracks = 1, description = "A plain tale",
+                ),
+            ), total = 1)
+        }
+
+        val outcome = refresher.refresh(PROFILE, "lib", source)
+
+        assertThat(outcome).isEqualTo(RefreshOutcome.Published(1))
+        assertThat(listing("lib").rows.single().description).isEqualTo("A plain tale")
+        assertThat(db.catalog().find(PROFILE, "a")?.description).isEqualTo("A plain tale")
+    }
+
     private fun entry(id: String) = CatalogEntry(
         itemId = id,
         title = id,
