@@ -97,7 +97,8 @@ class RemoteCovers(
     }
 
     private fun evictIfNeeded() {
-        val files = dir.listFiles().orEmpty().filter(File::isFile)
+        // Other keys can be writing temporary files while this thumbnail is published.
+        val files = dir.listFiles().orEmpty().filter { it.name.endsWith(EXTENSION) && it.isFile }
         var total = files.sumOf(File::length)
         if (total <= maxBytes) return
         for (file in files.sortedBy(File::lastModified)) {
