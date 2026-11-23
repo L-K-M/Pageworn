@@ -25,6 +25,7 @@ import ch.lkmc.pageworn.server.TokenVault
 import ch.lkmc.pageworn.server.parseBaseUrl
 import ch.lkmc.pageworn.server.signInBlocker
 import java.util.UUID
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -151,7 +152,7 @@ class AccountService(
             // that this address leads to another server. Revoke the fresh session and let the
             // listener retry, rather than storing an empty profile or reporting a mismatch.
             is ServerResult.Failed -> {
-                runCatching { connection.client.logout(account.tokens.refreshToken) }
+                revokeQuietly(connection, account.tokens.refreshToken)
                 return signInFailure(result.error)
             }
         }
@@ -159,7 +160,7 @@ class AccountService(
         val profile = db.profiles().current() ?: return createProfile(address, account, libraries)
         if (account.accountId != profile.accountId) {
             // Revoke the session just created; nothing on the phone changes.
-            connection.client.logout(account.tokens.refreshToken)
+            revokeQuietly(connection, account.tokens.refreshToken)
             return SignInResult.DifferentAccount(profile.accountName)
         }
         val existing = db.addresses().forProfile(profile.profileId).firstOrNull { it.baseUrl == address.baseUrl.value }
@@ -170,10 +171,22 @@ class AccountService(
         val evidence = profile.pairingLibraryId
         val library = libraries.firstOrNull { it.libraryId == evidence }
         if (evidence != null && library == null) {
-            connection.client.logout(account.tokens.refreshToken)
+            revokeQuietly(connection, account.tokens.refreshToken)
             return SignInResult.PairingMismatch
         }
         return SignInResult.ConfirmPairing(PendingPairing(address, account), account.username, library?.name)
+    }
+
+    /** Best-effort session revocation; a cancelled sign-in still propagates its cancellation. */
+    private suspend fun revokeQuietly(connection: AddressConnection, refreshToken: String) {
+        try {
+            connection.client.logout(refreshToken)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            // The local credential is never stored on this path, so a failed revoke only leaves
+            // the server's refresh token alive until it expires.
+        }
     }
 
     /** Stores a confirmed alias with its session, after the listener saw what matched. */
