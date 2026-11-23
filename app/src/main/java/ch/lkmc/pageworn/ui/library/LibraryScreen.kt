@@ -83,26 +83,29 @@ fun LibraryScreen(state: LibraryUiState, listState: LazyListState, onQueryChange
     // A pull down refreshes the catalog even when the last one succeeded; the header stays as drawn.
     PullToRefreshBox(isRefreshing = state.refreshing, onRefresh = { onAction(UiAction.REFRESH) }, modifier = Modifier.fillMaxSize()) {
         LazyColumn(state = listState, contentPadding = contentPadding, modifier = Modifier.fillMaxSize()) {
-            item(key = "heading") { SectionHeader(state.heading, onOpenSettings) }
-            if (state.showSelectorAndSearch) {
-                if (state.libraries.size > 1) item(key = "selector") {
-                    var expanded by remember { mutableStateOf(false) }
-                    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }, modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp)) {
-                        OutlinedTextField(value = state.libraries.firstOrNull { it.id == state.selectedLibraryId }?.name ?: "Choose library", onValueChange = {}, readOnly = true, label = { Text("Library") }, trailingIcon = { PencilIcon(R.drawable.pw_pencil_collapse, null, 20.dp) }, shape = RoundedCornerShape(12.dp), colors = paperFieldColors(), modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable))
-                        ExposedDropdownMenu(expanded, onDismissRequest = { expanded = false }, shape = RoundedCornerShape(12.dp), containerColor = PagewornTheme.colors.raisedSheet) {
-                            state.libraries.forEach { choice -> DropdownMenuItem(text = { Text(choice.name, style = PagewornTheme.type.author) }, onClick = { expanded = false; onSelectLibrary(choice.id) }) }
-                        }
+        item(key = "heading") { SectionHeader(state.heading, onOpenSettings) }
+        if (state.showSelectorAndSearch) {
+            if (state.libraries.size > 1) item(key = "selector") {
+                var expanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }, modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp)) {
+                    OutlinedTextField(value = state.libraries.firstOrNull { it.id == state.selectedLibraryId }?.name ?: "Choose library", onValueChange = {}, readOnly = true, label = { Text("Library") }, trailingIcon = { PencilIcon(R.drawable.pw_pencil_collapse, null, 20.dp) }, shape = RoundedCornerShape(12.dp), colors = paperFieldColors(), modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable))
+                    ExposedDropdownMenu(expanded, onDismissRequest = { expanded = false }, shape = RoundedCornerShape(12.dp), containerColor = PagewornTheme.colors.raisedSheet) {
+                        state.libraries.forEach { choice -> DropdownMenuItem(text = { Text(choice.name, style = PagewornTheme.type.author) }, onClick = { expanded = false; onSelectLibrary(choice.id) }) }
                     }
                 }
-                item(key = "search") { SearchField(state.query, onQueryChange) }
-                item(key = "sort") { LibrarySortControl(state.sort, onSelectSort) }
             }
-            state.status?.let { line -> item(key = "status") { StatusLineView(line, onAction) } }
-            if (state.empty != null) item(key = "empty") { EmptyStateView(state.empty, onAction) }
-            else items(state.rows.size, key = { state.rows[it].face.key.mediaId }) { index ->
+            item(key = "search") { SearchField(state.query, onQueryChange) }
+            item(key = "sort") { LibrarySortControl(state.sort, onSelectSort) }
+        }
+        state.status?.let { line -> item(key = "status") { StatusLineView(line, onAction) } }
+        if (state.empty != null) item(key = "empty") { EmptyStateView(state.empty, onAction) }
+        else items(state.rows.size, key = { state.rows[it].face.key.mediaId }) { index ->
+            // A book that appears or moves settles into place instead of jumping.
+            Column(Modifier.animateItem()) {
                 CatalogBookRow(state.rows[index], onOpenBook, onDownload, onPlayPause, onPauseTransfer, onResumeTransfer, onCancelTransfer)
                 if (index != state.rows.lastIndex) HorizontalDivider(Modifier.padding(horizontal = 20.dp), color = PagewornTheme.colors.secondaryInk.copy(alpha = .25f))
             }
+        }
         }
     }
 }
@@ -126,7 +129,9 @@ private fun CatalogBookRow(row: CatalogRow, onOpenBook: (BookKey) -> Unit, onDow
                     else -> row.message
                 }
                 message?.let { Text(it, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status) }
-                if (row.action is CatalogAction.Transferring && compact) Text(row.action.transfer.stateText, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status)
+                // The phase belongs beside the ring at every text size, so a paused or waiting
+                // transfer never reads as active.
+                if (row.action is CatalogAction.Transferring) Text(row.action.transfer.stateText, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status)
             }
             if (!compact) CatalogActionView(row, onDownload, onPlayPause, onPauseTransfer, onResumeTransfer)
         }
