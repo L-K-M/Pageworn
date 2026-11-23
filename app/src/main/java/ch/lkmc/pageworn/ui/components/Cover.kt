@@ -11,7 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,20 +60,23 @@ fun BookCover(face: BookFace, size: Dp, showRibbon: Boolean = false, modifier: M
     val sizePx = with(density) { size.roundToPx() }
     val loader = LocalCoverLoader.current
     val previewPainter = LocalCoverPainter.current?.invoke(face)
-    val image by produceState<ImageBitmap?>(null, face.cover, sizePx, loader) {
-        value = when (val source = face.cover) {
-            is CoverImage.Local -> withContext(Dispatchers.IO) {
-                runCatching {
-                    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                    BitmapFactory.decodeFile(source.file.absolutePath, bounds)
-                    val sample = generateSequence(1) { it * 2 }.first { bounds.outWidth / it <= sizePx * 2 || it >= 128 }
-                    BitmapFactory.decodeFile(source.file.absolutePath, BitmapFactory.Options().apply { inSampleSize = sample })?.asImageBitmap()
-                }.getOrNull()
+    // Keep a usable bitmap during a resize, but never carry it to a different cover source.
+    val image = key(face.cover) {
+        produceState<ImageBitmap?>(null, sizePx, loader) {
+            value = when (val source = face.cover) {
+                is CoverImage.Local -> withContext(Dispatchers.IO) {
+                    runCatching {
+                        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                        BitmapFactory.decodeFile(source.file.absolutePath, bounds)
+                        val sample = generateSequence(1) { it * 2 }.first { bounds.outWidth / it <= sizePx * 2 || it >= 128 }
+                        BitmapFactory.decodeFile(source.file.absolutePath, BitmapFactory.Options().apply { inSampleSize = sample })?.asImageBitmap()
+                    }.getOrNull()
+                }
+                is CoverImage.Remote -> runCatching { loader.load(source, sizePx) }.getOrNull()
+                CoverImage.Cloth -> null
             }
-            is CoverImage.Remote -> runCatching { loader.load(source, sizePx) }.getOrNull()
-            CoverImage.Cloth -> null
         }
-    }
+    }.value
     // The place ribbon scales with the cover (48 x 72 px art, 2:3), sits near the spine and hangs
     // below the lower edge from behind the book.
     val ribbonWidth = maxOf(size * 0.1f, 10.dp)
@@ -101,7 +104,7 @@ fun BookCover(face: BookFace, size: Dp, showRibbon: Boolean = false, modifier: M
             if (previewPainter != null) {
                 Image(painter = previewPainter, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
             } else if (image != null) {
-                Image(bitmap = image!!, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                Image(bitmap = image, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
             } else {
                 Image(painterResource(R.drawable.pw_cover_cloth), null, Modifier.fillMaxSize(), contentScale = ContentScale.FillBounds)
                 // Lettering is part of the cover art: it scales with the cover, not with the font
