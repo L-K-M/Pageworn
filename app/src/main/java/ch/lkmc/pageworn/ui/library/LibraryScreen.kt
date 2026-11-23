@@ -162,9 +162,10 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
         textStyle = PagewornTheme.type.empty.copy(color = colors.primaryInk),
         cursorBrush = SolidColor(colors.accent),
         interactionSource = interaction,
-        // One line at every font scale: a wrapping query would grow the field without bound
-        // and push the list; a long query scrolls horizontally, as a search field should.
-        singleLine = true,
+        // One line at normal font scales; from 150% text the query may wrap to two lines so it
+        // stays readable, but the field never grows beyond that and pushes the list down.
+        singleLine = LocalDensity.current.fontScale < 1.5f,
+        maxLines = if (LocalDensity.current.fontScale < 1.5f) 1 else 2,
         decorationBox = { field ->
             Row(
                 Modifier.heightIn(min = 48.dp).background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = .5f), shape).border(if (focused) 2.dp else 1.dp, edge, shape).padding(start = 12.dp),
