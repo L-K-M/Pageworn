@@ -75,6 +75,18 @@ object SleepSchedule {
             .maxWith(compareBy<SleepEdge> { it.atMillis }.thenBy { it.turnsOn })
     }
 
+    /**
+     * The earliest start or end of [window] strictly after [nowMillis]: the moment a waiter
+     * sleeps until instead of polling. A daily window always has one within two days.
+     */
+    fun nextEdge(window: SleepWindow, nowMillis: Long, zone: ZoneId): SleepEdge {
+        val today = Instant.ofEpochMilli(nowMillis).atZone(zone).toLocalDate()
+        return listOf(today, today.plusDays(1), today.plusDays(2))
+            .flatMap { day -> edgesOn(day, window, zone) }
+            .filter { it.atMillis > nowMillis }
+            .minWith(compareBy<SleepEdge> { it.atMillis }.thenBy { it.turnsOn })
+    }
+
     private fun edgesOn(day: LocalDate, window: SleepWindow, zone: ZoneId): List<SleepEdge> {
         val start = at(day, window.startMinute, zone)
         val end = at(day, window.endMinute, zone)
