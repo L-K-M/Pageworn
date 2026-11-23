@@ -279,9 +279,12 @@ class SleepTimerTest {
         val timer = hub.state.value.sleep
 
         // A car or Bluetooth controller can ask the session for a book that is not downloaded.
+        val savedBefore = writes.size
         assertThat(controller.resolve(BookKey("profile", "missing"), null)).isNull()
         ticks.testScheduler.runCurrent()
 
+        // The playing book is not checkpointed as if it had been left.
+        assertThat(writes).hasSize(savedBefore)
         assertThat(controller.sleep).isEqualTo(timer)
         assertThat(hub.state.value.sleep).isEqualTo(timer)
         assertThat(hub.state.value.sleepRemainingMs).isEqualTo(25 * MINUTE)
@@ -300,9 +303,11 @@ class SleepTimerTest {
         // The damaged edition turns Repair needed when the open checks its files, and the open fails.
         publish(other.itemId, "other-generation")
         File(files.published("other-generation"), "000.mp3").delete()
+        val savedBefore = writes.size
         assertThat(controller.resolve(other, null)).isNull()
         ticks.testScheduler.runCurrent()
 
+        assertThat(writes).hasSize(savedBefore)
         assertThat(controller.sleep).isEqualTo(timer)
         assertThat(hub.state.value.sleep).isEqualTo(timer)
         assertThat(hub.state.value.sleepRemainingMs).isEqualTo(2 * TRACK_MS - LAST_TRACK_MS)
@@ -318,8 +323,11 @@ class SleepTimerTest {
         progress.requireContinuityChoice(other, "print-other")
 
         // The book opens only after the listener chooses where to start, so the session refuses it.
+        val savedBefore = writes.size
         assertThat(controller.resolve(other, null)).isNull()
         ticks.testScheduler.runCurrent()
+
+        assertThat(writes).hasSize(savedBefore)
 
         assertThat(controller.sleep).isEqualTo(SleepState.Timed(30, clock.elapsed + 30 * MINUTE))
         assertThat(hub.state.value.sleep).isEqualTo(controller.sleep)
