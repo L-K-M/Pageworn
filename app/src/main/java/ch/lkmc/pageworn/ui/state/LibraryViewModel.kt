@@ -83,7 +83,7 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     /** The settled search alone drives the catalog observer, so typing does not restart it. */
-    private val searching = queries.map { it.searching }.distinctUntilChanged()
+    private val searching = queries.map { it.searching.trim() }.distinctUntilChanged()
 
     private val listing = combine(scope, searching, container.settings.librarySort, ::Triple).flatMapLatest { (s, q, sort) ->
         val library = s?.selected ?: return@flatMapLatest flowOf(CatalogListing(emptyList(), ListingStatus.READY, null, sort))
