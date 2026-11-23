@@ -258,7 +258,7 @@ data class PlayerUiState(
     val segmentsLabel: String,
     /** The edition's segments, shared with its timeline so a live tick does not rebuild them. */
     val segments: List<Segment>,
-    /** Which of [segments] holds the position, for the sheet's place marker and scroll. */
+    /** The [Segment.index] of the segment holding the position, for the sheet's place marker and scroll. */
     val segmentIndex: Int,
     val hasPlace: Boolean,
     val finished: Boolean = false,

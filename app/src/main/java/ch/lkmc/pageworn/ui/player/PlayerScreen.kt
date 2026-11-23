@@ -160,6 +160,7 @@ private fun SpeedSheet(selected: Float, onSelect: (Float) -> Unit) {
 private fun SegmentsSheet(division: Division, segmentName: String, segments: List<Segment>, segmentIndex: Int, onSelect: (Long) -> Unit) {
     // A long book has dozens of parts: open on the one playing, with some before it for context.
     // Find the row by its domain index rather than assuming it is also the list position.
+    // A -1 (no match) coerces to 0: better to open at the top than crash on a stale index.
     val list = rememberLazyListState((segments.indexOfFirst { it.index == segmentIndex } - ROWS_ABOVE_CURRENT).coerceAtLeast(0))
     Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp)) {
         LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false), list) {
