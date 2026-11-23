@@ -13,6 +13,12 @@ These tasks build on the offline-first player, its paper surfaces, Spectral titl
 - **Bound cover decoding.** PR #30 samples against the longer edge across Compose, cached remote art and widgets. A 256 × 8192 portrait decodes to 8 × 256 for a 128 px target.
 - **Keep an end-of-chapter sleep stop exact.** PR #44. ExoPlayer reports the pause inline but `isPlaying` false later, so the pause checkpoint could store an ordinary stop over the exact boundary and turn a rested resume into a ten-second rewind. The controller arms the exact pause kind before pausing; the regression test defers that callback and fails on the old code.
 - **Read covers and file checks off the main thread.** PR #49. The System UI resumption control no longer reads up to 2 MB of cover bytes on the main thread, and opening a book verifies track sizes on the IO dispatcher rather than during media-item resolution.
+- **Keep an incomplete first load in the status line.** PR #52. The staged rows stay browsable and Retry sits between the heading block and the rows, rather than in the centred empty-state form.
+- **Disable detail Download after a refusal.** PR #54. An unsupported format or a per-book download denial replaces the primary action with the specified disabled action while the refusal lasts. The pre-tap verdict below remains open.
+- **Treat an unreadable library list as a sign-in failure.** PR #56. A failed `/api/libraries` read revokes the fresh session and reports the address problem instead of storing an empty profile or claiming a different server.
+- **Draw focus rings outside keys and paper rows.** PR #57. The key ring surrounds the face, and text actions and disclosure rows gain the same pencil outline as the other controls.
+- **Say that a removal keeps the place.** PR #60. The long-unused `AUDIO_REMOVED` copy now appears under the detail action until a download starts or an edition returns.
+- PR #48 overlaps PR #35 (transfer state text); keep one when they merge.
 
 ## Listening and browsing performance
 
@@ -58,6 +64,40 @@ BookDetailScreen lays out the entire chapter list in a scrolling column. Compare
 
 **First change.** Tie entries to the published generation, clear them when an edition is removed, or bound the map. No behavior change is needed beyond memory.
 
+### Rebuild Downloaded rows only when their inputs change
+
+**Evidence.** `DownloadedViewModel.state` combines the full `playbackHub.state` and is shared eagerly. Every 250 ms playback tick walks all editions through `plans.timelines` and rebuilds every transfer and book row, even while another screen is showing. Library deliberately feeds `transportOnly()` with `distinctUntilChanged` for the same reason.
+
+**First change.** Switch the flow to `WhileSubscribed`, feed the row builder `transportOnly()`, and cache timelines against the edition generation set. Measure allocations during a minute of playback with the player closed.
+
+**Acceptance.** Starting or pausing a book updates the row keys and badge, a resting row keeps its order, and a tick inside a chapter performs no timeline lookups or row rebuilds.
+
+## State and lifecycle correctness
+
+### Honour the remembered section on a reachable cold launch
+
+**Evidence.** `MainViewModel` selects `Destination.DOWNLOADED` as soon as one local edition exists, before any network decision. `docs/01-product.md` says a saved profile remembers the last main section, and reserves the Downloaded cold launch for an unreachable catalog with local books. A listener who last left Library on a healthy server is dropped into Downloaded after every restart.
+
+**First change.** Start on the remembered destination and move to Downloaded when the launch refresh reports unreachable and local books exist. Keep the no-blocking rule: the local list must render before the network answer.
+
+**Acceptance.** Cold launch with a cached catalog and local books opens the remembered section. Cold launch with an unreachable server and local books still opens Downloaded, as A17 requires, and shows the cached catalog with its Retry. Warm starts are unchanged.
+
+### Recover from credential vault read and write failures
+
+**Evidence.** `KeystoreTokenVault.read` decodes Base64 and reads the file outside its `runCatching`; a truncated credential file throws into the caller. `write` lets a failed temp-file rename throw. Sign-in runs in a view-model scope where an uncaught exception is fatal, although the documented recovery is simply a new sign-in.
+
+**First change.** Return null from `read` on storage or format errors and let callers show the normal sign-in prompt; report a failed persist instead of throwing.
+
+**Acceptance.** A corrupt credential file leaves the address signed out with no crash, and a failed write surfaces as a sign-in failure the listener can retry.
+
+### Dismiss the notifications notice when leaving Downloaded
+
+**Evidence.** `AppNotices.leftDownloaded` runs only when the bottom bookmark changes section. Opening Settings, details or the player from Downloaded leaves the pending notice alive, although the copy table says it stays only until the listener uses its action or goes from Downloaded to another screen.
+
+**First change.** Clear the notice when the main route leaves the Downloaded tab, not only when the tab selection changes.
+
+**Acceptance.** The notice clears on Back to Library, on opening details or the player, and on the tab switch; the setting action still works when it is shown.
+
 ## Playback correctness
 
 ### Decide how a seek made during playback records its stop
@@ -84,7 +124,7 @@ BookDetailScreen lays out the entire chapter list in a scrolling column. Compare
 
 **First change.** Decide between an item-detail fetch cached by profile, item and revision, and carrying format information in a schema change. Then have details and the Library row share one verdict. Never mark a book unsupported because the network was unavailable.
 
-**Acceptance.** Opening an unsupported book shows the disabled action before any tap, starts no job and requests no audio. An offline previously downloaded book still opens and plays. A cached verdict cannot outlive the item's revision.
+**Acceptance.** Opening an unsupported book shows the disabled action before any tap, starts no job and requests no audio. An offline previously downloaded book still opens and plays. A cached verdict cannot outlive the item's revision. PR #54 covers the after-tap disabled state; this entry is the pre-tap verdict.
 
 ## Layout and navigation
 
@@ -128,12 +168,30 @@ BookDetailScreen lays out the entire chapter list in a scrolling column. Compare
 
 **Acceptance.** Removing from the row frees the audio, keeps the place and returns to a correct list order; a cancelled transfer is unaffected.
 
+### Distribute spare height in the player
+
+**Evidence.** `PlayerScreen` places two `Spacer(Modifier.weight(1f))` inside a `Column` that has `verticalScroll`. A scrolling column measures children with an infinite maximum height, and Compose's `RowColumnMeasurePolicy` gives weighted children space derived from the minimum constraint in that case, so both spacers collapse to zero. The comment says spare height opens around the keys, but the controls sit directly under the scrubbers and the spare paper pools at the bottom of a tall screen.
+
+**Prototype.** Split the player into a scrolling upper region and a fixed lower control stack, or measure the natural content height once per layout-relevant change and insert explicit spacers only when the content fits. Keep every control row scrollable at 200% text and in short landscape.
+
+**Acceptance.** On a regular-height phone the transport keys and utilities keep their designed separation and no large empty area sits below the utilities. At 200% text the same rows can still be brought into view, and a short screen collapses the artwork first.
+
+### Depress the leather button on press
+
+**Evidence.** `PaperButton` flattens its gradient and drops its shadow while pressed but never translates the face, unlike the playback keys. The interface specification asks every key to depress by 1-2 dp and tighten its shadow.
+
+**First change.** Apply the same `graphicsLayer { translationY }` treatment under the same reduced-motion guard.
+
+**Acceptance.** The main action reads as the same hardware family as the transport keys, and reduced-motion devices see no movement.
+
 ## Accessibility and small polish
 
 - **Merge the player utilities' semantics.** Speed, Chapters/Tracks/Parts and Sleep set a content description on the clickable column without merging descendants, so TalkBack may visit the label, value and icon separately after the description.
 - **Reserve the mini-player's height.** `MainScaffold` measures the mini-player with `onSizeChanged` and applies bottom padding afterwards, so the list can jump for one frame when it appears or disappears. The measured heights are known (60/68 dp), so reserve them directly.
 - **Keep the progress ring decorative.** The compact transfer ring repeats its percentage in visible text and semantics; the ring itself should stay cleared for TalkBack so the row reads once.
 - **Check focus indicators over texture at high contrast.** The reports claim the 3:1 focus check; repeat it over the textured paper and cloth with the final composite.
+- **Keep the search field's name and single line.** The hint disappears as soon as the query is non-empty, leaving only the pencil glyph and the semantics description, and the field becomes multi-line at 150% text. Give it the persistent floating-label treatment of the paper fields, or a compact visible label, and pin `singleLine = true`.
+- **Announce transfer state changes politely.** A transfer that moves between active, paused, waiting and failed while the Library list is on screen changes only a state description. Announce the phase once when it changes for a visible row, without stealing focus.
 
 ## Delight candidates
 
@@ -150,6 +208,13 @@ BookDetailScreen lays out the entire chapter list in a scrolling column. Compare
 - A Quick Settings tile that turns Sleep on with the chosen length or off through the existing session command.
 - A launcher shortcut that resumes the last book at its saved place.
 - A real dark theme later, adjusting every colour and material rather than swapping tokens.
+- Brass-rimmed scrubber thumbs: a thin brass ring around each progress thumb, echoing the key rims while keeping the accent-versus-ink fill distinction.
+- Deckled page edges: vary each page layer's corner radius and offset slightly and soften the graphite stroke, so the footer reads as hand-cut sheets rather than concentric rounded rectangles.
+- A blind-stamped inset frame on cloth fallback covers, in a darker cloth tone, to give art-free books more craft without lettering.
+- The selected bookmark's dashed pencil underline reused under a focused utility or selected radio, unifying selection cues for reduced-motion users.
+- A brief place-ribbon settle on a cover when its download completes, tying the completion notice to the object the listener will look for.
+- Chapter skip commands in the media notification overflow, so bedtime chapter turns do not need the phone unlocked.
+- A native confirmation before removing a server address; a mis-tap in a wrapping action row currently revokes a paired alias.
 
 ## Test reliability
 
