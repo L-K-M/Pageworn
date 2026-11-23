@@ -145,21 +145,30 @@ class AccountService(
             is ServerResult.Failed -> return signInFailure(result.error)
             is ServerResult.Ok -> result.value
         }
-        val libraries = (connection.client.libraries(account.tokens.accessToken) as? ServerResult.Ok)?.value
+        val profile = db.profiles().current()
+        if (profile != null) {
+            if (account.accountId != profile.accountId) {
+                connection.client.logout(account.tokens.refreshToken)
+                return SignInResult.DifferentAccount(profile.accountName)
+            }
+            val existing = db.addresses().forProfile(profile.profileId).firstOrNull { it.baseUrl == address.baseUrl.value }
+            if (existing != null) {
+                restoreSession(existing, address, account)
+                return SignInResult.Connected(profile.profileId)
+            }
+        }
 
-        val profile = db.profiles().current() ?: return createProfile(address, account, libraries.orEmpty())
-        if (account.accountId != profile.accountId) {
-            // Revoke the session just created; nothing on the phone changes.
-            connection.client.logout(account.tokens.refreshToken)
-            return SignInResult.DifferentAccount(profile.accountName)
+        // First sign-in and new aliases need library evidence from a successful request.
+        val libraries = when (val result = connection.client.libraries(account.tokens.accessToken)) {
+            is ServerResult.Ok -> result.value
+            is ServerResult.Failed -> {
+                connection.client.logout(account.tokens.refreshToken)
+                return SignInResult.AddressFailed(addressProblem(result.error))
+            }
         }
-        val existing = db.addresses().forProfile(profile.profileId).firstOrNull { it.baseUrl == address.baseUrl.value }
-        if (existing != null) {
-            restoreSession(existing, address, account)
-            return SignInResult.Connected(profile.profileId)
-        }
+        if (profile == null) return createProfile(address, account, libraries)
         val evidence = profile.pairingLibraryId
-        val library = libraries?.firstOrNull { it.libraryId == evidence }
+        val library = libraries.firstOrNull { it.libraryId == evidence }
         if (evidence != null && library == null) {
             connection.client.logout(account.tokens.refreshToken)
             return SignInResult.PairingMismatch

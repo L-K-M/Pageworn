@@ -54,15 +54,76 @@ class PairingMismatchTest {
         val paired = AddressEntity("home", PROFILE, "https://home.invalid/", "Home", priority = 0)
         db.addresses().upsert(paired)
         listOf("login", "libraries", "logout").forEach { server.enqueue(MockResponse().setBody(fixture(it))) }
-        val base = (parseBaseUrl(server.url("/abs/").toString(), true) as BaseUrlParse.Valid).baseUrl
-
-        val result = accounts().signIn(CheckedAddress(base, "Away", true, null, false), "listener", "fixture-secret")
+        val result = signIn()
 
         assertThat(result).isEqualTo(SignInResult.PairingMismatch)
         assertThat(db.addresses().forProfile(PROFILE)).containsExactly(paired)
         assertThat(vault.addresses()).isEmpty()
-        assertThat(List(server.requestCount) { server.takeRequest().path }).containsExactly("/abs/login", "/abs/api/libraries", "/abs/logout").inOrder()
+        assertThat(requestPaths()).containsExactly("/abs/login", "/abs/api/libraries", "/abs/logout").inOrder()
     }
+
+    @Test
+    fun failedLibraryLookupDoesNotCreateAProfile() = runBlocking<Unit> {
+        enqueueFailedLibraryLookup()
+
+        val result = signIn()
+
+        assertThat(result).isEqualTo(SignInResult.AddressFailed(AddressProblem.Unreachable))
+        assertThat(db.profiles().current()).isNull()
+        assertThat(vault.addresses()).isEmpty()
+        assertThat(requestPaths()).containsExactly("/abs/login", "/abs/api/libraries", "/abs/logout").inOrder()
+    }
+
+    @Test
+    fun failedLibraryLookupDoesNotReportAMismatch() = runBlocking<Unit> {
+        db.profiles().upsert(ProfileEntity(PROFILE, ACCOUNT, "listener", "known-library", null, "2.38.0", 0))
+        enqueueFailedLibraryLookup()
+
+        val result = signIn()
+
+        assertThat(result).isEqualTo(SignInResult.AddressFailed(AddressProblem.Unreachable))
+        assertThat(db.addresses().forProfile(PROFILE)).isEmpty()
+        assertThat(vault.addresses()).isEmpty()
+        assertThat(requestPaths()).containsExactly("/abs/login", "/abs/api/libraries", "/abs/logout").inOrder()
+    }
+
+    @Test
+    fun successfulEmptyLibraryLookupCanCreateAProfile() = runBlocking<Unit> {
+        server.enqueue(MockResponse().setBody(fixture("login")))
+        server.enqueue(MockResponse().setBody("""{"libraries": []}"""))
+
+        assertThat(signIn()).isInstanceOf(SignInResult.Connected::class.java)
+        val profile = checkNotNull(db.profiles().current())
+        assertThat(profile.pairingLibraryId).isNull()
+        assertThat(db.libraries().forProfile(profile.profileId)).isEmpty()
+        assertThat(requestPaths()).containsExactly("/abs/login", "/abs/api/libraries").inOrder()
+    }
+
+    @Test
+    fun establishedAddressRestoresItsSessionWithoutLookingUpLibraries() = runBlocking<Unit> {
+        db.profiles().upsert(ProfileEntity(PROFILE, ACCOUNT, "listener", "known-library", null, "2.38.0", 0))
+        db.addresses().upsert(AddressEntity("home", PROFILE, checkedAddress().baseUrl.value, "Home", priority = 0))
+        enqueueFailedLibraryLookup()
+
+        assertThat(signIn()).isEqualTo(SignInResult.Connected(PROFILE))
+        assertThat(vault.addresses()).containsExactly("home")
+        assertThat(requestPaths()).containsExactly("/abs/login")
+    }
+
+    private fun enqueueFailedLibraryLookup() {
+        server.enqueue(MockResponse().setBody(fixture("login")))
+        server.enqueue(MockResponse().setResponseCode(500))
+        server.enqueue(MockResponse().setBody(fixture("logout")))
+    }
+
+    private fun checkedAddress(): CheckedAddress {
+        val base = (parseBaseUrl(server.url("/abs/").toString(), true) as BaseUrlParse.Valid).baseUrl
+        return CheckedAddress(base, "Away", true, null, false)
+    }
+
+    private suspend fun signIn() = accounts().signIn(checkedAddress(), "listener", "fixture-secret")
+
+    private fun requestPaths() = List(server.requestCount) { server.takeRequest().path }
 
     private fun accounts(): AccountService {
         val localNetwork = LocalNetworkAccess(ApplicationProvider.getApplicationContext()) { emptyList() }
