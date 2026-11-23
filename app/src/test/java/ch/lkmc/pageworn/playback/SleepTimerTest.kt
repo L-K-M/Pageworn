@@ -1,6 +1,7 @@
 package ch.lkmc.pageworn.playback
 
 import android.os.Looper
+import android.provider.Settings
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
@@ -66,6 +67,7 @@ class SleepTimerTest {
     @Before
     fun setUp() = runBlocking<Unit> {
         val context = ApplicationProvider.getApplicationContext<android.app.Application>()
+        Settings.Global.putInt(context.contentResolver, Settings.Global.BOOT_COUNT, 1)
         db = Room.inMemoryDatabaseBuilder(context, PagewornDatabase::class.java).build()
         db.profiles().upsert(ProfileEntity(key.profileId, "account", "Listener", null, null, "2.38.0", clock.wall))
         val files = EditionFiles(folder.newFolder("media")).also { it.ensureRoots() }

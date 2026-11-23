@@ -43,7 +43,9 @@ Environment: Media3 1.11.1, compile and target API 37. Emulator `pw-api37` (API 
 - Instrumented on emulator `pw-api34` (API 34, image `UE1A.230829.050`), read-only instance: `SleepPlaybackTest` 14 of 14, `PlaybackFailureTest` 7 of 7, `SystemControlsTest` 5 of 5, `PlayKeyTapTest` 11 of 11 and `VisualChecksTest` 6 of 6. The first full run failed A13 once at its locked-keyguard check; A13 then passed 3 of 3 alone and the whole class passed in a rerun.
 - Real touches with screenshots on the same emulator: Settings shows the Sleep timer row. The page added a 90-minute preset, switched on the window, and closed the time picker with Cancel. The player sheet listed the new preset. Choosing 15 minutes at rest showed "15 min". Play showed a live countdown read as "Sleep, 14 minutes 55 seconds remaining", and Pause returned to "Sleep, on, 15 minutes".
 
+- Follow-up on API 31 (Android 12, image `SE1A.220630.001.A1`, build `9056438`): `SleepPlaybackTest` 14 of 14, with A08 run separately in airplane mode. `PlaybackFailureTest` 7 of 7, `SystemControlsTest` 5 of 5, `PlayKeyTapTest` 11 of 11, and the four A12b and A16e restart steps passed in separate processes. The first run failed two keyguard assertions. The rerun passed after the helper waited for each dismissal to finish before the next lock.
+- Follow-up JVM run: `scripts/build.sh` passed 320 tests, including regressions for a stale stop after reboot and sleep-window edges that meet or cross during daylight-saving changes.
+
 ## 4. Pending
 
-- An API 31 emulator run of the instrumented sleep tests. No API 31 image is installed on this machine.
 - Owner checks: hearing the fade and a locked-screen stop on the phone, a Bluetooth headset Play during the fade, and the window across a real night.

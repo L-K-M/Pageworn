@@ -1,6 +1,7 @@
 package ch.lkmc.pageworn.data
 
 import android.content.Context
+import android.provider.Settings
 import androidx.test.core.app.ApplicationProvider
 import ch.lkmc.pageworn.core.FakeClock
 import ch.lkmc.pageworn.core.sleep.SleepLength
@@ -29,6 +30,7 @@ class SleepSettingsStoreTest {
     @Before
     fun setUp() {
         context = ApplicationProvider.getApplicationContext()
+        Settings.Global.putInt(context.contentResolver, Settings.Global.BOOT_COUNT, 1)
         context.getSharedPreferences("pageworn-sleep", Context.MODE_PRIVATE).edit().clear().commit()
         store = SleepSettingsStore(context, clock) { zone }
     }
@@ -209,13 +211,17 @@ class SleepSettingsStoreTest {
     }
 
     @Test
-    fun aStopBeforeAClockRestartIsNotRecent() {
+    fun aStopSurvivesAProcessRestartButNotARebootWithSimilarUptime() {
         clock.elapsed = 100_000
         store.recordStop(SleepLength.Minutes(30))
 
-        clock.elapsed = 50_000
+        clock.elapsed = 150_000
+        val reopened = SleepSettingsStore(context, clock) { zone }
+        assertThat(reopened.recentStop(5 * 60_000)).isEqualTo(SleepLength.Minutes(30))
 
-        assertThat(store.recentStop(5 * 60_000)).isNull()
+        Settings.Global.putInt(context.contentResolver, Settings.Global.BOOT_COUNT, 2)
+        val afterReboot = SleepSettingsStore(context, clock) { zone }
+        assertThat(afterReboot.recentStop(5 * 60_000)).isNull()
     }
 
     @Test

@@ -51,9 +51,10 @@ data class SleepWindow(val startMinute: Int, val endMinute: Int) {
 data class SleepEdge(val atMillis: Long, val turnsOn: Boolean)
 
 /**
- * The schedule's rules in local time. Each day has one start and one end. A time that a
+ * The schedule's rules in local time. A time that a
  * daylight-saving change skips moves later by the length of the change (02:30 becomes 03:30), and
- * a time it repeats counts once, at its first occurrence.
+ * a time it repeats counts once, at its first occurrence. A start that falls at or after its
+ * resolved end is skipped, while the end still turns the mode off.
  */
 object SleepSchedule {
 
@@ -62,15 +63,27 @@ object SleepSchedule {
         latestEdge(window, nowMillis, zone).turnsOn
 
     /**
-     * The latest start or end of [window] at or before [nowMillis]. Both happen once every day,
-     * so the latest is always among yesterday's and today's.
+     * The latest start or end of [window] at or before [nowMillis]. The daily end still occurs
+     * when a start is skipped, so only yesterday's and today's edges are needed.
      */
     fun latestEdge(window: SleepWindow, nowMillis: Long, zone: ZoneId): SleepEdge {
         val today = Instant.ofEpochMilli(nowMillis).atZone(zone).toLocalDate()
         return listOf(today.minusDays(1), today)
-            .flatMap { day -> listOf(SleepEdge(at(day, window.startMinute, zone), true), SleepEdge(at(day, window.endMinute, zone), false)) }
+            .flatMap { day -> edgesOn(day, window, zone) }
             .filter { it.atMillis <= nowMillis }
-            .maxBy { it.atMillis }
+            // An overnight window can start exactly when a shifted earlier window ends.
+            .maxWith(compareBy<SleepEdge> { it.atMillis }.thenBy { it.turnsOn })
+    }
+
+    private fun edgesOn(day: LocalDate, window: SleepWindow, zone: ZoneId): List<SleepEdge> {
+        val start = at(day, window.startMinute, zone)
+        val end = at(day, window.endMinute, zone)
+        val endOfThisWindow = if (window.startMinute < window.endMinute) end
+            else at(day.plusDays(1), window.endMinute, zone)
+        return buildList {
+            if (start < endOfThisWindow) add(SleepEdge(start, true))
+            add(SleepEdge(end, false))
+        }
     }
 
     private fun at(day: LocalDate, minuteOfDay: Int, zone: ZoneId): Long =

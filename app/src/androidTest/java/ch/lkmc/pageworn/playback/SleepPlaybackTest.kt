@@ -109,6 +109,10 @@ class SleepPlaybackTest {
         } finally {
             shell("input keyevent KEYCODE_WAKEUP")
             shell("wm dismiss-keyguard")
+            // The dismiss is asynchronous. Let it finish before the next test locks the screen.
+            withTimeout(8_000) {
+                while (!power.isInteractive || keyguard.isKeyguardLocked) delay(30)
+            }
         }
     }
 

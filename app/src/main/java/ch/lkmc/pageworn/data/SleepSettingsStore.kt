@@ -1,6 +1,7 @@
 package ch.lkmc.pageworn.data
 
 import android.content.Context
+import android.provider.Settings
 import ch.lkmc.pageworn.core.Clock
 import ch.lkmc.pageworn.core.sleep.SleepLength
 import ch.lkmc.pageworn.core.sleep.SleepSchedule
@@ -41,6 +42,7 @@ data class SleepSettings(
  */
 class SleepSettingsStore(context: Context, private val clock: Clock, private val zone: () -> ZoneId = { ZoneId.systemDefault() }) {
     private val prefs = context.getSharedPreferences("pageworn-sleep", Context.MODE_PRIVATE)
+    private val bootCount = Settings.Global.getInt(context.contentResolver, Settings.Global.BOOT_COUNT, UNKNOWN_BOOT)
     private val lock = Any()
 
     private val _settings = MutableStateFlow(read())
@@ -91,21 +93,26 @@ class SleepSettingsStore(context: Context, private val clock: Clock, private val
 
     /** A timer of [length] stopped playback now. */
     fun recordStop(length: SleepLength) {
-        prefs.edit().putString(STOPPED_LENGTH, encode(length)).putLong(STOPPED_AT, clock.elapsedRealtimeMillis()).apply()
+        prefs.edit()
+            .putString(STOPPED_LENGTH, encode(length))
+            .putLong(STOPPED_AT, clock.elapsedRealtimeMillis())
+            .putInt(STOPPED_BOOT, bootCount)
+            .apply()
     }
 
     /**
-     * The length of the timer that stopped playback within [withinMs], if one did. Elapsed realtime
-     * restarts with the phone, so a stop recorded "later" than now is from before a restart.
+     * The length of the timer that stopped playback within [withinMs] during this boot, if one did.
+     * Elapsed realtime alone cannot distinguish two boots that reach the same uptime.
      */
     fun recentStop(withinMs: Long): SleepLength? {
+        if (bootCount == UNKNOWN_BOOT || prefs.getInt(STOPPED_BOOT, UNKNOWN_BOOT) != bootCount) return null
         val length = decode(prefs.getString(STOPPED_LENGTH, null)) ?: return null
         val since = clock.elapsedRealtimeMillis() - prefs.getLong(STOPPED_AT, Long.MIN_VALUE)
         return length.takeIf { since in 0..withinMs }
     }
 
     fun forgetStop() {
-        prefs.edit().remove(STOPPED_LENGTH).remove(STOPPED_AT).apply()
+        prefs.edit().remove(STOPPED_LENGTH).remove(STOPPED_AT).remove(STOPPED_BOOT).apply()
     }
 
     /** Applies [change]. A listener's decision also sets the moment edges are counted from. */
@@ -151,6 +158,8 @@ class SleepSettingsStore(context: Context, private val clock: Clock, private val
         const val DECIDED_AT = "decided_at"
         const val STOPPED_LENGTH = "stopped_length"
         const val STOPPED_AT = "stopped_at"
+        const val STOPPED_BOOT = "stopped_boot"
+        const val UNKNOWN_BOOT = -1
         const val END_OF_SEGMENT = "end"
 
         fun encode(length: SleepLength): String = when (length) {

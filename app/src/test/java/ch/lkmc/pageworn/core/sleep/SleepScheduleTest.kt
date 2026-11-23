@@ -109,6 +109,27 @@ class SleepScheduleTest {
     }
 
     @Test
+    fun aShiftedStartAtOrAfterItsEndSkipsThatWindow() {
+        for (endMinute in listOf(3 * 60 + 15, 3 * 60 + 30)) {
+            val window = SleepWindow(2 * 60 + 30, endMinute)
+            val afterTheMovedStart = millis(2026, 3, 29, 3, 31)
+
+            val edge = SleepSchedule.latestEdge(window, afterTheMovedStart, zone)
+            assertThat(edge.turnsOn).isFalse()
+            assertThat(edge.atMillis).isEqualTo(millis(2026, 3, 29, 3, endMinute % 60))
+            assertThat(SleepSchedule.isInside(window, millis(2026, 3, 30, 2, 31), zone)).isTrue()
+        }
+    }
+
+    @Test
+    fun anOvernightWindowCanBeginWhenTheShiftedPreviousWindowEnds() {
+        val window = SleepWindow(3 * 60 + 15, 2 * 60 + 15)
+        val sharedEdge = millis(2026, 3, 29, 3, 15)
+
+        assertThat(SleepSchedule.latestEdge(window, sharedEdge, zone)).isEqualTo(SleepEdge(sharedEdge, true))
+    }
+
+    @Test
     fun aRepeatedStartTimeCountsOnceAtItsFirstOccurrence() {
         val window = SleepWindow(2 * 60 + 30, 6 * 60)
 
