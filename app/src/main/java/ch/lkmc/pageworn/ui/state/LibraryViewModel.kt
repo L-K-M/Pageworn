@@ -189,6 +189,8 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
         }
         val statusAsEmpty = status?.let { EmptyState(it.text, it.action, it.actionLabel) }
         val published = listing.lastRefreshAt != null
+        // An incomplete first load keeps its staged rows under the status line. Only a notice
+        // with no cached catalog, an empty library or a failed search replaces the rows.
         val empty = when {
             catalogRows.isNotEmpty() -> null
             // A cached catalog stays searchable while the server is away; the status line stays above.
