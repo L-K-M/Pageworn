@@ -373,9 +373,13 @@ class AccountService(
         if (!refreshLibraries()) return@withLock false
         val profile = db.profiles().current() ?: return@withLock true
         // The selector can offer a library the server has since removed; the refresh above has
-        // deleted its row and chosen another, so the catalog follows that choice instead.
-        val requested = libraryId?.takeIf { db.libraries().get(profile.profileId, it) != null }
-        val selected = requested ?: profile.chosenLibraryId ?: return@withLock true
+        // deleted its row and chosen another, so the catalog follows that choice instead. The
+        // choice is checked as well: chooseLibrary does not hold this lock, so a tap on a stale
+        // entry can store a vanished id between that refresh and the read above.
+        suspend fun stored(id: String) = db.libraries().get(profile.profileId, id) != null
+        val selected = libraryId?.takeIf { stored(it) }
+            ?: profile.chosenLibraryId?.takeIf { stored(it) }
+            ?: return@withLock true
         refreshCatalog(selected)
         true
     }
