@@ -159,7 +159,15 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
 
     private fun build(s: Scope?, q: String, searching: String, listing: CatalogListing, local: LocalState, notice: ServerNotice?, checked: Boolean): LibraryUiState {
         if (s == null) return LibraryUiState()
+        // The incomplete status line is authoritative even if a future notice path would leave
+        // statusOf without one; the rows then stay empty with a visible Retry rather than a
+        // silent blank screen.
         val status = statusOf(notice, listing)
+            ?: if (listing.status == ListingStatus.INCOMPLETE) {
+                StatusLine(Copy.LIBRARY_INCOMPLETE, UiAction.RETRY, Copy.RETRY)
+            } else {
+                null
+            }
         if (s.libraries.isEmpty()) {
             if (!checked && notice == null) return LibraryUiState(status = StatusLine(Copy.LIBRARY_LOADING, showsProgress = true), showSelectorAndSearch = false)
             return LibraryUiState(
@@ -189,14 +197,17 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
         }
         val statusAsEmpty = status?.let { EmptyState(it.text, it.action, it.actionLabel) }
         val published = listing.lastRefreshAt != null
+        // An incomplete first load keeps its staged rows under the status line. Only a notice
+        // with no cached catalog, an empty library or a failed search replaces the rows.
         val empty = when {
             catalogRows.isNotEmpty() -> null
             // A cached catalog stays searchable while the server is away; the status line stays above.
             searching.isNotBlank() && published -> EmptyState(Copy.NO_SEARCH_RESULTS, UiAction.CLEAR_SEARCH, Copy.CLEAR_SEARCH)
             notice != null -> statusAsEmpty
             listing.status == ListingStatus.FILLING -> null
-            listing.status == ListingStatus.INCOMPLETE -> EmptyState(Copy.LIBRARY_INCOMPLETE, UiAction.RETRY, Copy.RETRY)
             searching.isNotBlank() -> EmptyState(Copy.NO_SEARCH_RESULTS, UiAction.CLEAR_SEARCH, Copy.CLEAR_SEARCH)
+            // A failed load never claims an empty library; the status line stays authoritative.
+            listing.status == ListingStatus.INCOMPLETE -> null
             // A pending or typed query must not borrow the empty-library prompt.
             published && q.isBlank() -> EmptyState(Copy.EMPTY_LIBRARY, UiAction.CHECK_AGAIN, Copy.CHECK_AGAIN)
             else -> null
