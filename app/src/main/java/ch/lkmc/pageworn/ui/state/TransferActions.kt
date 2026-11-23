@@ -7,6 +7,7 @@ import ch.lkmc.pageworn.server.ServerError
 import ch.lkmc.pageworn.transfer.DownloadStart
 import ch.lkmc.pageworn.transfer.Refusal
 import ch.lkmc.pageworn.ui.model.Copy
+import ch.lkmc.pageworn.ui.model.DetailAction
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -55,16 +56,22 @@ class TransferActions(private val container: AppContainer) {
  * Library shows a problem of the server or its routes through the account's notice (A17), and
  * details shows either under its primary action.
  */
-data class DownloadRefusal(val key: BookKey, val text: String, val onRow: Boolean)
+data class DownloadRefusal(
+    val key: BookKey,
+    val text: String,
+    val onRow: Boolean,
+    /** Replaces a detail page's primary action while this refusal lasts, when it must be disabled. */
+    val disabledAction: DetailAction? = null,
+)
 
 /** The copy for a Download tap that started no transfer, from the product brief's table. */
 fun refusalOf(key: BookKey, start: DownloadStart): DownloadRefusal? {
     if (start !is DownloadStart.Refused) return null
-    fun row(text: String) = DownloadRefusal(key, text, onRow = true)
+    fun row(text: String, action: DetailAction? = null) = DownloadRefusal(key, text, onRow = true, disabledAction = action)
     fun status(text: String) = DownloadRefusal(key, text, onRow = false)
     return when (val reason = start.reason) {
-        Refusal.DownloadsDisabled -> row(Copy.DOWNLOAD_DISABLED)
-        Refusal.UnsupportedFormat -> row(Copy.UNSUPPORTED_FORMAT)
+        Refusal.DownloadsDisabled -> row(Copy.DOWNLOAD_DISABLED, DetailAction.DownloadDisabled)
+        Refusal.UnsupportedFormat -> row(Copy.UNSUPPORTED_FORMAT, DetailAction.Unsupported)
         Refusal.NoAudio -> row(Copy.NO_AUDIO)
         is Refusal.NoRoute -> when (val route = reason.reason) {
             is NoRoute.LocalNetworkDenied -> status(Copy.localNetworkDenied(route.label))
@@ -73,7 +80,11 @@ fun refusalOf(key: BookKey, start: DownloadStart): DownloadRefusal? {
             NoRoute.SignedOut -> status(Copy.SESSION_EXPIRED)
             is NoRoute.Unreachable -> status(Copy.UNREACHABLE)
         }
-        is Refusal.Server -> if (reason.error == ServerError.Forbidden) row(Copy.DOWNLOAD_DISABLED) else status(Copy.UNREACHABLE)
+        is Refusal.Server -> if (reason.error == ServerError.Forbidden) {
+            row(Copy.DOWNLOAD_DISABLED, DetailAction.DownloadDisabled)
+        } else {
+            status(Copy.UNREACHABLE)
+        }
         Refusal.RemovalPending, Refusal.AlreadyDownloaded -> null
     }
 }

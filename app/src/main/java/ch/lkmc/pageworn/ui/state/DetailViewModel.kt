@@ -66,17 +66,19 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
         removed,
     ) { i, live, refusal, removed ->
         build(i, i.edition?.let { plans.plan(it) }, live)?.let { built ->
-            // A refusal about a transfer or edition that still exists is newer and actionable,
-            // so it outranks the removal confirmation. Once the book is gone, the removal is the
-            // newest fact.
-            if (refusal != null && (i.edition != null || i.transfer != null)) {
-                built.copy(message = refusal.text)
-            } else if (removed && i.edition == null && i.transfer == null) {
-                // The saved place survives the removal, and the listener should hear so.
-                built.copy(message = Copy.AUDIO_REMOVED)
-            } else {
-                built
+            val refusalHere = refusal?.takeIf { it.key == key && (i.edition != null || i.transfer != null) }
+            when {
+                // A refusal about this book's transfer or edition is newer and actionable, and
+                // outranks the removal confirmation. Once the book is gone, the removal is the
+                // newest fact.
+                refusalHere != null -> built.copy(message = refusalHere.text, action = refusalHere.disabledAction ?: built.action)
+                removed && i.edition == null && i.transfer == null -> {
+                    // The saved place survives the removal, and the listener should hear so.
+                    built.copy(message = Copy.AUDIO_REMOVED)
+                }
+                else -> built
             }
+        }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
