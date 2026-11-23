@@ -51,7 +51,11 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
 
     private val actions = TransferActions(container)
 
-    /** True after this screen's listener removed the audio, until a transfer or edition returns. */
+    /**
+     * Set once this screen removes the audio. The confirmation stays in memory for this screen;
+     * its display is masked while an edition or transfer exists, so another path removing the
+     * book cannot resurrect it.
+     */
     private val _removed = MutableStateFlow(false)
     private val removed = _removed
 
@@ -62,9 +66,15 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
         removed,
     ) { i, live, refusal, removed ->
         build(i, i.edition?.let { plans.plan(it) }, live)?.let { built ->
-            val refused = refusal?.let { built.copy(message = it.text) } ?: built
-            // The saved place survives the removal, and the listener should hear so.
-            if (removed && i.edition == null && i.transfer == null) refused.copy(message = Copy.AUDIO_REMOVED) else refused
+            // A refusal is newer and actionable, so it outranks the removal confirmation.
+            if (refusal != null) {
+                built.copy(message = refusal.text)
+            } else if (removed && i.edition == null && i.transfer == null) {
+                // The saved place survives the removal, and the listener should hear so.
+                built.copy(message = Copy.AUDIO_REMOVED)
+            } else {
+                built
+            }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
@@ -79,8 +89,9 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
         // Not the screen's scope: leaving details must not stop between releasing and removing.
         container.appScope.launch {
             container.playerConnection.releaseBook(key)
-            container.editionStore.remove(key)
+            // Set before the store write so no frame shows a gone edition without its reason.
             _removed.value = true
+            container.editionStore.remove(key)
         }
     }
 
