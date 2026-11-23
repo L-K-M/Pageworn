@@ -23,11 +23,13 @@ import ch.lkmc.pageworn.ui.model.UiAction
 import java.text.DateFormat
 import java.util.Date
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -40,7 +42,7 @@ import kotlinx.coroutines.launch
  * state and a status line for the refresh (docs/02-interface.md, Library). The first time the
  * section is shown for a profile it refreshes the libraries and the catalog.
  */
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 class LibraryViewModel(private val container: AppContainer) : ViewModel() {
     private val db = container.database
     private val query = MutableStateFlow("")
@@ -61,6 +63,14 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
 
     private data class Scope(val profile: ProfileEntity, val libraries: List<LibraryEntity>, val selected: LibraryEntity?)
 
+    /** What the field shows, and the settled query that drives the database search. */
+    private data class Query(val typed: String, val searching: String)
+
+    private val queries: Flow<Query> = combine(
+        query,
+        query.debounce { if (it.isEmpty()) 0L else SEARCH_DEBOUNCE_MS },
+    ) { typed, searching -> Query(typed, searching) }.distinctUntilChanged()
+
     private val scope: Flow<Scope?> = db.profiles().observe().flatMapLatest { profile ->
         if (profile == null) {
             flowOf(null)
@@ -72,7 +82,10 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
-    private val listing = combine(scope, query, container.settings.librarySort, ::Triple).flatMapLatest { (s, q, sort) ->
+    /** The settled search alone drives the catalog observer, so typing does not restart it. */
+    private val searching = queries.map { it.searching.trim() }.distinctUntilChanged()
+
+    private val listing = combine(scope, searching, container.settings.librarySort, ::Triple).flatMapLatest { (s, q, sort) ->
         val library = s?.selected ?: return@flatMapLatest flowOf(CatalogListing(emptyList(), ListingStatus.READY, null, sort))
         container.catalog.observeListing(s.profile.profileId, library.libraryId, q.trim(), sort)
     }
@@ -98,8 +111,8 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
 
     private val conditions = combine(container.accounts.notice, librariesChecked, actions.refusal) { notice, checked, refusal -> Conditions(notice, checked, refusal) }
 
-    val state: StateFlow<LibraryUiState> = combine(scope, query, listing, local, conditions) { s, q, rows, l, condition ->
-        withRefusal(build(s, q, rows, l, condition.notice, condition.checked), condition.refusal)
+    val state: StateFlow<LibraryUiState> = combine(scope, queries, listing, local, conditions) { s, q, rows, l, condition ->
+        withRefusal(build(s, q.typed, q.searching, rows, l, condition.notice, condition.checked), condition.refusal)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryUiState(sort = container.settings.librarySort.value))
 
     /** A Download tap refused for the book itself says why on its row. */
@@ -144,7 +157,7 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
-    private fun build(s: Scope?, q: String, listing: CatalogListing, local: LocalState, notice: ServerNotice?, checked: Boolean): LibraryUiState {
+    private fun build(s: Scope?, q: String, searching: String, listing: CatalogListing, local: LocalState, notice: ServerNotice?, checked: Boolean): LibraryUiState {
         if (s == null) return LibraryUiState()
         val status = statusOf(notice, listing)
         if (s.libraries.isEmpty()) {
@@ -179,12 +192,13 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
         val empty = when {
             catalogRows.isNotEmpty() -> null
             // A cached catalog stays searchable while the server is away; the status line stays above.
-            q.isNotBlank() && published -> EmptyState(Copy.NO_SEARCH_RESULTS, UiAction.CLEAR_SEARCH, Copy.CLEAR_SEARCH)
+            searching.isNotBlank() && published -> EmptyState(Copy.NO_SEARCH_RESULTS, UiAction.CLEAR_SEARCH, Copy.CLEAR_SEARCH)
             notice != null -> statusAsEmpty
             listing.status == ListingStatus.FILLING -> null
             listing.status == ListingStatus.INCOMPLETE -> EmptyState(Copy.LIBRARY_INCOMPLETE, UiAction.RETRY, Copy.RETRY)
-            q.isNotBlank() -> EmptyState(Copy.NO_SEARCH_RESULTS, UiAction.CLEAR_SEARCH, Copy.CLEAR_SEARCH)
-            published -> EmptyState(Copy.EMPTY_LIBRARY, UiAction.CHECK_AGAIN, Copy.CHECK_AGAIN)
+            searching.isNotBlank() -> EmptyState(Copy.NO_SEARCH_RESULTS, UiAction.CLEAR_SEARCH, Copy.CLEAR_SEARCH)
+            // A pending or typed query must not borrow the empty-library prompt.
+            published && q.isBlank() -> EmptyState(Copy.EMPTY_LIBRARY, UiAction.CHECK_AGAIN, Copy.CHECK_AGAIN)
             else -> null
         }
         return LibraryUiState(
@@ -221,3 +235,6 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
         val live: LivePlayback = LivePlayback(),
     )
 }
+
+/** Typing settles before the catalog is searched; clearing stays immediate. */
+private const val SEARCH_DEBOUNCE_MS = 200L
