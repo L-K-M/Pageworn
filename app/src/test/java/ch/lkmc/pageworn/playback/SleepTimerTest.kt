@@ -2,6 +2,7 @@ package ch.lkmc.pageworn.playback
 
 import android.os.Looper
 import android.provider.Settings
+import androidx.media3.common.C
 import androidx.media3.common.util.Clock
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackParameters
@@ -269,7 +270,9 @@ class SleepTimerTest {
         assertThat(writes.last().first).isEqualTo(TRACK_MS)
         assertThat(writes.last().second).isEqualTo(StopKind.EXACT)
 
-        // The renderer's later isPlaying change must not turn it into an ordinary stop.
+        // The renderer's later isPlaying change must not turn it into an ordinary stop or move
+        // the committed boundary by the few milliseconds playback crept past it.
+        player.positionMs = TRACK_MS + 50
         player.flushDeferred()
         assertThat(writes.last().first).isEqualTo(TRACK_MS)
         assertThat(writes.last().second).isEqualTo(StopKind.EXACT)
@@ -335,7 +338,9 @@ class SleepTimerTest {
         fun deliverMessages() {
             val sent = messages.toList()
             messages.clear()
-            sent.forEach { message -> positionMs = message.positionMs }
+            sent.forEach { message ->
+                if (message.positionMs != C.TIME_UNSET) positionMs = message.positionMs
+            }
             val pending = deliveries.toList()
             deliveries.clear()
             pending.forEach { it() }

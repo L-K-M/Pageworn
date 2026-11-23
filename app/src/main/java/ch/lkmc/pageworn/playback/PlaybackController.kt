@@ -185,6 +185,9 @@ class PlaybackController(
     fun beforePlay() {
         // A fade that stopped the last play left the volume low.
         restoreVolume()
+        // A fresh play invalidates any pause kind a timer armed, even when ExoPlayer coalesces
+        // the pause into this start and never reports the paused state.
+        pauseCause = null
         val book = loaded
         if (book == null) {
             timerOnPlaying = true
@@ -238,9 +241,14 @@ class PlaybackController(
         } else if (wasPlaying && exo.playbackState != Player.STATE_ENDED && exo.playerError == null) {
             val kind = pauseCause ?: StopKind.ORDINARY
             pauseCause = null
-            val before = loaded?.saved
-            checkpoint(kind, listened = true)
-            pauseSaved = loaded?.saved?.takeIf { it !== before }
+            if (kind != StopKind.EXACT) {
+                val before = loaded?.saved
+                checkpoint(kind, listened = true)
+                pauseSaved = loaded?.saved?.takeIf { it !== before }
+            }
+            // An exact stop is a timer boundary, which already committed its place. The renderer
+            // can creep a few milliseconds past that boundary before the pause lands; re-saving
+            // the live position would move the next resume into the following segment.
         }
         wasPlaying = isPlaying
         publish()
@@ -322,6 +330,8 @@ class PlaybackController(
         val requested = exo.playWhenReady
         val seekFailed = pendingSeek
         pendingSeek = false
+        // A failure stops audible playback as an ordinary stop. The timer-boundary branch below
+        // is the exception and commits its own exact place.
         pauseCause = null
         val timer = sleep as? SleepState.EndOf
         exo.playWhenReady = false
