@@ -19,6 +19,7 @@ import ch.lkmc.pageworn.ui.model.CoverImage
 import ch.lkmc.pageworn.ui.model.DetailAction
 import ch.lkmc.pageworn.ui.model.Format
 import ch.lkmc.pageworn.ui.model.StartAction
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -50,8 +51,21 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
 
     private val actions = TransferActions(container)
 
-    val state: StateFlow<BookDetailUiState?> = combine(inputs, container.playbackHub.state, actions.refusal) { i, live, refusal ->
-        build(i, i.edition?.let { plans.plan(it) }, live)?.let { built -> refusal?.let { built.copy(message = it.text) } ?: built }
+    /** True after this screen's listener removed the audio, until a transfer or edition returns. */
+    private val _removed = MutableStateFlow(false)
+    private val removed = _removed
+
+    val state: StateFlow<BookDetailUiState?> = combine(
+        inputs,
+        container.playbackHub.state,
+        actions.refusal,
+        removed,
+    ) { i, live, refusal, removed ->
+        build(i, i.edition?.let { plans.plan(it) }, live)?.let { built ->
+            val refused = refusal?.let { built.copy(message = it.text) } ?: built
+            // The saved place survives the removal, and the listener should hear so.
+            if (removed && i.edition == null && i.transfer == null) refused.copy(message = Copy.AUDIO_REMOVED) else refused
+        }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /** Download, or Repair download: stages a fresh generation and keeps the saved place. */
@@ -66,6 +80,7 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
         container.appScope.launch {
             container.playerConnection.releaseBook(key)
             container.editionStore.remove(key)
+            _removed.value = true
         }
     }
 
