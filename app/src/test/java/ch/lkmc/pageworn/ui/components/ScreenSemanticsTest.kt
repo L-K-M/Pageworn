@@ -10,6 +10,7 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -64,28 +65,46 @@ class ScreenSemanticsTest {
     }
 
     @Test
-    fun libraryTransferRowsShowTheirStateAtTheDefaultTextSize() {
-        val face = BookFace(BookKey("profile", "item"), "The Night Orchard", "A. Author", CoverImage.Cloth)
-        val paused = CatalogRow(
-            face,
+    fun libraryTransferRowsShowAPausedStateAtTheDefaultTextSize() {
+        assertStateTextIsShownOnce(TransferPhase.PAUSED, "Paused")
+    }
+
+    @Test
+    fun libraryTransferRowsShowADownloadingStateAtTheDefaultTextSize() {
+        assertStateTextIsShownOnce(TransferPhase.TRANSFERRING, "Downloading")
+    }
+
+    @Test
+    fun libraryTransferRowsShowAWaitingStateAtTheDefaultTextSize() {
+        assertStateTextIsShownOnce(TransferPhase.WAITING, "Waiting for connection")
+    }
+
+    /**
+     * The default Robolectric font scale renders the non-compact branch, whose compact-only gate
+     * this change removed. [onNodeWithText] also fails on two matches, so each phase text is
+     * asserted to appear exactly once and be displayed.
+     */
+    private fun assertStateTextIsShownOnce(phase: TransferPhase, stateText: String) {
+        val row = CatalogRow(
+            BookFace(BookKey("profile", "item"), "The Night Orchard", "A. Author", CoverImage.Cloth),
             CatalogAction.Transferring(
                 TransferUi(
-                    jobId = "job", phase = TransferPhase.PAUSED, bytesDone = 10, bytesTotal = 100,
-                    stateText = "Paused", message = null, canPause = false, canResume = true,
-                    canRetry = false, canCancel = true,
+                    jobId = "job", phase = phase, bytesDone = 10, bytesTotal = 100,
+                    stateText = stateText, message = null, canPause = phase == TransferPhase.TRANSFERRING,
+                    canResume = phase == TransferPhase.PAUSED, canRetry = false, canCancel = true,
                 ),
             ),
         )
         compose.setContent {
             PagewornTheme {
                 LibraryScreen(
-                    LibraryUiState(rows = listOf(paused)), rememberLazyListState(),
+                    LibraryUiState(rows = listOf(row)), rememberLazyListState(),
                     {}, {}, {}, {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, PaddingValues(),
                 )
             }
         }
 
-        compose.onNodeWithText("Paused").assertExists()
+        compose.onNodeWithText(stateText).assertIsDisplayed()
     }
 
     @Test
