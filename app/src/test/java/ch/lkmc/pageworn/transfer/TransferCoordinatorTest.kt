@@ -812,6 +812,9 @@ class TransferCoordinatorTest {
         assertThat(routes.requests.drop(requestsBefore).map { it.fileId }).containsNoneOf("B", "C")
         assertThat(files.staging(stagedGeneration).exists()).isFalse()
         assertThat(db.transfers().files(repair)).isEmpty()
+        // The stopped copy's last journal write must not bring the job back.
+        assertThat(job(repair).state).isEqualTo(TransferState.CANCELLED)
+        assertThat(job(repair).activeMarker).isNull()
         assertThat(db.editions().edition(PROFILE, key.itemId)).isNull()
         assertThat(files.published(previous.generationId).exists()).isFalse()
         assertThat(db.progress().get(PROFILE, key.itemId)).isEqualTo(saved)
