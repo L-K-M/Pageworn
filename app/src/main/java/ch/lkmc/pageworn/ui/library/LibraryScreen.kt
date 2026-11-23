@@ -19,7 +19,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
@@ -153,14 +155,15 @@ private fun CatalogActionView(row: CatalogRow, onDownload: (BookKey) -> Unit, on
 private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
     val colors = PagewornTheme.colors
     val interaction = remember { MutableInteractionSource() }
+    val focusManager = LocalFocusManager.current
     val focused by interaction.collectIsFocusedAsState()
     val shape = RoundedCornerShape(12.dp)
     val edge = if (focused || LocalHighContrast.current) colors.primaryInk else colors.controlEdge(highContrast = false)
     BasicTextField(
         query,
         // A hardware keyboard's Enter or a pasted multi-line text can still put newlines into a
-        // multi-line field, so the query never carries them.
-        { onQueryChange(it.replace('\n', ' ').replace('\r', ' ')) },
+        // multi-line field, so the query never carries them (CRLF collapses to one space).
+        { onQueryChange(it.replace(Regex("\\r\\n|\\r|\\n"), " ")) },
         // The hint leaves once there is a query, so the field carries the name itself.
         Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp).semantics { contentDescription = SEARCH_HINT },
         textStyle = PagewornTheme.type.empty.copy(color = colors.primaryInk),
@@ -172,6 +175,8 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
         singleLine = LocalDensity.current.fontScale < 1.5f,
         maxLines = 2, // only applies when singleLine = false (fontScale >= 1.5)
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        // The search is query-driven; the Search key just dismisses the keyboard.
+        keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
         decorationBox = { field ->
             Row(
                 Modifier.heightIn(min = 48.dp).background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = .5f), shape).border(if (focused) 2.dp else 1.dp, edge, shape).padding(start = 12.dp),
