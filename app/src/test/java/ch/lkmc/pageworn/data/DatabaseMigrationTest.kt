@@ -65,8 +65,31 @@ class DatabaseMigrationTest {
         assertThat(upgraded.catalog().staged("attempt").single().addedAt).isNull()
     }
 
-    private fun createVersion1(): SQLiteDatabase {
-        val schema = File("schemas/${PagewornDatabase::class.java.name}/1.json").readText()
+    @Test
+    fun a23VersionTwoKeepsCatalogAndGainsNullableDescription() = runBlocking<Unit> {
+        createVersion(2).use { old ->
+            old.execSQL("INSERT INTO profile VALUES ('p', 'account', 'listener', NULL, 'lib', '2.38.0', 1, 1)")
+            old.execSQL("INSERT INTO library VALUES ('p', 'lib', 'Books', 0, 5, 'published')")
+            old.execSQL("INSERT INTO catalog_book VALUES ('p', 'lib', 'book', 'Apricot', 'Zora Hale', NULL, 0, 7, 60000, 100, 'published', 5)")
+            old.execSQL("INSERT INTO catalog_staging VALUES ('attempt', 'book', 'Apricot', 'Zora Hale', NULL, 0, 7, 60000, 100, 1, 5)")
+            old.execSQL("INSERT INTO book_progress VALUES ('p', 'book', 42000, 60000, 'print', 0, 9, 'TIMED', 8, 2, 3, 0)")
+        }
+
+        val upgraded = PagewornDatabase.build(context).also { db = it }
+
+        val cached = upgraded.catalog().observe("p", "lib", "").first().single()
+        assertThat(cached.title).isEqualTo("Apricot")
+        assertThat(cached.addedAt).isEqualTo(5)
+        // Unknown until the next refresh fills it in.
+        assertThat(cached.description).isNull()
+        assertThat(upgraded.catalog().staged("attempt").single().description).isNull()
+        assertThat(checkNotNull(upgraded.progress().get("p", "book")).positionMs).isEqualTo(42_000)
+    }
+
+    private fun createVersion1(): SQLiteDatabase = createVersion(1)
+
+    private fun createVersion(version: Int): SQLiteDatabase {
+        val schema = File("schemas/${PagewornDatabase::class.java.name}/$version.json").readText()
         val database = Json.parseToJsonElement(schema).jsonObject.getValue("database").jsonObject
         val file = context.getDatabasePath(PagewornDatabase.NAME).apply { parentFile?.mkdirs() }
         return SQLiteDatabase.openOrCreateDatabase(file, null).also { old ->
@@ -76,7 +99,7 @@ class DatabaseMigrationTest {
                 creations.forEach { old.execSQL(it.getValue("createSql").jsonPrimitive.content.replace("\${TABLE_NAME}", table)) }
             }
             database.getValue("setupQueries").jsonArray.forEach { old.execSQL(it.jsonPrimitive.content) }
-            old.version = 1
+            old.version = version
         }
     }
 }
