@@ -15,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -75,6 +76,13 @@ val LocalCoverPainter = androidx.compose.runtime.staticCompositionLocalOf<(@Comp
 
 @Composable
 fun BookCover(face: BookFace, size: Dp, showRibbon: Boolean = false, modifier: Modifier = Modifier) {
+    key(face.cover) {
+        BookCoverContent(face, size, showRibbon, modifier)
+    }
+}
+
+@Composable
+private fun BookCoverContent(face: BookFace, size: Dp, showRibbon: Boolean, modifier: Modifier) {
     val density = LocalDensity.current
     val sizePx = with(density) { size.roundToPx() }
     val loader = LocalCoverLoader.current
@@ -106,7 +114,7 @@ fun BookCover(face: BookFace, size: Dp, showRibbon: Boolean = false, modifier: M
             CoverImage.Cloth -> CoverArt.Missing
         }
     }
-    // A changed cover keeps the previous art on screen while the new one loads; the new art
+    // A resize keeps art from the same source on screen while the new bitmap loads; the art
     // then fades in over it instead of dropping the old one in a single frame.
     var baseArt by remember { mutableStateOf<ImageBitmap?>(null) }
     var overlayArt by remember { mutableStateOf<ImageBitmap?>(null) }
