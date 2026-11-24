@@ -1,6 +1,7 @@
 package ch.lkmc.pageworn.ui
 
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -14,6 +15,7 @@ import ch.lkmc.pageworn.testing.TestApp
 import ch.lkmc.pageworn.testing.awaitUntil
 import ch.lkmc.pageworn.testing.connectController
 import ch.lkmc.pageworn.testing.onMain
+import ch.lkmc.pageworn.ui.model.Copy
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -75,6 +77,10 @@ class RemovePlayingBookTest {
                     container.database.progress().observe(book.profileId, book.itemId).first { (it?.positionMs ?: 0) >= 20_400 }
                 }
                 assertThat(checkNotNull(saved).finished).isFalse()
+            }
+            // This locally published fixture has no catalog entry to show after removal.
+            composeRule.waitUntil(5_000) {
+                composeRule.onAllNodes(hasText(Copy.NO_DOWNLOADS)).fetchSemanticsNodes().isNotEmpty()
             }
         }
     }

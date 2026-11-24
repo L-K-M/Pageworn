@@ -34,6 +34,12 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
 
+internal sealed interface DetailState {
+    data object Loading : DetailState
+    data object Missing : DetailState
+    data class Available(val book: BookDetailUiState) : DetailState
+}
+
 /** Book details: the catalog entry or the downloaded edition, whichever exists, with its local state. */
 class DetailViewModel(private val container: AppContainer, private val key: BookKey) : ViewModel() {
     private val db = container.database
@@ -79,7 +85,7 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
         }
     }
 
-    val state: StateFlow<BookDetailUiState?> = combine(
+    internal val state: StateFlow<DetailState> = combine(
         inputs,
         container.playbackHub.state,
         actions.refusal,
@@ -87,7 +93,8 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
         preview,
     ) { i, live, refusal, removed, preview ->
         val currentPreview = preview?.takeIf { it.updatedAt == i.book?.updatedAt && i.edition == null }?.book
-        build(i, i.edition?.let { plans.plan(it) }, live, currentPreview)?.let { built ->
+        val built = build(i, i.edition?.let { plans.plan(it) }, live, currentPreview) ?: return@combine DetailState.Missing
+        DetailState.Available(run {
             val removalIsNewest = removed && i.edition == null && i.transfer == null
             val refusalHere = refusal?.takeIf { it.key == key && !removalIsNewest }
             when {
@@ -106,8 +113,8 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
                 }
                 else -> built
             }
-        }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+        })
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DetailState.Loading)
 
     /** Download, or Repair download: stages a fresh generation and keeps the saved place. */
     fun download() = actions.download(key)
