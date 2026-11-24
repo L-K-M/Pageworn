@@ -135,22 +135,49 @@ object RowBuilders {
         heldOrder: List<BookKey> = emptyList(),
     ): Pair<List<TransferRow>, List<ReadyBookRow>> {
         val transferRows = transfers.filter { it.state.active }.map { TransferRow(transferFace(it), transferUi(it)) }
-        val ordered = holdOrder(DownloadedOrder.sort(editions) { progress[it.key]?.lastListenedAt }, heldOrder)
+        val ordered = heldOrSorted(editions, progress, heldOrder)
         val bookRows = ordered.map { readyRow(it, dirOf(it), progress[it.key], timelines[it.generationId], live) }
         return transferRows to bookRows
     }
 
     /**
      * Keeps rows where they were while the list is on screen, so the book that just started does
-     * not move from under the finger that started it. A changed set of books is sorted afresh.
+     * not move from under the finger that started it. A held order that already names exactly the
+     * current editions wins over sorting, which keeps a position tick or progress write from
+     * reordering the shelf. Only an empty held order or a real gain or loss sorts afresh, and held
+     * keys always resolve to the newest edition metadata.
      */
-    private fun holdOrder(sorted: List<LocalEditionEntity>, held: List<BookKey>): List<LocalEditionEntity> {
-        val byKey = sorted.associateBy { it.key }
-        if (held.size != sorted.size || !held.all { it in byKey }) return sorted
-        return held.map { byKey.getValue(it) }
+    private fun heldOrSorted(
+        editions: List<LocalEditionEntity>,
+        progress: Map<BookKey, BookProgressEntity>,
+        held: List<BookKey>,
+    ): List<LocalEditionEntity> {
+        if (held.isNotEmpty() && held.size == editions.size) {
+            val byKey = editions.associateBy { it.key }
+            if (held.all { it in byKey }) {
+                return held.map { byKey.getValue(it) }
+            }
+        }
+        return DownloadedOrder.sort(editions) { progress[it.key]?.lastListenedAt }
     }
 
     fun noDownloads() = EmptyState(Copy.NO_DOWNLOADS, UiAction.BROWSE_LIBRARY, Copy.BROWSE_LIBRARY)
+
+    /**
+     * The metadata line of a Library row. A transfer always shows its state text — beside the
+     * ring at normal text, alone in compact rows — paired with any failure message, so a
+     * paused or waiting transfer never reads as active progress.
+     */
+    fun catalogRowMessage(row: CatalogRow): String? = when (val action = row.action) {
+        CatalogAction.DownloadDisabled -> row.message?.takeIf { it.isNotBlank() } ?: Copy.DOWNLOAD_DISABLED
+        CatalogAction.Unsupported -> row.message?.takeIf { it.isNotBlank() } ?: Copy.UNSUPPORTED_FORMAT
+        CatalogAction.RepairNeeded -> row.message?.takeIf { it.isNotBlank() } ?: Copy.REPAIR_NEEDED
+        is CatalogAction.Transferring -> {
+            val t = action.transfer
+            listOfNotNull(t.stateText, row.message?.takeIf { it.isNotBlank() } ?: t.message).filter { it.isNotBlank() }.distinct().joinToString(" · ").ifEmpty { null }
+        }
+        else -> row.message
+    }
 
     /** A Library row for a listing row, which may come from staged pages before the first publish. */
     fun catalogRow(
@@ -176,10 +203,14 @@ object RowBuilders {
         val key = BookKey(book.profileId, book.itemId)
         val face = BookFace(key, book.title, book.authors, CoverImage.Remote(book.profileId, book.itemId, book.updatedAt))
         return when {
-            transfer != null && transfer.state.active -> CatalogRow(face, CatalogAction.Transferring(transferUi(transfer)), transferUi(transfer).message)
-            edition != null && edition.state == EditionState.REPAIR_NEEDED -> CatalogRow(face, CatalogAction.RepairNeeded, Copy.DAMAGED_COPY)
+            transfer != null && transfer.state.active -> {
+                // A repair or replacement keeps the published cover on the row instead of fetching
+                // a remote thumbnail that may be stale, differ from the edition, or fail offline.
+                CatalogRow(face.copy(cover = localCover(edition, editionDir) ?: face.cover), CatalogAction.Transferring(transferUi(transfer)), transferUi(transfer).message)
+            }
+            edition != null && edition.state == EditionState.REPAIR_NEEDED -> CatalogRow(face.copy(cover = localCover(edition, editionDir) ?: face.cover), CatalogAction.RepairNeeded, Copy.DAMAGED_COPY)
             edition != null -> CatalogRow(
-                face.copy(cover = edition.coverFile?.let { CoverImage.Local(File(editionDir, it)) } ?: face.cover),
+                face.copy(cover = localCover(edition, editionDir) ?: face.cover),
                 CatalogAction.Ready(
                     showsPause = live.showsPause(key),
                     starting = live.waitsForAudio(key),
@@ -191,4 +222,12 @@ object RowBuilders {
             else -> CatalogRow(face, CatalogAction.Download)
         }
     }
+
+    /**
+     * The cover stored with a published edition, or null when there is none. This deliberately does
+     * not stat the file: rows are mapped on the main dispatcher, and [BookCover] already falls back
+     * to its cloth binding when a recorded cover cannot be decoded.
+     */
+    private fun localCover(edition: LocalEditionEntity?, editionDir: File?): CoverImage? =
+        edition?.coverFile?.let { name -> editionDir?.let { dir -> File(dir, name) } }?.let { CoverImage.Local(it) }
 }
