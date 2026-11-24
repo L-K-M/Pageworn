@@ -113,6 +113,9 @@ object Format {
         return if (h > 0) String.format(Locale.US, "%d h %02d min", h, m) else "$m min"
     }
 
+    /** A book's total length as a fact: whole minutes, or "Under 1 min" for a positive length below one minute. */
+    fun bookLength(ms: Long): String = if (ms > 0 && ms < 60_000) "Under 1 min" else hoursMinutes(ms)
+
     /** "Book · 2 h 08 min of 4 h 20 min". */
     fun bookLine(positionMs: Long, durationMs: Long) = "Book · ${hoursMinutes(positionMs)} of ${hoursMinutes(durationMs)}"
 

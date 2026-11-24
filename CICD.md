@@ -19,7 +19,8 @@ a connected phone or emulator. Enable USB or wireless debugging and set
 signing key and an equal or greater version code to replace an installed copy.
 `--check` prints the planned build and install options without running them.
 
-Android CI builds the debug APK and runs JVM tests on every push and pull request.
+Android CI builds the debug APK, runs Android lint, compiles the instrumented
+tests and runs JVM tests on every push and pull request.
 The **Repository checks** workflow separately validates the scripts and release
 version encoding, including before the Android project lands. Emulator and
 physical-device checks follow the [milestone plan](docs/06-delivery-and-tests.md).
