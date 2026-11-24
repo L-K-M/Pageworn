@@ -1,6 +1,9 @@
 package ch.lkmc.pageworn.ui
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.provider.Settings
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
@@ -23,6 +26,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 /** The links of the notification and the widgets lead there again after the listener left. */
@@ -85,6 +89,77 @@ class OpenPlayerIntentTest {
 
         compose.waitUntil(WAIT_MS) { compose.onAllNodesWithText("Book").fetchSemanticsNodes().isNotEmpty() }
         assertThat(detailsShown()).isFalse()
+    }
+
+    @Test
+    fun aColdPlayerLinkKeepsTheDownloadedNotice() {
+        app.container.notices.onDownloadEnqueued(notificationsDenied = true)
+        val intent = Intent(app, MainActivity::class.java).putExtra(MainActivity.EXTRA_OPEN_PLAYER, true)
+        Robolectric.buildActivity(MainActivity::class.java, intent).setup()
+
+        awaitPlayer()
+
+        assertThat(app.container.notices.downloadedStatus.value).isNotNull()
+    }
+
+    @Test
+    fun aColdBookLinkKeepsTheDownloadedNotice() {
+        app.container.notices.onDownloadEnqueued(notificationsDenied = true)
+        Robolectric.buildActivity(MainActivity::class.java, MainActivity.openBookIntent(app, key)).setup()
+
+        awaitDetails()
+
+        assertThat(app.container.notices.downloadedStatus.value).isNotNull()
+    }
+
+    @Test
+    fun aBookOpenedFromDownloadedConsumesTheNotice() {
+        app.container.notices.onDownloadEnqueued(notificationsDenied = true)
+        Robolectric.buildActivity(MainActivity::class.java).setup()
+        compose.waitUntil(WAIT_MS) { compose.onAllNodesWithText("Enable notifications").fetchSemanticsNodes().isNotEmpty() }
+
+        compose.onNodeWithContentDescription("Open Book").performClick()
+
+        awaitDetails()
+        assertThat(app.container.notices.downloadedStatus.value).isNull()
+    }
+
+    @Test
+    fun enablingNotificationsRequestsPermissionAndConsumesTheNotice() {
+        shadowOf(app).denyPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        app.container.notices.onDownloadEnqueued(notificationsDenied = true)
+        val activity = Robolectric.buildActivity(MainActivity::class.java).setup().get()
+        awaitNotificationsAction()
+
+        compose.onNodeWithText("Enable notifications").performClick()
+
+        val request = checkNotNull(shadowOf(activity).lastRequestedPermission)
+        assertThat(request.requestedPermissions.asList()).containsExactly(Manifest.permission.POST_NOTIFICATIONS)
+        compose.runOnIdle {
+            activity.onRequestPermissionsResult(
+                request.requestCode, request.requestedPermissions, intArrayOf(PackageManager.PERMISSION_GRANTED),
+            )
+        }
+        assertThat(app.container.settings.notificationsAsked).isTrue()
+        assertThat(app.container.notices.downloadedStatus.value).isNull()
+    }
+
+    @Test
+    fun enablingNotificationsOpensSettingsAfterThePromptIsUnavailable() {
+        shadowOf(app).denyPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        app.container.settings.notificationsAsked = true
+        app.container.notices.onDownloadEnqueued(notificationsDenied = true)
+        val activity = Robolectric.buildActivity(MainActivity::class.java).setup().get()
+        awaitNotificationsAction()
+
+        compose.onNodeWithText("Enable notifications").performClick()
+
+        assertThat(shadowOf(activity).nextStartedActivity.action).isEqualTo(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+        assertThat(app.container.notices.downloadedStatus.value).isNull()
+    }
+
+    private fun awaitNotificationsAction() = compose.waitUntil(WAIT_MS) {
+        compose.onAllNodesWithText("Enable notifications").fetchSemanticsNodes().isNotEmpty()
     }
 
     private fun awaitDetails() = compose.waitUntil(WAIT_MS) { detailsShown() }

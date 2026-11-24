@@ -30,6 +30,11 @@ class AppNotices(private val settings: SettingsStore) {
         if (from == Destination.DOWNLOADED && to != Destination.DOWNLOADED) dismiss()
     }
 
+    /** A screen outside the sections opened over [section], so the notice only applies to Downloaded. */
+    fun openedOver(section: Destination) {
+        if (section == Destination.DOWNLOADED) dismiss()
+    }
+
     /** The listener went from Downloaded to a screen outside the two sections, or used the action. */
     @Synchronized
     fun dismiss() {

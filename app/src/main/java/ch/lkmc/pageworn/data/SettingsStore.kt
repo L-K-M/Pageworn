@@ -45,6 +45,11 @@ class SettingsStore(context: Context) {
         get() = prefs.getBoolean(LOCAL_NETWORK_ASKED, false)
         set(value) = prefs.edit().putBoolean(LOCAL_NETWORK_ASKED, value).apply()
 
+    /** POST_NOTIFICATIONS was requested at least once (so a denial can open settings). */
+    var notificationsAsked: Boolean
+        get() = prefs.getBoolean(NOTIFICATIONS_ASKED, false)
+        set(value) = prefs.edit().putBoolean(NOTIFICATIONS_ASKED, value).apply()
+
     /** The address the listener pinned in manual mode, or null for automatic mode. */
     var pinnedAddressId: String?
         get() = prefs.getString(PINNED_ADDRESS, null)
@@ -75,6 +80,7 @@ class SettingsStore(context: Context) {
         private const val NOTIFICATIONS_NOTICE = "notifications_notice_consumed"
         private const val NOTIFICATIONS_NOTICE_PENDING = "notifications_notice_pending"
         private const val LOCAL_NETWORK_ASKED = "local_network_asked"
+        private const val NOTIFICATIONS_ASKED = "notifications_asked"
         private const val PINNED_ADDRESS = "pinned_address"
         val SPEEDS = listOf(0.75f, 1f, 1.25f, 1.5f, 1.75f, 2f)
     }

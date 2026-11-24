@@ -778,6 +778,72 @@ class TransferCoordinatorTest {
         assertThat(db.progress().get(PROFILE, key.itemId)).isEqualTo(saved)
     }
 
+    // Remove download is offered while a repair runs. The repair must stop where it is, give up
+    // the queue slot and leave nothing staged, not copy the rest of the book for nothing.
+    @Test fun a06c_removalDuringARepairStopsTheCopyAndReclaimsItsFiles() = runBlocking {
+        val key = book("a06c-running", "A" to source(51), "B" to source(52), "C" to source(53))
+        val next = book("a06c-next", "N" to source(54))
+        drive(enqueue(key))
+        val previous = db.editions().edition(PROFILE, key.itemId)!!
+        val saved = progress(key.itemId)
+        db.progress().upsert(saved)
+        editions.markRepairNeeded(key, previous.generationId)
+
+        val gate = FakeTransferServer.Gate(1_024)
+        routes.script("home", "A", FakeTransferServer.Reply(gate = gate))
+        val repair = enqueue(key)
+        val nextId = enqueue(next)
+        val running = launch(Dispatchers.Default) { coordinator.runDue() }
+        withTimeout(5_000) { gate.reached.await() }
+        val stagedGeneration = job(repair).stagingGenerationId
+        val requestsBefore = routes.requests.size
+        val removing = launch(Dispatchers.Default) { coordinator.remove(key) }
+        try {
+            withTimeout(5_000) {
+                while (job(repair).state != TransferState.CANCELLED || running.descendants().none { it.isCancelled }) yield()
+            }
+        } finally {
+            // Released either way, so a copy that was never stopped cannot hold the test open.
+            gate.release.complete(Unit)
+        }
+        removing.join()
+        running.join()
+
+        assertThat(routes.requests.drop(requestsBefore).map { it.fileId }).containsNoneOf("B", "C")
+        assertThat(files.staging(stagedGeneration).exists()).isFalse()
+        assertThat(db.transfers().files(repair)).isEmpty()
+        // The stopped copy's last journal write must not bring the job back.
+        assertThat(job(repair).state).isEqualTo(TransferState.CANCELLED)
+        assertThat(job(repair).activeMarker).isNull()
+        assertThat(db.editions().edition(PROFILE, key.itemId)).isNull()
+        assertThat(files.published(previous.generationId).exists()).isFalse()
+        assertThat(db.progress().get(PROFILE, key.itemId)).isEqualTo(saved)
+
+        assertThat(coordinator.runDue()).isTrue()
+        ready(next)
+        assertThat(job(nextId).state).isEqualTo(TransferState.COMPLETE)
+    }
+
+    @Test fun a06c_removalReclaimsAStoppedRepairWithoutARestart() = runBlocking {
+        val key = book("a06c-stopped", "A" to source(55), "B" to source(56))
+        drive(enqueue(key))
+        val previous = db.editions().edition(PROFILE, key.itemId)!!
+        editions.markRepairNeeded(key, previous.generationId)
+        routes.script("home", "B", FakeTransferServer.Reply(code = 500))
+        val repair = enqueue(key)
+        coordinator.runDue()
+        assertThat(job(repair).state).isEqualTo(TransferState.FAILED)
+        val stagedGeneration = job(repair).stagingGenerationId
+        assertThat(files.staging(stagedGeneration).exists()).isTrue()
+
+        coordinator.remove(key)
+
+        assertThat(job(repair).state).isEqualTo(TransferState.CANCELLED)
+        assertThat(files.staging(stagedGeneration).exists()).isFalse()
+        assertThat(db.transfers().files(repair)).isEmpty()
+        assertThat(db.editions().edition(PROFILE, key.itemId)).isNull()
+    }
+
     @Test fun a20_aTrackThatLostBytesOnTheDiskIsFoundDamagedBeforeOpening() = runBlocking {
         val key = book("damaged", "a" to source(1), "b" to source(2))
         drive(enqueue(key))
