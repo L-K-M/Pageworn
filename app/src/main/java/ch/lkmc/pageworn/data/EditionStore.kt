@@ -15,9 +15,12 @@ import ch.lkmc.pageworn.data.db.TrackEntity
 import ch.lkmc.pageworn.data.db.TransferState
 import ch.lkmc.pageworn.playback.EditionPlan
 import ch.lkmc.pageworn.playback.EditionSource
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -33,6 +36,8 @@ class EditionStore(
     private val db: PagewornDatabase,
     val files: EditionFiles,
     private val clock: Clock,
+    /** Runs the cleanup that a released lease leaves behind; it outlives any one session. */
+    private val background: CoroutineScope,
 ) : EditionSource {
 
     sealed interface PublishOutcome {
@@ -47,12 +52,35 @@ class EditionStore(
     private val bookLocks = ConcurrentHashMap<BookKey, Mutex>()
     private fun lockFor(key: BookKey) = bookLocks.getOrPut(key) { Mutex() }
 
-    fun acquire(generationId: String) {
-        leases.merge(generationId, 1, Int::plus)
+    /**
+     * Ends one session's hold. When the last hold on a generation that a repair or replacement
+     * superseded ends, its files go now rather than at the next start (rule 5).
+     */
+    fun release(generationId: String) {
+        val stillHeld = leases.computeIfPresent(generationId) { _, n -> if (n <= 1) null else n - 1 } != null
+        if (stillHeld) return
+        background.launch(Dispatchers.IO) {
+            try {
+                deleteIfUnused(generationId)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failed: Exception) {
+                // The scope has no exception handler. A failed read or delete leaves the files to
+                // the sweep at the next start, as before, rather than ending the process.
+            }
+        }
     }
 
-    fun release(generationId: String) {
-        leases.computeIfPresent(generationId) { _, n -> if (n <= 1) null else n - 1 }
+    /**
+     * Deletes [generationId] unless a session took it again or an edition or an active transfer
+     * still names it. A publication renames its staging directory before its commit, but the
+     * transfer row names that generation throughout, so it is never mistaken for an unused one.
+     */
+    private suspend fun deleteIfUnused(generationId: String) {
+        if (generationId in db.editions().referencedGenerations()) return
+        // Once the edition no longer names this generation, a new playback plan cannot lease it.
+        if (leases.containsKey(generationId)) return
+        files.deleteGeneration(generationId)
     }
 
     // --- Publication ---------------------------------------------------------------------------
@@ -157,10 +185,10 @@ class EditionStore(
 
     /** Deletes generations that no edition, active transfer, writer or playback session references. */
     suspend fun sweep(activeWriters: Set<String> = emptySet()) {
+        val directories = listOf(files.editionsRoot, files.stagingRoot)
+            .flatMap { root -> root.listFiles().orEmpty().filter(File::isDirectory) }
         val referenced = db.editions().referencedGenerations().toSet() + activeWriters + leases.keys
-        listOf(files.editionsRoot, files.stagingRoot).forEach { root ->
-            root.listFiles()?.filter { it.isDirectory && it.name !in referenced }?.forEach { it.deleteRecursively() }
-        }
+        directories.filter { it.name !in referenced }.forEach { it.deleteRecursively() }
     }
 
     /** Every track file is on the disk with the size it was verified at. */
@@ -235,11 +263,19 @@ class EditionStore(
 
     // --- Playback source -----------------------------------------------------------------------
 
-    override suspend fun plan(key: BookKey): EditionPlan? = lockFor(key).withLock {
-        if (isRemovalPending(key)) return@withLock null
-        val edition = db.editions().edition(key.profileId, key.itemId) ?: return@withLock null
-        if (edition.state != EditionState.READY) return@withLock null
-        toPlan(edition)
+    override suspend fun plan(key: BookKey): EditionPlan? = lockFor(key).withLock { playablePlanLocked(key) }
+
+    /** Verify and lease the selected generation under the same lock used to publish its replacement. */
+    suspend fun leaseForPlayback(key: BookKey): EditionPlan? = lockFor(key).withLock {
+        if (!checkBeforeOpening(key)) return@withLock null
+        playablePlanLocked(key)?.also { leases.merge(it.generationId, 1, Int::plus) }
+    }
+
+    private suspend fun playablePlanLocked(key: BookKey): EditionPlan? {
+        if (isRemovalPending(key)) return null
+        val edition = db.editions().edition(key.profileId, key.itemId) ?: return null
+        if (edition.state != EditionState.READY) return null
+        return toPlan(edition)
     }
 
     /** The edition's plan regardless of its state, for showing chapters and the saved place. */

@@ -29,6 +29,8 @@ import java.io.File
 import java.lang.reflect.Proxy
 import java.time.Instant
 import java.time.ZoneId
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
@@ -77,7 +79,7 @@ class SleepTimerTest {
         db = Room.inMemoryDatabaseBuilder(context, PagewornDatabase::class.java).build()
         db.profiles().upsert(ProfileEntity(key.profileId, "account", "Listener", null, null, "2.38.0", clock.wall))
         files = EditionFiles(folder.newFolder("media")).also { it.ensureRoots() }
-        editions = EditionStore(db, files, clock)
+        editions = EditionStore(db, files, clock, ticks)
         progress = ProgressStore(db.progress(), clock)
         publish(key.itemId, "generation")
         sleep = SleepSettingsStore(context, clock) { zone }
