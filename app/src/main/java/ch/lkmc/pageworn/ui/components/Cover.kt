@@ -52,8 +52,17 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** Below this size a generated cover shows plain cloth without lettering. */
+/** Below this size a generated cover shows only the initial of its title. */
 private val MIN_LETTERED_COVER = 64.dp
+
+/** Gold leaf on the cloth: the lettering of a generated cover. */
+private val COVER_LETTERING = Color(0xFFF4E4C8)
+
+/** Leading words a small cover skips, so "The Night Orchard" reads N rather than T. */
+private val LEADING_ARTICLES = setOf("the", "a", "an")
+
+/** Separates the words of a title when picking a small cover's initial. */
+private val WORD_SEPARATOR = Regex("\\s+")
 
 /** What a cover's art is doing: loading, on screen, or known to be absent. */
 private sealed interface CoverArt {
@@ -178,7 +187,7 @@ private fun BookCoverContent(face: BookFace, size: Dp, showRibbon: Boolean, modi
                 Image(painterResource(R.drawable.pw_cover_cloth), null, Modifier.fillMaxSize(), contentScale = ContentScale.FillBounds)
                 // Lettering is part of the cover art: it scales with the cover, not with the font
                 // scale, and the row or player beside it carries the readable title. Small covers
-                // stay plain cloth. It appears only when no art will come, not while it loads.
+                // show an initial when no art will come. While loading they stay plain cloth.
                 // Keep the lettering composed while it fades out, or it would vanish a frame
                 // before the art fades in.
                 if (size >= MIN_LETTERED_COVER && (artState is CoverArt.Missing || letteringAlpha > 0f)) {
@@ -186,9 +195,16 @@ private fun BookCoverContent(face: BookFace, size: Dp, showRibbon: Boolean, modi
                     val authorSize = with(density) { (size * 0.10f).toSp() }
                     Column(Modifier.fillMaxSize().padding(size * 0.09f).clearAndSetSemantics {}.graphicsLayer { alpha = letteringAlpha }, horizontalAlignment = Alignment.CenterHorizontally) {
                         Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                            Text(face.title, color = Color(0xFFF4E4C8), style = PagewornTheme.type.rowTitle.copy(fontWeight = FontWeight.Medium, fontSize = titleSize, lineHeight = titleSize * 1.15f), textAlign = TextAlign.Center, maxLines = 4, overflow = TextOverflow.Ellipsis)
+                            Text(face.title, color = COVER_LETTERING, style = PagewornTheme.type.rowTitle.copy(fontWeight = FontWeight.Medium, fontSize = titleSize, lineHeight = titleSize * 1.15f), textAlign = TextAlign.Center, maxLines = 4, overflow = TextOverflow.Ellipsis)
                         }
-                        face.author?.let { Text(it, color = Color(0xFFF4E4C8), style = PagewornTheme.type.metadata.copy(fontSize = authorSize, lineHeight = authorSize * 1.2f), textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                        face.author?.let { Text(it, color = COVER_LETTERING, style = PagewornTheme.type.metadata.copy(fontSize = authorSize, lineHeight = authorSize * 1.2f), textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                    }
+                } else if (size < MIN_LETTERED_COVER && (artState is CoverArt.Missing || letteringAlpha > 0f)) {
+                    coverInitial(face.title)?.let { initial ->
+                        val initialSize = with(density) { (size * 0.46f).toSp() }
+                        Box(Modifier.fillMaxSize().clearAndSetSemantics {}.graphicsLayer { alpha = letteringAlpha }, contentAlignment = Alignment.Center) {
+                            Text(initial, color = COVER_LETTERING, style = PagewornTheme.type.rowTitle.copy(fontWeight = FontWeight.Medium, fontSize = initialSize, lineHeight = initialSize))
+                        }
                     }
                 }
                 // The settled art sits under the fading-in overlay; both crossfade with cloth
@@ -204,6 +220,27 @@ private fun BookCoverContent(face: BookFace, size: Dp, showRibbon: Boolean, modi
             }
         }
     }
+}
+
+/**
+ * The letter a small generated cover carries: the first letter or digit of the title, after a
+ * leading article when more words follow. Null when the title has none.
+ */
+internal fun coverInitial(title: String): String? {
+    val words = title.trim().split(WORD_SEPARATOR).filter { it.isNotEmpty() }
+    val first = words.firstOrNull() ?: return null
+    val word = if (words.size > 1 && first.lowercase() in LEADING_ARTICLES) words[1] else first
+
+    // Walk code points, not chars: a letter outside the Basic Multilingual Plane is two chars,
+    // and neither half counts as a letter on its own.
+    var index = 0
+    while (index < word.length) {
+        val codePoint = word.codePointAt(index)
+        val width = Character.charCount(codePoint)
+        if (Character.isLetterOrDigit(codePoint)) return word.substring(index, index + width).uppercase()
+        index += width
+    }
+    return null
 }
 
 private const val CORNER = 0.04f
