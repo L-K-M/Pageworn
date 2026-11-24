@@ -220,6 +220,7 @@ fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, op
                     onRepair = player::repair,
                     onUsePreviousPosition = { player.resolveContinuity(usePrevious = true) },
                     onStartOver = { player.resolveContinuity(usePrevious = false) },
+                    onDismissPlayNotice = player::dismissProblem,
                 )
             }
         }
@@ -239,7 +240,7 @@ fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, op
                     val book = current.book
                     val notice = problem?.takeIf { it.key == key }?.let(PlayerStates::notice)
                     BookDetailScreen(
-                        state = if (notice == null) book else book.copy(message = notice),
+                        state = book.copy(playNotice = notice),
                         onBack = { navController.popBackStack() },
                         onDownload = detail::download,
                         onRetry = detail::download,
@@ -250,6 +251,7 @@ fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, op
                         onCancelTransfer = detail::cancelTransfer,
                         onSelectSegment = { start -> player.playFrom(key, start) },
                         onRemove = detail::remove,
+                        onDismissPlayNotice = player::dismissProblem,
                     )
                 }
             }

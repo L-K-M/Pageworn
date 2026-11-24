@@ -26,6 +26,7 @@ import ch.lkmc.pageworn.ui.components.BackAction
 import ch.lkmc.pageworn.ui.components.BookCover
 import ch.lkmc.pageworn.ui.components.PaperButton
 import ch.lkmc.pageworn.ui.components.PaperRule
+import ch.lkmc.pageworn.ui.components.PlayNotice
 import ch.lkmc.pageworn.ui.components.PlayPauseKey
 import ch.lkmc.pageworn.ui.components.TextAction
 import ch.lkmc.pageworn.ui.components.TransferIndicator
@@ -46,7 +47,7 @@ internal fun showsPlaceRibbon(action: DetailAction): Boolean =
     (action as? DetailAction.Play)?.start == StartAction.RESUME
 
 @Composable
-fun BookDetailScreen(state: BookDetailUiState, onBack: () -> Unit, onDownload: () -> Unit, onRetry: () -> Unit, onPlayPause: (KeyAction) -> Unit, onRepair: () -> Unit, onPauseTransfer: (String) -> Unit, onResumeTransfer: (String) -> Unit, onCancelTransfer: (String) -> Unit, onSelectSegment: (Long) -> Unit, onRemove: () -> Unit) {
+fun BookDetailScreen(state: BookDetailUiState, onBack: () -> Unit, onDownload: () -> Unit, onRetry: () -> Unit, onPlayPause: (KeyAction) -> Unit, onRepair: () -> Unit, onPauseTransfer: (String) -> Unit, onResumeTransfer: (String) -> Unit, onCancelTransfer: (String) -> Unit, onSelectSegment: (Long) -> Unit, onRemove: () -> Unit, onDismissPlayNotice: () -> Unit = {}) {
     // One lazy list: a long part list composes only the rows near the viewport, instead of paying
     // for every row before the cover and primary action can appear. Chapter keys keep each row's
     // identity while the list scrolls.
@@ -85,7 +86,12 @@ fun BookDetailScreen(state: BookDetailUiState, onBack: () -> Unit, onDownload: (
                     DetailAction.Unsupported -> Copy.UNSUPPORTED_FORMAT
                     else -> null
                 }
-                message?.let { Text(it, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status) }
+                val notice = state.playNotice
+                if (notice != null) {
+                    PlayNotice(notice, onDismissPlayNotice)
+                } else {
+                    message?.let { Text(it, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status) }
+                }
             }
         }
         state.description?.let { description ->
