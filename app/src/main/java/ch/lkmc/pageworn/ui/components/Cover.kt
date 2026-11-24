@@ -1,6 +1,5 @@
 package ch.lkmc.pageworn.ui.components
 
-import android.graphics.BitmapFactory
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -15,6 +14,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import ch.lkmc.pageworn.R
+import ch.lkmc.pageworn.artwork.decodeCover
 import ch.lkmc.pageworn.ui.model.BookFace
 import ch.lkmc.pageworn.ui.model.CoverImage
 import ch.lkmc.pageworn.ui.theme.LocalReducedMotion
@@ -75,6 +76,13 @@ val LocalCoverPainter = androidx.compose.runtime.staticCompositionLocalOf<(@Comp
 
 @Composable
 fun BookCover(face: BookFace, size: Dp, showRibbon: Boolean = false, modifier: Modifier = Modifier) {
+    key(face.cover) {
+        BookCoverContent(face, size, showRibbon, modifier)
+    }
+}
+
+@Composable
+private fun BookCoverContent(face: BookFace, size: Dp, showRibbon: Boolean, modifier: Modifier) {
     val density = LocalDensity.current
     val sizePx = with(density) { size.roundToPx() }
     val loader = LocalCoverLoader.current
@@ -86,10 +94,7 @@ fun BookCover(face: BookFace, size: Dp, showRibbon: Boolean = false, modifier: M
         value = when (val source = face.cover) {
             is CoverImage.Local -> withContext(Dispatchers.IO) {
                 try {
-                    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                    BitmapFactory.decodeFile(source.file.absolutePath, bounds)
-                    val sample = generateSequence(1) { it * 2 }.first { bounds.outWidth / it <= sizePx * 2 || it >= 128 }
-                    BitmapFactory.decodeFile(source.file.absolutePath, BitmapFactory.Options().apply { inSampleSize = sample })?.asImageBitmap()
+                    decodeCover(source.file, sizePx)?.asImageBitmap()
                 } catch (e: CancellationException) {
                     throw e
                 } catch (_: Exception) {
@@ -106,7 +111,7 @@ fun BookCover(face: BookFace, size: Dp, showRibbon: Boolean = false, modifier: M
             CoverImage.Cloth -> CoverArt.Missing
         }
     }
-    // A changed cover keeps the previous art on screen while the new one loads; the new art
+    // A resize keeps art from the same source on screen while the new bitmap loads; the art
     // then fades in over it instead of dropping the old one in a single frame.
     var baseArt by remember { mutableStateOf<ImageBitmap?>(null) }
     var overlayArt by remember { mutableStateOf<ImageBitmap?>(null) }

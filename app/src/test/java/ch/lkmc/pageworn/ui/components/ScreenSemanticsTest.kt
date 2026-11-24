@@ -7,11 +7,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.DeviceConfigurationOverride
+import androidx.compose.ui.test.FontScale
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasStateDescription
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -79,12 +82,22 @@ class ScreenSemanticsTest {
         assertStateTextIsShownOnce(TransferPhase.WAITING, "Waiting for connection")
     }
 
+    @Test
+    fun libraryTransferRowsNameTheWaitingRingAtLargeText() {
+        assertStateTextIsShownOnce(TransferPhase.WAITING, "Waiting for connection", fontScale = 2f)
+    }
+
+    @Test
+    fun libraryTransferRowsNameThePausedRingAtLargeText() {
+        assertStateTextIsShownOnce(TransferPhase.PAUSED, "Paused", fontScale = 2f)
+    }
+
     /**
      * The default Robolectric font scale renders the non-compact branch, whose compact-only gate
      * this change removed. [onNodeWithText] also fails on two matches, so each phase text is
      * asserted to appear exactly once and be displayed.
      */
-    private fun assertStateTextIsShownOnce(phase: TransferPhase, stateText: String) {
+    private fun assertStateTextIsShownOnce(phase: TransferPhase, stateText: String, fontScale: Float = 1f) {
         val row = CatalogRow(
             BookFace(BookKey("profile", "item"), "The Night Orchard", "A. Author", CoverImage.Cloth),
             CatalogAction.Transferring(
@@ -96,16 +109,19 @@ class ScreenSemanticsTest {
             ),
         )
         compose.setContent {
-            PagewornTheme {
-                LibraryScreen(
-                    LibraryUiState(rows = listOf(row)), rememberLazyListState(),
-                    {}, {}, {}, {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, PaddingValues(),
-                )
+            DeviceConfigurationOverride(DeviceConfigurationOverride.FontScale(fontScale)) {
+                PagewornTheme {
+                    LibraryScreen(
+                        LibraryUiState(rows = listOf(row)), rememberLazyListState(),
+                        {}, {}, {}, {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, PaddingValues(),
+                    )
+                }
             }
         }
 
         compose.onAllNodesWithText(stateText).assertCountEquals(1)
         compose.onNodeWithText(stateText).assertIsDisplayed()
+        compose.onNode(hasStateDescription("$stateText, 10%")).assertExists()
     }
 
     @Test

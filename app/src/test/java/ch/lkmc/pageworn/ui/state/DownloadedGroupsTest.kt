@@ -26,6 +26,18 @@ class DownloadedGroupsTest {
     )
 
     @Test
+    fun aLivePlaceInTheFirstMinuteShowsTheRibbonBeforeTheFirstCheckpoint() {
+        val start = LivePlayback(key = edition.key, playbackRequested = true)
+
+        fun row(playback: LivePlayback) = RowBuilders.readyRow(
+            edition, File(edition.relativeDir), progress = null, timeline = null, live = playback.rowDisplay(),
+        )
+
+        assertThat(row(start).hasPlace).isFalse()
+        assertThat(row(start.copy(positionMs = 1_234)).hasPlace).isTrue()
+    }
+
+    @Test
     fun a27TransfersAndReadyBooksFormSeparateGroups() {
         val (transfers, books) = rows(active, waiting, failed, completed)
 

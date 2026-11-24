@@ -224,7 +224,7 @@ class AbsClient(private val http: AddressHttp, private val json: Json = Json { i
         return ItemManifest(item.string("id"), item.required("updatedAt").jsonPrimitive.long,
             metadata.string("title"), metadata.optionalString("authorName"),
             metadata.optionalString("narratorName"),
-            metadata.optionalString("descriptionPlain") ?: metadata.optionalString("description"),
+            plainDescription(metadata),
             item.string("mediaType"), tracks,
             media["chapters"]?.jsonArray.orEmpty().map { chapter ->
                 val raw = chapter.jsonObject
@@ -253,7 +253,8 @@ class AbsClient(private val http: AddressHttp, private val json: Json = Json { i
                     metadata.optionalString("narratorName"), item.required("updatedAt").jsonPrimitive.long,
                     media["duration"]?.jsonPrimitive?.content?.toDoubleOrNull()?.let { (it * 1000).toLong() },
                     media["size"]?.jsonPrimitive?.content?.toLongOrNull(), tracks,
-                    addedAt = item["addedAt"]?.jsonPrimitive?.content?.toLongOrNull())
+                    addedAt = item["addedAt"]?.jsonPrimitive?.content?.toLongOrNull(),
+                    description = plainDescription(metadata))
             }, obj.required("total").jsonPrimitive.int)
         }
     }
@@ -325,6 +326,14 @@ class AbsClient(private val http: AddressHttp, private val json: Json = Json { i
 private fun JsonObject.required(key: String): JsonElement = this[key] ?: error("Missing $key")
 private fun JsonObject.string(key: String): String = required(key).jsonPrimitive.content
 private fun JsonObject.optionalString(key: String): String? = this[key]?.jsonPrimitive?.content?.takeUnless { it == "null" }
+
+/**
+ * The item description as plain text: the server's plain form when present, otherwise the HTML
+ * form with its tags stripped, so no markup reaches the UI.
+ */
+private fun plainDescription(metadata: JsonObject): String? =
+    metadata.optionalString("descriptionPlain")
+        ?: metadata.optionalString("description")?.replace(Regex("<[^>]*>"), " ")?.replace(Regex("\\s+"), " ")?.trim()?.takeIf(String::isNotBlank)
 private fun JsonObject.optionalLong(key: String): Long? = this[key]?.jsonPrimitive?.content?.toLongOrNull()
 private fun JsonObject.secondsMs(key: String): Long = required(key).jsonPrimitive.content.toDouble().times(1000).toLong()
 private fun JsonObject.optionalSecondsMs(key: String): Long? = this[key]?.jsonPrimitive?.content

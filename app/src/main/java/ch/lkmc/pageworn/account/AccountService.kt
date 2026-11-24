@@ -356,7 +356,8 @@ class AccountService(
         db.withTransaction {
             storeLibraries(profile.profileId, libraries)
             db.profiles().setCanDownload(profile.profileId, canDownload)
-            val chosen = profile.chosenLibraryId?.takeIf { id -> libraries.any { it.libraryId == id } } ?: libraries.firstOrNull()?.libraryId
+            val latestChoice = db.profiles().current()?.takeIf { it.profileId == profile.profileId }?.chosenLibraryId
+            val chosen = latestChoice?.takeIf { id -> libraries.any { it.libraryId == id } } ?: libraries.firstOrNull()?.libraryId
             db.profiles().setChosenLibrary(profile.profileId, chosen)
         }
         return true
@@ -371,14 +372,23 @@ class AccountService(
      */
     suspend fun refreshLibraryAndCatalog(libraryId: String? = null): Boolean = refreshing.withLock {
         if (!refreshLibraries()) return@withLock false
-        val selected = libraryId ?: db.profiles().current()?.chosenLibraryId ?: return@withLock true
+        val profile = db.profiles().current() ?: return@withLock true
+        // A stale selector request follows the validated choice made during the library refresh.
+        suspend fun stored(id: String) = db.libraries().get(profile.profileId, id) != null
+        val selected = libraryId?.takeIf { stored(it) }
+            ?: profile.chosenLibraryId?.takeIf { stored(it) }
+            ?: return@withLock true
         refreshCatalog(selected)
         true
     }
 
     suspend fun chooseLibrary(libraryId: String) {
-        val profile = db.profiles().current() ?: return
-        db.profiles().setChosenLibrary(profile.profileId, libraryId)
+        db.withTransaction {
+            val profile = db.profiles().current() ?: return@withTransaction
+            if (db.libraries().get(profile.profileId, libraryId) != null) {
+                db.profiles().setChosenLibrary(profile.profileId, libraryId)
+            }
+        }
     }
 
     /** Refreshes one library's catalog through whichever address answers. */
