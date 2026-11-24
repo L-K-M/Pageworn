@@ -65,7 +65,7 @@ class RetryTransferActionsTest {
         compose.setContent {
             val state = detail(DetailAction.Transferring(transfer(job.value)))
             PagewornTheme {
-                BookDetailScreen(state, {}, {}, {}, {}, {}, { resumed = it }, {}, {}, {})
+                BookDetailScreen(state, {}, {}, {}, {}, {}, {}, { resumed = it }, {}, {}, {})
             }
         }
 
@@ -106,7 +106,7 @@ class RetryTransferActionsTest {
         val state = detail(DetailAction.Transferring(transfer(TransferState.WAITING_FOR_CONNECTION)))
         compose.setContent {
             PagewornTheme {
-                BookDetailScreen(state, {}, {}, {}, {}, { paused = it }, {}, { cancelled = it }, {}, {})
+                BookDetailScreen(state, {}, {}, {}, {}, {}, { paused = it }, {}, { cancelled = it }, {}, {})
             }
         }
 
