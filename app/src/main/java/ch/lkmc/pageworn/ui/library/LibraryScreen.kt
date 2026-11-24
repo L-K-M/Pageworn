@@ -8,6 +8,7 @@ import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -135,8 +136,9 @@ private fun CatalogBookRow(row: CatalogRow, onOpenBook: (BookKey) -> Unit, onDow
         }
         if (compact) CatalogActionView(row, onDownload, onPlayPause, onPauseTransfer, onResumeTransfer)
         val transfer = (row.action as? CatalogAction.Transferring)?.transfer
-        if (transfer?.canCancel == true) Box(Modifier.padding(start = if (compact) 0.dp else ACTIONS_INDENT)) {
-            TextAction(Copy.CANCEL, spokenLabel = "Cancel download of ${face.title}") { onCancelTransfer(transfer.jobId) }
+        if (transfer != null && (transfer.canRetry || transfer.canCancel)) FlowRow(Modifier.padding(start = if (compact) 0.dp else ACTIONS_INDENT)) {
+            if (transfer.canRetry) TextAction(Copy.RETRY, spokenLabel = "Retry download of ${face.title}") { onResumeTransfer(transfer.jobId) }
+            if (transfer.canCancel) TextAction(Copy.CANCEL, spokenLabel = "Cancel download of ${face.title}") { onCancelTransfer(transfer.jobId) }
         }
     }
 }
