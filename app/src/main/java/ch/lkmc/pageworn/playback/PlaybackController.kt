@@ -149,6 +149,7 @@ class PlaybackController(
             // Book switch: checkpoint the old book now, release its timer and reader.
             saveSettledPause()
             checkpointIfPlaying()
+            pauseCause = null
             clearSleep()
             clippedAtMs = null
             // Playback goes on with the new book: that is a start, with a fresh timer.
@@ -184,6 +185,9 @@ class PlaybackController(
     fun beforePlay() {
         // A fade that stopped the last play left the volume low.
         restoreVolume()
+        // A fresh play invalidates any pause kind a timer armed, even when ExoPlayer coalesces
+        // the pause into this start and never reports the paused state.
+        pauseCause = null
         val book = loaded
         if (book == null) {
             timerOnPlaying = true
@@ -228,6 +232,8 @@ class PlaybackController(
     override fun onIsPlayingChanged(isPlaying: Boolean) {
         if (isPlaying) {
             startResolved = false
+            // A new play ends any pause kind a timer armed for the previous stop.
+            pauseCause = null
             failed = false
             played = true
             if (fadeJob == null) restoreVolume()
@@ -235,9 +241,17 @@ class PlaybackController(
         } else if (wasPlaying && exo.playbackState != Player.STATE_ENDED && exo.playerError == null) {
             val kind = pauseCause ?: StopKind.ORDINARY
             pauseCause = null
-            val before = loaded?.saved
-            checkpoint(kind, listened = true)
-            pauseSaved = loaded?.saved?.takeIf { it !== before }
+            if (kind != StopKind.EXACT) {
+                val before = loaded?.saved
+                checkpoint(kind, listened = true)
+                pauseSaved = loaded?.saved?.takeIf { it !== before }
+            } else {
+                // This pause wrote nothing new; don't leave a snapshot from an earlier pause behind.
+                pauseSaved = null
+            }
+            // An exact stop is a timer boundary, which already committed its place. The renderer
+            // can creep a few milliseconds past that boundary before the pause lands; re-saving
+            // the live position would move the next resume into the following segment.
         }
         wasPlaying = isPlaying
         publish()
@@ -319,6 +333,9 @@ class PlaybackController(
         val requested = exo.playWhenReady
         val seekFailed = pendingSeek
         pendingSeek = false
+        // A failure stops audible playback as an ordinary stop. The timer-boundary branch below
+        // is the exception and commits its own exact place.
+        pauseCause = null
         val timer = sleep as? SleepState.EndOf
         exo.playWhenReady = false
         val position = snapToBoundary(exo.currentPosition)
@@ -383,6 +400,9 @@ class PlaybackController(
     /** Saves the current position of the loaded book if the player still holds it. */
     fun checkpoint(kind: StopKind, listened: Boolean) {
         val book = loaded ?: return
+        // An armed exact stop owns the place until its pause callback lands. A periodic tick or
+        // a book switch in that window must not persist the renderer's crept position.
+        if (pauseCause == StopKind.EXACT) return
         if (!playerHolds(book)) return
         if (pendingSeek) return
         // A finished book keeps its finished place until Replay or a seek moves it; switching to
@@ -583,12 +603,16 @@ class PlaybackController(
         sleep = SleepState.Off
         stopFade()
         sleepSettings.recordStop(SleepLength.EndOfSegment)
+        // ExoPlayer reports the pause itself inline, but the renderer's isPlaying change comes
+        // later. Mark the pause exact first, so that late checkpoint cannot store an ordinary
+        // stop over the boundary and undo the exact resume the chapter rules require.
+        pauseCause = if (exo.isPlaying) StopKind.EXACT else null
         if (exo.playWhenReady) {
             exo.pause()
         }
         setAudioEnd(null, boundaryMs)
-        // Chapter, track and book modes commit the exact boundary.
-        pauseCause = null
+        // Commit the exact boundary even when no pause callback follows, for example when
+        // playback was already suppressed.
         save(boundaryMs, StopKind.EXACT, listened = true)
         publish()
     }
