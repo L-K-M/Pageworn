@@ -114,7 +114,7 @@ class OpenPlayerIntentTest {
         Robolectric.buildActivity(MainActivity::class.java).setup()
         compose.waitUntil(WAIT_MS) { compose.onAllNodesWithText("Enable notifications").fetchSemanticsNodes().isNotEmpty() }
 
-        compose.onNodeWithContentDescription("Open details for Book").performClick()
+        compose.onNodeWithContentDescription("Open Book").performClick()
 
         awaitDetails()
         assertThat(app.container.notices.downloadedStatus.value).isNull()
