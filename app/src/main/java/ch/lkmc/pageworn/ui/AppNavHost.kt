@@ -1,8 +1,11 @@
 package ch.lkmc.pageworn.ui
 
+import android.Manifest
 import android.app.Activity
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -51,10 +54,12 @@ import ch.lkmc.pageworn.ui.state.DetailViewModel
 import ch.lkmc.pageworn.ui.state.DownloadedViewModel
 import ch.lkmc.pageworn.ui.state.LibraryViewModel
 import ch.lkmc.pageworn.ui.state.MainViewModel
+import ch.lkmc.pageworn.ui.state.NotificationsRoute
 import ch.lkmc.pageworn.ui.state.PlayerStates
 import ch.lkmc.pageworn.ui.state.PlayerViewModel
 import ch.lkmc.pageworn.ui.state.SettingsViewModel
 import ch.lkmc.pageworn.ui.state.SleepSettingsViewModel
+import ch.lkmc.pageworn.ui.state.notificationsRoute
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -99,6 +104,24 @@ fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, op
             permissionCallback = callback
             container.settings.localNetworkAsked = true
             permissionLauncher.launch(LocalNetworkAccess.PERMISSION)
+        }
+    }
+    val notificationLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    val activity = LocalActivity.current
+    val requestNotifications: () -> Unit = {
+        val granted = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+        val rationale = activity?.shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS) == true
+        if (notificationsRoute(Build.VERSION.SDK_INT, granted, container.settings.notificationsAsked, rationale) == NotificationsRoute.ASK) {
+            // Nothing waits for this answer: the notice is gone, and transfers check the setting when they post.
+            container.settings.notificationsAsked = true
+            notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            context.startActivity(
+                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                    .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
         }
     }
     val connectMode by main.connectMode.collectAsStateWithLifecycle()
@@ -164,7 +187,7 @@ fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, op
         popExitTransition = { ExitTransition.None },
     ) {
         composable(Routes.MAIN) {
-            MainRoute(container, main, player, navController, requestLocalNetwork) { section ->
+            MainRoute(container, main, player, navController, requestLocalNetwork, requestNotifications) { section ->
                 if (!openingDirectly && navController.currentDestination?.route == Routes.MAIN) {
                     shownSection = section
                 }
@@ -320,9 +343,9 @@ private fun MainRoute(
     player: PlayerViewModel,
     navController: NavHostController,
     requestLocalNetwork: ((Boolean) -> Unit) -> Unit,
+    requestNotifications: () -> Unit,
     onSectionShown: (Destination) -> Unit,
 ) {
-    val context = LocalContext.current
     val destination by main.destination.collectAsStateWithLifecycle()
     val decided by main.decided.collectAsStateWithLifecycle()
     if (!decided) return
@@ -396,11 +419,7 @@ private fun MainRoute(
                             UiAction.BROWSE_LIBRARY -> main.select(Destination.LIBRARY)
                             UiAction.NOTIFICATION_SETTINGS -> {
                                 container.notices.dismiss()
-                                context.startActivity(
-                                    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-                                        .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-                                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                                )
+                                requestNotifications()
                             }
                             else -> Unit
                         }
