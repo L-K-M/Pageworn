@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -49,18 +50,24 @@ import ch.lkmc.pageworn.ui.model.TransferUi
 import ch.lkmc.pageworn.ui.model.UiAction
 import ch.lkmc.pageworn.ui.theme.PagewornTheme
 
+/** The space a [TextAction] keeps on each side of its label, inside its touch target. */
+private val TEXT_ACTION_INSET = 8.dp
+
+/** Lines a [TextAction]'s label up with the start of the sentence above it; the target overhangs. */
+private val UnderText = Modifier.offset(x = -TEXT_ACTION_INSET)
+
 @Composable
-fun TextAction(label: String, spokenLabel: String? = null, onClick: () -> Unit) {
+fun TextAction(label: String, spokenLabel: String? = null, modifier: Modifier = Modifier, onClick: () -> Unit) {
     // A short visible label can carry a fuller spoken name, e.g. "Cancel" read as "Cancel download of <title>".
     val spoken = if (spokenLabel == null) Modifier else Modifier.semantics { contentDescription = spokenLabel }
     val visible = if (spokenLabel == null) Modifier else Modifier.clearAndSetSemantics {}
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
     Box(
-        Modifier.heightIn(min = 48.dp).widthIn(min = 48.dp)
+        modifier.heightIn(min = 48.dp).widthIn(min = 48.dp)
             .clickable(interactionSource = interaction, role = Role.Button, onClick = onClick)
             .then(if (focused) Modifier.border(2.dp, PagewornTheme.colors.primaryInk, FOCUS_SHAPE) else Modifier)
-            .then(spoken).padding(horizontal = 8.dp),
+            .then(spoken).padding(horizontal = TEXT_ACTION_INSET),
         contentAlignment = Alignment.Center,
     ) {
         Text(label, visible, color = PagewornTheme.colors.accent, style = PagewornTheme.type.ribbonLabel.copy(fontWeight = FontWeight.SemiBold))
@@ -76,7 +83,7 @@ fun StatusLineView(line: StatusLine, onAction: (UiAction) -> Unit) {
             if (line.showsProgress) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
             Text(line.text, Modifier.weight(1f).padding(start = if (line.showsProgress) 8.dp else 0.dp).semantics { liveRegion = LiveRegionMode.Polite }, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status)
         }
-        if (line.action != null && line.actionLabel != null) TextAction(line.actionLabel) { onAction(line.action) }
+        if (line.action != null && line.actionLabel != null) TextAction(line.actionLabel, modifier = UnderText) { onAction(line.action) }
     }
 }
 
@@ -96,7 +103,7 @@ fun PlayNotice(text: String, onDismiss: () -> Unit) {
 fun EmptyStateView(state: EmptyState, onAction: (UiAction) -> Unit) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 20.dp)) {
         Text(state.text, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.empty)
-        if (state.action != null && state.actionLabel != null) TextAction(state.actionLabel) { onAction(state.action) }
+        if (state.action != null && state.actionLabel != null) TextAction(state.actionLabel, modifier = UnderText) { onAction(state.action) }
     }
 }
 

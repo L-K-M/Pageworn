@@ -130,9 +130,8 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
         // Not the screen's scope: leaving details must not stop between releasing and removing.
         container.appScope.launch {
             container.playerConnection.releaseBook(key)
-            // Set before the store write so no frame shows a gone edition without its reason.
+            container.transfers.remove(key)
             _removed.value = true
-            container.editionStore.remove(key)
         }
     }
 

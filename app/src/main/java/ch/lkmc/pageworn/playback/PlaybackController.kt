@@ -128,15 +128,6 @@ class PlaybackController(
      */
     suspend fun resolve(key: BookKey, explicitStartMs: Long?): Pair<MediaItem, Long>? {
         val outgoing = loaded
-        if (outgoing != null && outgoing.key != key) {
-            // Book switch: checkpoint the old book now, release its timer and reader.
-            saveSettledPause()
-            checkpointIfPlaying()
-            clearSleep()
-            clippedAtMs = null
-            // Playback goes on with the new book: that is a start, with a fresh timer.
-            if (exo.playWhenReady) timerOnPlaying = true
-        }
         if (outgoing != null && outgoing.key == key && !failed) {
             val start = explicitStartMs?.let { outgoing.plan.timeline.clamp(it) }
                 // Asked again before the player took the book: its position is still another item's.
@@ -154,6 +145,15 @@ class PlaybackController(
         val start = explicitStartMs?.let { plan.timeline.clamp(it) }
             ?: saved?.let { ResumeRewind.startPosition(it.positionMs, it.stopKind, it.updatedAt, clock.wallMillis(), it.finished) }?.coerceIn(0, plan.timeline.durationMs)
             ?: 0L
+        if (outgoing != null && outgoing.key != key) {
+            // Book switch: checkpoint the old book now, release its timer and reader.
+            saveSettledPause()
+            checkpointIfPlaying()
+            clearSleep()
+            clippedAtMs = null
+            // Playback goes on with the new book: that is a start, with a fresh timer.
+            if (exo.playWhenReady) timerOnPlaying = true
+        }
         outgoing?.let { editions.release(it.plan.generationId) }
         editions.acquire(plan.generationId)
         loaded = Loaded(plan, session, saved)

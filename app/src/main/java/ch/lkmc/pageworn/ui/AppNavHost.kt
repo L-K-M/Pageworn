@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -79,6 +80,8 @@ class BookLink(val key: BookKey)
 @Composable
 fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, openBook: BookLink? = null, navController: NavHostController = rememberNavController()) {
     val main: MainViewModel = viewModel { MainViewModel(container) }
+    var shownSection by remember { mutableStateOf<Destination?>(null) }
+    var openingDirectly by remember { mutableStateOf(openPlayer > 0 || openBook != null) }
     val player: PlayerViewModel = viewModel { PlayerViewModel(container) }
     val context = LocalContext.current
     var permissionCallback by remember { mutableStateOf<((Boolean) -> Unit)?>(null) }
@@ -106,7 +109,20 @@ fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, op
     }
 
     LaunchedEffect(openPlayer) {
-        if (openPlayer > 0) navController.navigate(Routes.PLAYER) { launchSingleTop = true }
+        if (openPlayer > 0) {
+            navController.navigate(Routes.PLAYER) { launchSingleTop = true }
+            openingDirectly = false
+        }
+    }
+
+    // Main can be on the back stack before it has displayed a section, for instance on a cold link.
+    LaunchedEffect(navController) {
+        navController.currentBackStackEntryFlow.collect { entry ->
+            if (entry.destination.route != Routes.MAIN) {
+                shownSection?.let(container.notices::openedOver)
+                shownSection = null
+            }
+        }
     }
 
     val problem by player.problem.collectAsStateWithLifecycle()
@@ -133,6 +149,7 @@ fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, op
             val onPhone = container.editionStore.observeEverything().first().any { it.key == link.key }
             navController.popBackStack(Routes.MAIN, inclusive = false)
             if (onPhone) navController.navigate(Routes.detail(link.key)) else main.select(Destination.DOWNLOADED)
+            openingDirectly = false
         }
     }
 
@@ -147,7 +164,11 @@ fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, op
         popExitTransition = { ExitTransition.None },
     ) {
         composable(Routes.MAIN) {
-            MainRoute(container, main, player, navController, requestLocalNetwork)
+            MainRoute(container, main, player, navController, requestLocalNetwork) { section ->
+                if (!openingDirectly && navController.currentDestination?.route == Routes.MAIN) {
+                    shownSection = section
+                }
+            }
         }
         composable(Routes.PLAYER) {
             val state by player.player.collectAsStateWithLifecycle()
@@ -293,11 +314,19 @@ fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, op
 }
 
 @Composable
-private fun MainRoute(container: AppContainer, main: MainViewModel, player: PlayerViewModel, navController: NavHostController, requestLocalNetwork: ((Boolean) -> Unit) -> Unit) {
+private fun MainRoute(
+    container: AppContainer,
+    main: MainViewModel,
+    player: PlayerViewModel,
+    navController: NavHostController,
+    requestLocalNetwork: ((Boolean) -> Unit) -> Unit,
+    onSectionShown: (Destination) -> Unit,
+) {
     val context = LocalContext.current
     val destination by main.destination.collectAsStateWithLifecycle()
     val decided by main.decided.collectAsStateWithLifecycle()
     if (!decided) return
+    SideEffect { onSectionShown(destination) }
     val mini by player.mini.collectAsStateWithLifecycle()
     val library: LibraryViewModel = viewModel { LibraryViewModel(container) }
     val downloaded: DownloadedViewModel = viewModel { DownloadedViewModel(container) }

@@ -87,6 +87,39 @@ class OpenPlayerIntentTest {
         assertThat(detailsShown()).isFalse()
     }
 
+    @Test
+    fun aColdPlayerLinkKeepsTheDownloadedNotice() {
+        app.container.notices.onDownloadEnqueued(notificationsDenied = true)
+        val intent = Intent(app, MainActivity::class.java).putExtra(MainActivity.EXTRA_OPEN_PLAYER, true)
+        Robolectric.buildActivity(MainActivity::class.java, intent).setup()
+
+        awaitPlayer()
+
+        assertThat(app.container.notices.downloadedStatus.value).isNotNull()
+    }
+
+    @Test
+    fun aColdBookLinkKeepsTheDownloadedNotice() {
+        app.container.notices.onDownloadEnqueued(notificationsDenied = true)
+        Robolectric.buildActivity(MainActivity::class.java, MainActivity.openBookIntent(app, key)).setup()
+
+        awaitDetails()
+
+        assertThat(app.container.notices.downloadedStatus.value).isNotNull()
+    }
+
+    @Test
+    fun aBookOpenedFromDownloadedConsumesTheNotice() {
+        app.container.notices.onDownloadEnqueued(notificationsDenied = true)
+        Robolectric.buildActivity(MainActivity::class.java).setup()
+        compose.waitUntil(WAIT_MS) { compose.onAllNodesWithText("Enable notifications").fetchSemanticsNodes().isNotEmpty() }
+
+        compose.onNodeWithContentDescription("Open Book").performClick()
+
+        awaitDetails()
+        assertThat(app.container.notices.downloadedStatus.value).isNull()
+    }
+
     private fun awaitDetails() = compose.waitUntil(WAIT_MS) { detailsShown() }
 
     private fun detailsShown() = compose.onAllNodesWithText(BACK).fetchSemanticsNodes().isNotEmpty()
