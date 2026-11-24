@@ -28,6 +28,12 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
 
+internal sealed interface DetailState {
+    data object Loading : DetailState
+    data object Missing : DetailState
+    data class Available(val book: BookDetailUiState) : DetailState
+}
+
 /** Book details: the catalog entry or the downloaded edition, whichever exists, with its local state. */
 class DetailViewModel(private val container: AppContainer, private val key: BookKey) : ViewModel() {
     private val db = container.database
@@ -59,13 +65,14 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
     private val _removed = MutableStateFlow(false)
     private val removed = _removed
 
-    val state: StateFlow<BookDetailUiState?> = combine(
+    internal val state: StateFlow<DetailState> = combine(
         inputs,
         container.playbackHub.state,
         actions.refusal,
         removed,
     ) { i, live, refusal, removed ->
-        build(i, i.edition?.let { plans.plan(it) }, live)?.let { built ->
+        val built = build(i, i.edition?.let { plans.plan(it) }, live) ?: return@combine DetailState.Missing
+        DetailState.Available(run {
             val removalIsNewest = removed && i.edition == null && i.transfer == null
             val refusalHere = refusal?.takeIf { it.key == key && !removalIsNewest }
             when {
@@ -84,8 +91,8 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
                 }
                 else -> built
             }
-        }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+        })
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DetailState.Loading)
 
     /** Download, or Repair download: stages a fresh generation and keeps the saved place. */
     fun download() = actions.download(key)
