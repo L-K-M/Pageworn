@@ -211,6 +211,6 @@ class DestinationStatesTest {
         val after = composeRule.onNodeWithContentDescription("Open $second").fetchSemanticsNode().boundsInRoot
         val laterRow = after.top > before.top + SAME_ROW_PX
         val laterColumn = abs(after.top - before.top) <= SAME_ROW_PX && after.left > before.left + SAME_ROW_PX
-        assertWithMessage("$first before $second").that(laterRow || laterColumn).isTrue()
+        assertWithMessage("$first before $second (first=$before, after=$after)").that(laterRow || laterColumn).isTrue()
     }
 }
