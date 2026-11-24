@@ -100,7 +100,8 @@ class LargeTextScreensTest {
         val list = composeRule.onNode(hasScrollToIndexAction())
         titles.forEach { title ->
             list.performScrollToNode(hasContentDescription("Open $title"))
-            composeRule.onNode(hasText(title) and hasAnyAncestor(hasScrollToIndexAction())).assertIsDisplayed()
+            // The shelf shows covers only: the title is the cover's name, not text on the screen.
+            composeRule.onNode(hasContentDescription("Open $title") and hasAnyAncestor(hasScrollToIndexAction())).assertIsDisplayed()
             assertTouchTargets()
         }
         list.performScrollToIndex(0)
