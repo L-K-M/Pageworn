@@ -100,9 +100,10 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
             combine(
                 db.editions().observeAll(s.profile.profileId),
                 db.transfers().observeActive(),
-                db.progress().observeAll(s.profile.profileId),
-                // The rows draw keys only: the position that moves four times a second would rebuild
-                // every row of a large library on the main thread each time.
+                // The rows draw only whether a place exists and whether the book is finished: the
+                // position that moves every few seconds would rebuild every row of a large library
+                // on the main thread each time.
+                db.progress().observeAll(s.profile.profileId).forLibraryRows(),
                 container.playbackHub.state.map { it.transportOnly() }.distinctUntilChanged(),
             ) { editions, transfers, progress, live -> LocalState(editions, transfers, progress, live) }
         }
@@ -229,7 +230,7 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
         val library = checkNotNull(s.selected) { "A profile with libraries has a selected one" }
         val editions = local.editions.associateBy { it.itemId }
         val transfers = local.transfers.filter { it.profileId == s.profile.profileId }.associateBy { it.itemId }
-        val progress = local.progress.associateBy { it.itemId }
+        val progress = local.progress
         val catalogRows = listing.rows.map { book ->
             val edition = editions[book.itemId]
             RowBuilders.catalogRow(
@@ -292,10 +293,18 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
     private data class LocalState(
         val editions: List<LocalEditionEntity> = emptyList(),
         val transfers: List<TransferEntity> = emptyList(),
-        val progress: List<BookProgressEntity> = emptyList(),
+        val progress: Map<String, RowProgress> = emptyMap(),
         val live: LivePlayback = LivePlayback(),
     )
 }
 
+/** The two progress facts a Library row draws: a saved place, and a finished book to replay. */
+data class RowProgress(val hasPlace: Boolean, val finished: Boolean)
+
 /** Typing settles before the catalog is searched; clearing stays immediate. */
 private const val SEARCH_DEBOUNCE_MS = 200L
+
+
+internal fun Flow<List<BookProgressEntity>>.forLibraryRows(): Flow<Map<String, RowProgress>> =
+    map { entries -> entries.associate { it.itemId to RowProgress(it.positionMs > 0, it.finished) } }
+        .distinctUntilChanged()
