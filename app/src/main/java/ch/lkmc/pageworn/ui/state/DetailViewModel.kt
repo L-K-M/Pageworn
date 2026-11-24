@@ -3,7 +3,9 @@ package ch.lkmc.pageworn.ui.state
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ch.lkmc.pageworn.AppContainer
+import ch.lkmc.pageworn.catalog.BookPreview
 import ch.lkmc.pageworn.core.BookKey
+import ch.lkmc.pageworn.core.timeline.Division
 import ch.lkmc.pageworn.data.db.BookProgressEntity
 import ch.lkmc.pageworn.data.db.CatalogBookEntity
 import ch.lkmc.pageworn.data.db.EditionState
@@ -19,13 +21,19 @@ import ch.lkmc.pageworn.ui.model.CoverImage
 import ch.lkmc.pageworn.ui.model.DetailAction
 import ch.lkmc.pageworn.ui.model.Format
 import ch.lkmc.pageworn.ui.model.StartAction
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 internal sealed interface DetailState {
@@ -65,13 +73,30 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
     private val _removed = MutableStateFlow(false)
     private val removed = _removed
 
+    private data class RevisionPreview(val updatedAt: Long, val book: BookPreview)
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val preview = inputs.map { i ->
+        i.book?.updatedAt?.takeIf { i.edition == null && i.profile?.profileId == key.profileId }
+    }.distinctUntilChanged().flatMapLatest { revision ->
+        flow<RevisionPreview?> {
+            emit(null)
+            if (revision != null) {
+                val book = withContext(Dispatchers.IO) { container.previews.preview(key, revision) }
+                if (book != null) emit(RevisionPreview(revision, book))
+            }
+        }
+    }
+
     internal val state: StateFlow<DetailState> = combine(
         inputs,
         container.playbackHub.state,
         actions.refusal,
         removed,
-    ) { i, live, refusal, removed ->
-        val built = build(i, i.edition?.let { plans.plan(it) }, live) ?: return@combine DetailState.Missing
+        preview,
+    ) { i, live, refusal, removed, preview ->
+        val currentPreview = preview?.takeIf { it.updatedAt == i.book?.updatedAt && i.edition == null }?.book
+        val built = build(i, i.edition?.let { plans.plan(it) }, live, currentPreview) ?: return@combine DetailState.Missing
         DetailState.Available(run {
             val removalIsNewest = removed && i.edition == null && i.transfer == null
             val refusalHere = refusal?.takeIf { it.key == key && !removalIsNewest }
@@ -110,7 +135,7 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
         }
     }
 
-    private fun build(i: Inputs, plan: EditionPlan?, live: LivePlayback): BookDetailUiState? {
+    private fun build(i: Inputs, plan: EditionPlan?, live: LivePlayback, preview: BookPreview?): BookDetailUiState? {
         val edition = i.edition
         val book = i.book
         if (edition == null && book == null) return null
@@ -130,6 +155,7 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
             edition?.state == EditionState.REPAIR_NEEDED -> DetailAction.Repair
             edition != null -> DetailAction.Play(StartAction.of(hasPlace, finished = i.progress?.finished == true), live.showsPause(key), live.waitsForAudio(key))
             i.profile?.canDownload == false -> DetailAction.DownloadDisabled
+            preview?.unsupported == true -> DetailAction.Unsupported
             else -> DetailAction.Download
         }
         val message = when (action) {
@@ -140,6 +166,7 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
             else -> null
         }
         val position = if (isLive) live.positionMs else i.progress?.positionMs
+        val previewTimeline = preview?.timeline?.takeIf { it.division != Division.PARTS }
         return BookDetailUiState(
             face = BookFace(key, title, authors, cover),
             narrator = shownNarrator(edition?.narrators, book?.narrators),
@@ -147,10 +174,11 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
             sizeText = sizeBytes?.let { Format.bytes(it) },
             action = action,
             message = message,
-            // A downloaded edition snapshots its own copy; a remote book reads the catalog's.
-            description = edition?.description ?: book?.description,
-            segmentsTitle = plan?.let { PlayerStates.segmentsLabel(it.timeline.division) },
-            segments = plan?.let { PlayerStates.segments(it, position) } ?: emptyList(),
+            description = edition?.description?.takeIf(String::isNotBlank) ?: preview?.description ?: book?.description,
+            segmentsTitle = plan?.let { PlayerStates.segmentsLabel(it.timeline.division) }
+                ?: previewTimeline?.let { PlayerStates.segmentsLabel(it.division) },
+            segments = plan?.let { PlayerStates.segments(it, position) }
+                ?: previewTimeline?.let { PlayerStates.segments(it, positionMs = null) }.orEmpty(),
             segmentsPlayable = edition != null && edition.state == EditionState.READY,
             canRemove = edition != null,
         )
