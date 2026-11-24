@@ -176,10 +176,14 @@ object RowBuilders {
         val key = BookKey(book.profileId, book.itemId)
         val face = BookFace(key, book.title, book.authors, CoverImage.Remote(book.profileId, book.itemId, book.updatedAt))
         return when {
-            transfer != null && transfer.state.active -> CatalogRow(face, CatalogAction.Transferring(transferUi(transfer)), transferUi(transfer).message)
-            edition != null && edition.state == EditionState.REPAIR_NEEDED -> CatalogRow(face, CatalogAction.RepairNeeded, Copy.DAMAGED_COPY)
+            transfer != null && transfer.state.active -> {
+                // A repair or replacement keeps the published cover on the row instead of fetching
+                // a remote thumbnail that may be stale, differ from the edition, or fail offline.
+                CatalogRow(face.copy(cover = localCover(edition, editionDir) ?: face.cover), CatalogAction.Transferring(transferUi(transfer)), transferUi(transfer).message)
+            }
+            edition != null && edition.state == EditionState.REPAIR_NEEDED -> CatalogRow(face.copy(cover = localCover(edition, editionDir) ?: face.cover), CatalogAction.RepairNeeded, Copy.DAMAGED_COPY)
             edition != null -> CatalogRow(
-                face.copy(cover = edition.coverFile?.let { CoverImage.Local(File(editionDir, it)) } ?: face.cover),
+                face.copy(cover = localCover(edition, editionDir) ?: face.cover),
                 CatalogAction.Ready(
                     showsPause = live.showsPause(key),
                     starting = live.waitsForAudio(key),
@@ -191,4 +195,12 @@ object RowBuilders {
             else -> CatalogRow(face, CatalogAction.Download)
         }
     }
+
+    /**
+     * The cover stored with a published edition, or null when there is none. This deliberately does
+     * not stat the file: rows are mapped on the main dispatcher, and [BookCover] already falls back
+     * to its cloth binding when a recorded cover cannot be decoded.
+     */
+    private fun localCover(edition: LocalEditionEntity?, editionDir: File?): CoverImage? =
+        edition?.coverFile?.let { name -> editionDir?.let { dir -> File(dir, name) } }?.let { CoverImage.Local(it) }
 }

@@ -34,14 +34,27 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.util.concurrent.ConcurrentHashMap
+import java.util.LinkedHashMap
 
 /** Caches edition plans (timeline, files, cover) by generation for row labels and the player. */
 class PlanCache(private val container: AppContainer) {
-    private val plans = ConcurrentHashMap<String, EditionPlan>()
+    // Access-ordered so the most recently used generations survive a long session; every other
+    // generation is re-read from Room when it becomes current again.
+    private val plans = object : LinkedHashMap<String, EditionPlan>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, EditionPlan>): Boolean = size > MAX_CACHED_PLANS
+    }
+    private val lock = Any()
 
     suspend fun plan(edition: LocalEditionEntity): EditionPlan? =
-        plans[edition.generationId] ?: container.editionStore.anyPlan(edition.key)?.also { plans[it.generationId] = it }
+        synchronized(lock) { plans[edition.generationId] } ?: run {
+            val fresh = container.editionStore.anyPlan(edition.key) ?: return null
+            synchronized(lock) { plans[fresh.generationId] = fresh }
+            fresh
+        }
+
+    private companion object {
+        const val MAX_CACHED_PLANS = 16
+    }
 
     suspend fun timelines(editions: List<LocalEditionEntity>): Map<String, BookTimeline> =
         editions.mapNotNull { e -> plan(e)?.let { e.generationId to it.timeline } }.toMap()
@@ -172,6 +185,15 @@ class DownloadedViewModel(private val container: AppContainer) : ViewModel() {
     private val plans = PlanCache(container)
     private val actions = TransferActions(container)
 
+    /**
+     * The player publishes its position every 250 ms, but a downloaded row shows a minute-scale
+     * remaining time. Coarsen the clock and skip unchanged states so a playing book does not
+     * rebuild and re-sort the whole list four times a second (Library already does the same).
+     */
+    private val rowsLive = container.playbackHub.state
+        .map { it.rowDisplay() }
+        .distinctUntilChanged { a, b -> a.sameRowsAs(b) }
+
     fun pauseTransfer(jobId: String) = actions.pause(jobId)
     fun resumeTransfer(jobId: String) = actions.resume(jobId)
     fun cancelTransfer(jobId: String) = actions.cancel(jobId)
@@ -191,7 +213,7 @@ class DownloadedViewModel(private val container: AppContainer) : ViewModel() {
         container.editionStore.observeEverything(),
         combine(container.database.progress().observeEverything(), showings) { progress, showing -> progress to showing },
         container.database.transfers().observeActive(),
-        container.playbackHub.state,
+        rowsLive,
         container.notices.downloadedStatus,
     ) { editions, (progress, showing), transfers, live, status ->
         if (showing != orderedFor) heldOrder = emptyList()
