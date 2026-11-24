@@ -1,8 +1,8 @@
 package ch.lkmc.pageworn.ui.state
 
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.delay
 import ch.lkmc.pageworn.core.sleep.SleepLength
+import ch.lkmc.pageworn.core.sleep.SleepSchedule
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ch.lkmc.pageworn.AppContainer
@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -34,14 +35,28 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.util.concurrent.ConcurrentHashMap
+import java.time.ZoneId
+import java.util.LinkedHashMap
 
 /** Caches edition plans (timeline, files, cover) by generation for row labels and the player. */
 class PlanCache(private val container: AppContainer) {
-    private val plans = ConcurrentHashMap<String, EditionPlan>()
+    // Access-ordered so the most recently used generations survive a long session; every other
+    // generation is re-read from Room when it becomes current again.
+    private val plans = object : LinkedHashMap<String, EditionPlan>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, EditionPlan>): Boolean = size > MAX_CACHED_PLANS
+    }
+    private val lock = Any()
 
     suspend fun plan(edition: LocalEditionEntity): EditionPlan? =
-        plans[edition.generationId] ?: container.editionStore.anyPlan(edition.key)?.also { plans[it.generationId] = it }
+        synchronized(lock) { plans[edition.generationId] } ?: run {
+            val fresh = container.editionStore.anyPlan(edition.key) ?: return null
+            synchronized(lock) { plans[fresh.generationId] = fresh }
+            fresh
+        }
+
+    private companion object {
+        const val MAX_CACHED_PLANS = 16
+    }
 
     suspend fun timelines(editions: List<LocalEditionEntity>): Map<String, BookTimeline> =
         editions.mapNotNull { e -> plan(e)?.let { e.generationId to it.timeline } }.toMap()
@@ -79,8 +94,13 @@ class PlayerViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
-    private val playerStates = combine(shown, container.playbackHub.state, container.sleepSettings.settings) { s, live, sleep ->
-        s?.let { PlayerStates.player(it.plan, it.edition, it.progress, live, sleep) }
+    private val playerStates = combine(
+        shown,
+        container.playbackHub.state,
+        container.sleepSettings.settings,
+        container.settings.speed,
+    ) { s, live, sleep, speed ->
+        s?.let { PlayerStates.player(it.plan, it.edition, it.progress, live, sleep, restingSpeed = speed) }
     }.shareIn(viewModelScope, SharingStarted.Eagerly, replay = 1)
 
     val player: StateFlow<PlayerUiState?> = playerStates.stateIn(viewModelScope, SharingStarted.Eagerly, null)
@@ -93,11 +113,27 @@ class PlayerViewModel(private val container: AppContainer) : ViewModel() {
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     init {
-        // A schedule edge can pass while nothing plays and no playback service runs to notice it.
+        // A schedule edge can pass while nothing plays and no playback service runs to notice it,
+        // so the mode is re-checked when it is due: at the window's next edge, not on a fixed poll.
         viewModelScope.launch {
-            while (isActive) {
-                container.sleepSettings.refresh()
-                delay(SLEEP_SCHEDULE_CHECK_MS)
+            // collectLatest restarts the wait when the settings change; the inner loop re-checks
+            // at each edge, so a passed window edge is applied without waiting for a change.
+            container.sleepSettings.settings.collectLatest { mode ->
+                while (true) {
+                    container.sleepSettings.refresh()
+                    val now = container.liveClock.wallMillis()
+                    val delayMs = if (mode.automatic) {
+                        try {
+                            (SleepSchedule.nextEdge(mode.window, now, ZoneId.systemDefault()).atMillis - now)
+                                .coerceIn(1, MAX_SCHEDULE_WAIT_MS)
+                        } catch (_: Exception) {
+                            // No resolvable edge (e.g. a degenerate or DST-collapsed window):
+                            // fall back to idle polling instead of killing the watcher.
+                            SCHEDULE_IDLE_WAIT_MS
+                        }
+                    } else SCHEDULE_IDLE_WAIT_MS
+                    delay(delayMs)
+                }
             }
         }
     }
@@ -172,6 +208,15 @@ class DownloadedViewModel(private val container: AppContainer) : ViewModel() {
     private val plans = PlanCache(container)
     private val actions = TransferActions(container)
 
+    /**
+     * The player publishes its position every 250 ms, but a downloaded row shows a minute-scale
+     * remaining time. Coarsen the clock and skip unchanged states so a playing book does not
+     * rebuild and re-sort the whole list four times a second (Library already does the same).
+     */
+    private val rowsLive = container.playbackHub.state
+        .map { it.rowDisplay() }
+        .distinctUntilChanged { a, b -> a.sameRowsAs(b) }
+
     fun pauseTransfer(jobId: String) = actions.pause(jobId)
     fun resumeTransfer(jobId: String) = actions.resume(jobId)
     fun cancelTransfer(jobId: String) = actions.cancel(jobId)
@@ -191,7 +236,7 @@ class DownloadedViewModel(private val container: AppContainer) : ViewModel() {
         container.editionStore.observeEverything(),
         combine(container.database.progress().observeEverything(), showings) { progress, showing -> progress to showing },
         container.database.transfers().observeActive(),
-        container.playbackHub.state,
+        rowsLive,
         container.notices.downloadedStatus,
     ) { editions, (progress, showing), transfers, live, status ->
         if (showing != orderedFor) heldOrder = emptyList()
@@ -279,4 +324,8 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
     }
 }
 
-private const val SLEEP_SCHEDULE_CHECK_MS = 30_000L
+/** How often the schedule is re-checked while the automatic window is off. */
+private const val SCHEDULE_IDLE_WAIT_MS = 60_000L
+
+/** The longest wait for the next window edge, so a clock jump cannot stall the check. */
+private const val MAX_SCHEDULE_WAIT_MS = 10 * 60_000L

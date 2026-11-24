@@ -1,6 +1,8 @@
 package ch.lkmc.pageworn.ui.components
 
 import android.graphics.BitmapFactory
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -11,8 +13,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -22,6 +29,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.painter.Painter
@@ -38,13 +46,24 @@ import androidx.compose.ui.text.font.FontWeight
 import ch.lkmc.pageworn.R
 import ch.lkmc.pageworn.ui.model.BookFace
 import ch.lkmc.pageworn.ui.model.CoverImage
+import ch.lkmc.pageworn.ui.theme.LocalReducedMotion
 import ch.lkmc.pageworn.ui.theme.PagewornTheme
-import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /** Below this size a generated cover shows plain cloth without lettering. */
 private val MIN_LETTERED_COVER = 64.dp
+
+/** What a cover's art is doing: loading, on screen, or known to be absent. */
+private sealed interface CoverArt {
+    data object Loading : CoverArt
+    data class Loaded(val image: ImageBitmap) : CoverArt
+    data object Missing : CoverArt
+}
+
+/** How long fetched art fades in over the cloth. */
+private const val COVER_FADE_MS = 180
 
 /** The cover frame of a book row in Library and Downloaded, and the smaller one from 150% text. */
 val ROW_COVER = 72.dp
@@ -57,36 +76,85 @@ val LocalCoverPainter = androidx.compose.runtime.staticCompositionLocalOf<(@Comp
 
 @Composable
 fun BookCover(face: BookFace, size: Dp, showRibbon: Boolean = false, modifier: Modifier = Modifier) {
+    key(face.cover) {
+        BookCoverContent(face, size, showRibbon, modifier)
+    }
+}
+
+@Composable
+private fun BookCoverContent(face: BookFace, size: Dp, showRibbon: Boolean, modifier: Modifier) {
     val density = LocalDensity.current
     val sizePx = with(density) { size.roundToPx() }
     val loader = LocalCoverLoader.current
     val previewPainter = LocalCoverPainter.current?.invoke(face)
-    // Keep a usable bitmap during a resize, but never carry it to a different cover source.
-    val source = face.cover
-    val image = key(source) {
-        produceState<ImageBitmap?>(null, sizePx, loader) {
-            value = when (source) {
-                is CoverImage.Local -> withContext(Dispatchers.IO) {
-                    runCatching {
-                        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                        BitmapFactory.decodeFile(source.file.absolutePath, bounds)
-                        val sample = generateSequence(1) { it * 2 }.first { bounds.outWidth / it <= sizePx * 2 || it >= 128 }
-                        BitmapFactory.decodeFile(source.file.absolutePath, BitmapFactory.Options().apply { inSampleSize = sample })?.asImageBitmap()
-                    }.getOrNull()
-                }
-                is CoverImage.Remote -> runCatching { loader.load(source, sizePx) }
-                    .onFailure { if (it is CancellationException) throw it }
-                    .getOrNull()
-                CoverImage.Cloth -> null
+    // While art is loading the cover shows plain cloth (or the previous cover's art, see
+    // baseArt below); only a load that came back empty earns the generated lettering.
+    val artState by produceState<CoverArt>(CoverArt.Loading, face.cover, sizePx, loader) {
+        value = CoverArt.Loading
+        value = when (val source = face.cover) {
+            is CoverImage.Local -> withContext(Dispatchers.IO) {
+                try {
+                    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    BitmapFactory.decodeFile(source.file.absolutePath, bounds)
+                    val sample = generateSequence(1) { it * 2 }.first { bounds.outWidth / it <= sizePx * 2 || it >= 128 }
+                    BitmapFactory.decodeFile(source.file.absolutePath, BitmapFactory.Options().apply { inSampleSize = sample })?.asImageBitmap()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    null
+                }?.let(CoverArt::Loaded) ?: CoverArt.Missing
             }
+            is CoverImage.Remote -> try {
+                loader.load(source, sizePx)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                null
+            }?.let(CoverArt::Loaded) ?: CoverArt.Missing
+            CoverImage.Cloth -> CoverArt.Missing
         }
-    }.value
+    }
+    // A resize keeps art from the same source on screen while the new bitmap loads; the art
+    // then fades in over it instead of dropping the old one in a single frame.
+    var baseArt by remember { mutableStateOf<ImageBitmap?>(null) }
+    var overlayArt by remember { mutableStateOf<ImageBitmap?>(null) }
+    var lastState by remember { mutableStateOf<CoverArt?>(null) }
+    LaunchedEffect(artState) {
+        when (val s = artState) {
+            is CoverArt.Loading -> {
+                // Art that already faded out after an empty load must not flash back in.
+                baseArt = if (lastState is CoverArt.Missing) null else overlayArt ?: baseArt
+                overlayArt = null
+            }
+            is CoverArt.Loaded -> overlayArt = s.image
+            is CoverArt.Missing -> overlayArt = null
+        }
+        lastState = artState
+    }
+    val overlayAlpha by animateFloatAsState(
+        targetValue = if (overlayArt != null) 1f else 0f,
+        animationSpec = tween(if (LocalReducedMotion.current) 0 else COVER_FADE_MS),
+        label = "coverOverlayArt",
+    )
     // The place ribbon scales with the cover (48 x 72 px art, 2:3), sits near the spine and hangs
     // below the lower edge from behind the book.
     val ribbonWidth = maxOf(size * 0.1f, 10.dp)
     val ribbonPeek = maxOf(size * 0.11f, 8.dp)
-    // Art keeps its shape: the book is as tall or as wide as the square allows.
-    val art = image.takeIf { previewPainter == null }
+    // Art keeps its shape: the book is as tall or as wide as the square allows. A Missing
+    // result means no art is drawn at all, so the lettering fallback engages.
+    val art = (if (artState is CoverArt.Missing) null else overlayArt ?: baseArt)?.takeIf { previewPainter == null }
+    // The settled art fades out when a load came back empty, so cloth and lettering take over.
+    val baseAlpha by animateFloatAsState(
+        targetValue = if (artState is CoverArt.Missing) 0f else 1f,
+        animationSpec = tween(if (LocalReducedMotion.current) 0 else COVER_FADE_MS),
+        label = "coverBaseArt",
+    )
+    // The lettering fades with the same spec, so the fallback does not pop in either.
+    val letteringAlpha by animateFloatAsState(
+        targetValue = if (artState is CoverArt.Missing) 1f else 0f,
+        animationSpec = tween(if (LocalReducedMotion.current) 0 else COVER_FADE_MS),
+        label = "coverLettering",
+    )
     val aspect = art?.let { it.width.toFloat() / it.height } ?: 1f
     val bookWidth = if (aspect < 1f) size * aspect else size
     val bookHeight = if (aspect > 1f) size / aspect else size
@@ -107,21 +175,33 @@ fun BookCover(face: BookFace, size: Dp, showRibbon: Boolean = false, modifier: M
         ) {
             if (previewPainter != null) {
                 Image(painter = previewPainter, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
-            } else if (image != null) {
-                Image(bitmap = image, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
             } else {
+                // Cloth stays beneath the art even when loaded: opaque art hides it, and
+                // transparent regions of alpha-bearing art intentionally show cloth through.
                 Image(painterResource(R.drawable.pw_cover_cloth), null, Modifier.fillMaxSize(), contentScale = ContentScale.FillBounds)
                 // Lettering is part of the cover art: it scales with the cover, not with the font
                 // scale, and the row or player beside it carries the readable title. Small covers
-                // stay plain cloth.
-                if (size >= MIN_LETTERED_COVER) {
+                // stay plain cloth. It appears only when no art will come, not while it loads.
+                // Keep the lettering composed while it fades out, or it would vanish a frame
+                // before the art fades in.
+                if (size >= MIN_LETTERED_COVER && (artState is CoverArt.Missing || letteringAlpha > 0f)) {
                     val titleSize = with(density) { (size * 0.15f).toSp() }
                     val authorSize = with(density) { (size * 0.10f).toSp() }
-                    Column(Modifier.fillMaxSize().padding(size * 0.09f).clearAndSetSemantics {}, horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(Modifier.fillMaxSize().padding(size * 0.09f).clearAndSetSemantics {}.graphicsLayer { alpha = letteringAlpha }, horizontalAlignment = Alignment.CenterHorizontally) {
                         Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                             Text(face.title, color = Color(0xFFF4E4C8), style = PagewornTheme.type.rowTitle.copy(fontWeight = FontWeight.Medium, fontSize = titleSize, lineHeight = titleSize * 1.15f), textAlign = TextAlign.Center, maxLines = 4, overflow = TextOverflow.Ellipsis)
                         }
                         face.author?.let { Text(it, color = Color(0xFFF4E4C8), style = PagewornTheme.type.metadata.copy(fontSize = authorSize, lineHeight = authorSize * 1.2f), textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                    }
+                }
+                // The settled art sits under the fading-in overlay; both crossfade with cloth
+                // and lettering rather than popping. Previews replace fetched art entirely.
+                if (previewPainter == null) {
+                    baseArt?.let { bitmap ->
+                        Image(bitmap = bitmap, contentDescription = null, modifier = Modifier.fillMaxSize().graphicsLayer { alpha = baseAlpha }, contentScale = ContentScale.Fit)
+                    }
+                    overlayArt?.let { bitmap ->
+                        Image(bitmap = bitmap, contentDescription = null, modifier = Modifier.fillMaxSize().graphicsLayer { alpha = overlayAlpha }, contentScale = ContentScale.Fit)
                     }
                 }
             }

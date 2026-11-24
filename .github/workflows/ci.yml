@@ -40,12 +40,25 @@ jobs:
       - name: Build the debug app and run the JVM tests
         run: scripts/build.sh
 
+      - name: Lint and compile the instrumented tests
+        run: ./gradlew --console=plain :app:lintDebug :app:compileDebugAndroidTestKotlin
+
       - name: Upload test reports
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: jvm-test-reports
           path: app/build/reports/tests/
+          retention-days: 14
+
+      - name: Upload lint reports
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: android-lint-reports
+          path: |
+            app/build/reports/lint-results-debug.html
+            app/build/reports/lint-results-debug.xml
           retention-days: 14
 
       - name: Upload the debug APK
