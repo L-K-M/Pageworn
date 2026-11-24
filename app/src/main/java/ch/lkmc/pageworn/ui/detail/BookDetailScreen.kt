@@ -7,11 +7,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -48,45 +47,56 @@ internal fun showsPlaceRibbon(action: DetailAction): Boolean =
 
 @Composable
 fun BookDetailScreen(state: BookDetailUiState, onBack: () -> Unit, onDownload: () -> Unit, onRetry: () -> Unit, onPlayPause: (KeyAction) -> Unit, onRepair: () -> Unit, onPauseTransfer: (String) -> Unit, onResumeTransfer: (String) -> Unit, onCancelTransfer: (String) -> Unit, onSelectSegment: (Long) -> Unit, onRemove: () -> Unit) {
-    Column(Modifier.fillMaxSize().paperBackground().statusBarsPadding().navigationBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Row(Modifier.fillMaxWidth()) { BackAction(onBack) }
-        BookCover(state.face, 168.dp, showRibbon = showsPlaceRibbon(state.action))
-        Text(state.face.title, Modifier.padding(top = 20.dp).semantics { heading() }, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.playerTitle, textAlign = TextAlign.Center)
-        state.face.author?.let { Text(it, Modifier.padding(top = 2.dp), color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.author, textAlign = TextAlign.Center) }
-        PaperRule(Modifier.fillMaxWidth(.78f).padding(vertical = 10.dp))
-        state.narrator?.let { Text("Narrated by $it", color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.metadata) }
-        val facts = listOfNotNull(state.durationText, state.sizeText).joinToString(" · ")
-        if (facts.isNotEmpty()) Text(facts, Modifier.padding(top = 8.dp), color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.metadata)
-        Column(Modifier.fillMaxWidth().padding(vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            when (val action = state.action) {
-                DetailAction.Download -> PaperButton(Copy.DOWNLOAD, onDownload, Modifier.semantics { contentDescription = "Download ${state.face.title}" })
-                DetailAction.DownloadDisabled, DetailAction.Unsupported -> {
-                    PaperButton(Copy.DOWNLOAD, {}, Modifier.semantics { contentDescription = "Download ${state.face.title}"; stateDescription = state.message ?: if (action == DetailAction.Unsupported) Copy.UNSUPPORTED_FORMAT else Copy.DOWNLOAD_DISABLED }, enabled = false)
-                    // A disabled primary action still needs a way back when the refusal was
-                    // transient or the server has changed since it was recorded.
-                    TextAction(Copy.RETRY, spokenLabel = "Retry download of ${state.face.title}", onClick = onRetry)
-                }
-                is DetailAction.Play -> PlayPauseKey(action.showsPause, state.face.title, 68.dp, starting = action.starting, start = action.start, onClick = onPlayPause)
-                DetailAction.Repair -> PaperButton(Copy.REPAIR_DOWNLOAD, onRepair, Modifier.semantics { contentDescription = "Repair download of ${state.face.title}" })
-                is DetailAction.Transferring -> {
-                    val t = action.transfer
-                    TransferIndicator(t, compact = false)
-                    if (t.canPause) TransferPauseKey(state.face.title) { onPauseTransfer(t.jobId) }
-                    if (t.canResume) TextAction("Resume", spokenLabel = "Resume download of ${state.face.title}", onClick = { onResumeTransfer(t.jobId) })
-                    if (t.canCancel) TextAction(Copy.CANCEL, spokenLabel = "Cancel download of ${state.face.title}", onClick = { onCancelTransfer(t.jobId) })
-                }
-            }
-            val message = state.message ?: when (state.action) {
-                DetailAction.DownloadDisabled -> Copy.DOWNLOAD_DISABLED
-                DetailAction.Unsupported -> Copy.UNSUPPORTED_FORMAT
-                else -> null
-            }
-            message?.let { Text(it, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status) }
+    // One lazy list: a long part list composes only the rows near the viewport, instead of paying
+    // for every row before the cover and primary action can appear. Chapter keys keep each row's
+    // identity while the list scrolls.
+    LazyColumn(Modifier.fillMaxSize().paperBackground().statusBarsPadding().navigationBarsPadding().padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        item(key = "back") { Row(Modifier.fillMaxWidth()) { BackAction(onBack) } }
+        item(key = "header") {
+            BookCover(state.face, 168.dp, showRibbon = showsPlaceRibbon(state.action))
+            Text(state.face.title, Modifier.padding(top = 20.dp).semantics { heading() }, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.playerTitle, textAlign = TextAlign.Center)
+            state.face.author?.let { Text(it, Modifier.padding(top = 2.dp), color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.author, textAlign = TextAlign.Center) }
+            PaperRule(Modifier.fillMaxWidth(.78f).padding(vertical = 10.dp))
+            state.narrator?.let { Text("Narrated by $it", color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.metadata) }
+            val facts = listOfNotNull(state.durationText, state.sizeText).joinToString(" · ")
+            if (facts.isNotEmpty()) Text(facts, Modifier.padding(top = 8.dp), color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.metadata)
         }
-        state.description?.let { Text(it, Modifier.fillMaxWidth().padding(vertical = 12.dp), color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.empty) }
+        item(key = "action") {
+            Column(Modifier.fillMaxWidth().padding(vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                when (val action = state.action) {
+                    DetailAction.Download -> PaperButton(Copy.DOWNLOAD, onDownload, Modifier.semantics { contentDescription = "Download ${state.face.title}" })
+                    DetailAction.DownloadDisabled, DetailAction.Unsupported -> {
+                        PaperButton(Copy.DOWNLOAD, {}, Modifier.semantics { contentDescription = "Download ${state.face.title}"; stateDescription = state.message ?: if (action == DetailAction.Unsupported) Copy.UNSUPPORTED_FORMAT else Copy.DOWNLOAD_DISABLED }, enabled = false)
+                        TextAction(Copy.RETRY, spokenLabel = "Retry download of ${state.face.title}", onClick = onRetry)
+                    }
+                    is DetailAction.Play -> PlayPauseKey(action.showsPause, state.face.title, 68.dp, starting = action.starting, start = action.start, onClick = onPlayPause)
+                    DetailAction.Repair -> PaperButton(Copy.REPAIR_DOWNLOAD, onRepair, Modifier.semantics { contentDescription = "Repair download of ${state.face.title}" })
+                    is DetailAction.Transferring -> {
+                        val t = action.transfer
+                        TransferIndicator(t, compact = false)
+                        if (t.canPause) TransferPauseKey(state.face.title) { onPauseTransfer(t.jobId) }
+                        if (t.canResume) TextAction("Resume", spokenLabel = "Resume download of ${state.face.title}", onClick = { onResumeTransfer(t.jobId) })
+                        if (t.canCancel) TextAction(Copy.CANCEL, spokenLabel = "Cancel download of ${state.face.title}", onClick = { onCancelTransfer(t.jobId) })
+                    }
+                }
+                val message = state.message ?: when (state.action) {
+                    DetailAction.DownloadDisabled -> Copy.DOWNLOAD_DISABLED
+                    DetailAction.Unsupported -> Copy.UNSUPPORTED_FORMAT
+                    else -> null
+                }
+                message?.let { Text(it, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status) }
+            }
+        }
+        state.description?.let { description ->
+            item(key = "description") {
+                Text(description, Modifier.fillMaxWidth().padding(vertical = 12.dp), color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.empty)
+            }
+        }
         state.segmentsTitle?.let { title ->
-            Text(title, Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 8.dp).semantics { heading() }, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.sheetTitle)
-            state.segments.forEach { segment ->
+            item(key = "segments-title") {
+                Text(title, Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 8.dp).semantics { heading() }, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.sheetTitle)
+            }
+            items(state.segments, key = { it.index }) { segment ->
                 PaperRule()
                 Row(Modifier.fillMaxWidth().then(if (state.segmentsPlayable) Modifier.clickable(role = Role.Button) { onSelectSegment(segment.startMs) }.semantics { contentDescription = "Play ${segment.title} in ${state.face.title}" } else Modifier).padding(vertical = 16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text(segment.title, Modifier.weight(1f), color = if (segment.generated) PagewornTheme.colors.secondaryInk else PagewornTheme.colors.primaryInk, style = PagewornTheme.type.author)
@@ -94,6 +104,8 @@ fun BookDetailScreen(state: BookDetailUiState, onBack: () -> Unit, onDownload: (
                 }
             }
         }
-        if (state.canRemove) TextAction("Remove download", spokenLabel = "Remove download of ${state.face.title}", onClick = onRemove)
+        if (state.canRemove) item(key = "removal") {
+            TextAction("Remove download", spokenLabel = "Remove download of ${state.face.title}", onClick = onRemove)
+        }
     }
 }
