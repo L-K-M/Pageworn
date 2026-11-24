@@ -45,6 +45,7 @@ import ch.lkmc.pageworn.ui.settings.SleepSettingsScreen
 import ch.lkmc.pageworn.ui.state.AddressesViewModel
 import ch.lkmc.pageworn.ui.state.ConnectMode
 import ch.lkmc.pageworn.ui.state.ConnectViewModel
+import ch.lkmc.pageworn.ui.state.DetailState
 import ch.lkmc.pageworn.ui.state.DetailViewModel
 import ch.lkmc.pageworn.ui.state.DownloadedViewModel
 import ch.lkmc.pageworn.ui.state.LibraryViewModel
@@ -188,22 +189,27 @@ fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, op
             }
             val detail: DetailViewModel = viewModel(key = mediaId) { DetailViewModel(container, key) }
             val state by detail.state.collectAsStateWithLifecycle()
-            state?.let {
-                val notice = problem?.takeIf { p -> p.key == key }?.let(PlayerStates::notice)
-                BookDetailScreen(
-                    state = it.copy(playNotice = notice),
-                    onBack = { navController.popBackStack() },
-                    onDownload = detail::download,
-                    onRetry = detail::download,
-                    onPlayPause = { player.playPause(key, it) },
-                    onRepair = detail::download,
-                    onPauseTransfer = detail::pauseTransfer,
-                    onResumeTransfer = detail::resumeTransfer,
-                    onCancelTransfer = detail::cancelTransfer,
-                    onSelectSegment = { start -> player.playFrom(key, start) },
-                    onRemove = detail::remove,
-                    onDismissPlayNotice = player::dismissProblem,
-                )
+            when (val current = state) {
+                DetailState.Loading -> Unit
+                DetailState.Missing -> LaunchedEffect(key) { navController.popBackStack() }
+                is DetailState.Available -> {
+                    val book = current.book
+                    val notice = problem?.takeIf { it.key == key }?.let(PlayerStates::notice)
+                    BookDetailScreen(
+                        state = book.copy(playNotice = notice),
+                        onBack = { navController.popBackStack() },
+                        onDownload = detail::download,
+                        onRetry = detail::download,
+                        onPlayPause = { player.playPause(key, it) },
+                        onRepair = detail::download,
+                        onPauseTransfer = detail::pauseTransfer,
+                        onResumeTransfer = detail::resumeTransfer,
+                        onCancelTransfer = detail::cancelTransfer,
+                        onSelectSegment = { start -> player.playFrom(key, start) },
+                        onRemove = detail::remove,
+                        onDismissPlayNotice = player::dismissProblem,
+                    )
+                }
             }
         }
         composable(Routes.SETTINGS) {
