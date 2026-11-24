@@ -272,7 +272,10 @@ class EditionStore(
     override suspend fun readyBooks(): List<EditionPlan> {
         val profileEditions = db.editions().all().filter { it.state == EditionState.READY }
         val removals = db.editions().pendingRemovals().map { BookKey(it.profileId, it.itemId) }.toSet()
-        val progress = profileEditions.associate { it.key to db.progress().get(it.profileId, it.itemId) }
+        // One query for the whole car list rather than one per book. `book_progress` holds one
+        // row per listened book; if it grows large, join against READY editions instead of
+        // loading every profile's rows.
+        val progress = db.progress().all().associateBy { it.key }
         return DownloadedOrder.sort(profileEditions.filter { it.key !in removals }) { progress[it.key]?.lastListenedAt }
             .mapNotNull { toPlan(it) }
     }

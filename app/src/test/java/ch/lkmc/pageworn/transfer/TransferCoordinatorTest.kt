@@ -80,7 +80,7 @@ class TransferCoordinatorTest {
     @After fun tearDown() { db.close() }
 
     private fun freshCoordinator(transferRoutes: TransferRoutes = routes) = TransferCoordinator(db, files, editions, transferRoutes,
-        TrackVerifier { file, _ ->
+        TrackVerifier { file, _, _ ->
             if (file.name in unsupported) TrackCheck.Unsupported("fixture unsupported")
             else TrackCheck.Playable(90_000, "aac", probedChapters[file.name].orEmpty())
         }, FormatSupport(DecoderAvailability { true }), clock, { freeBytes }, { "id-${++sequence}" })

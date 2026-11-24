@@ -550,7 +550,7 @@ class TransferCoordinator(
                 saveFile(row.copy(state = FileTransferState.PENDING, bytesJournal = 0, validator = null, urlFingerprint = null))
                 return rest(job, TransferState.FAILED, FailureCategory.VERIFICATION)
             }
-            when (val check = verifier.verify(file, row.extension)) {
+            when (val check = verifier.verify(file, row.extension, row.codec)) {
                 is TrackCheck.Unsupported -> return rest(job, TransferState.FAILED, FailureCategory.UNSUPPORTED_FORMAT)
                 is TrackCheck.Playable -> EditionAssembler.StagedTrack(
                     row.localFilename, row.sourceFileId, row.mtimeMs ?: 0, file.length(), check.durationMs, row.title, row.extension, check.codec ?: row.codec,
