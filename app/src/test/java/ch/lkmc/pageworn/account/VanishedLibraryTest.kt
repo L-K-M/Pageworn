@@ -75,7 +75,11 @@ class VanishedLibraryTest {
         vault.write("home", TokenPair("access", "refresh"))
 
         // The selector still lists the old library; the server no longer does.
-        val refreshed = accounts().refreshLibraryAndCatalog(VANISHED)
+        val service = accounts()
+        val refreshed = service.refreshLibraryAndCatalog(VANISHED)
+
+        // A second stale tap can arrive just after the refresh deletes its library.
+        service.chooseLibrary(VANISHED)
 
         assertThat(refreshed).isTrue()
         assertThat(db.libraries().get(PROFILE, VANISHED)).isNull()

@@ -356,7 +356,8 @@ class AccountService(
         db.withTransaction {
             storeLibraries(profile.profileId, libraries)
             db.profiles().setCanDownload(profile.profileId, canDownload)
-            val chosen = profile.chosenLibraryId?.takeIf { id -> libraries.any { it.libraryId == id } } ?: libraries.firstOrNull()?.libraryId
+            val latestChoice = db.profiles().current()?.takeIf { it.profileId == profile.profileId }?.chosenLibraryId
+            val chosen = latestChoice?.takeIf { id -> libraries.any { it.libraryId == id } } ?: libraries.firstOrNull()?.libraryId
             db.profiles().setChosenLibrary(profile.profileId, chosen)
         }
         return true
@@ -372,10 +373,7 @@ class AccountService(
     suspend fun refreshLibraryAndCatalog(libraryId: String? = null): Boolean = refreshing.withLock {
         if (!refreshLibraries()) return@withLock false
         val profile = db.profiles().current() ?: return@withLock true
-        // The selector can offer a library the server has since removed; the refresh above has
-        // deleted its row and chosen another, so the catalog follows that choice instead. The
-        // choice is checked as well: chooseLibrary does not hold this lock, so a tap on a stale
-        // entry can store a vanished id between that refresh and the read above.
+        // A stale selector request follows the validated choice made during the library refresh.
         suspend fun stored(id: String) = db.libraries().get(profile.profileId, id) != null
         val selected = libraryId?.takeIf { stored(it) }
             ?: profile.chosenLibraryId?.takeIf { stored(it) }
@@ -385,8 +383,12 @@ class AccountService(
     }
 
     suspend fun chooseLibrary(libraryId: String) {
-        val profile = db.profiles().current() ?: return
-        db.profiles().setChosenLibrary(profile.profileId, libraryId)
+        db.withTransaction {
+            val profile = db.profiles().current() ?: return@withTransaction
+            if (db.libraries().get(profile.profileId, libraryId) != null) {
+                db.profiles().setChosenLibrary(profile.profileId, libraryId)
+            }
+        }
     }
 
     /** Refreshes one library's catalog through whichever address answers. */
