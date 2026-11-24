@@ -10,19 +10,27 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.ui.connect.ConnectScreen
 import ch.lkmc.pageworn.ui.library.LibraryScreen
 import ch.lkmc.pageworn.ui.model.AddressRow
 import ch.lkmc.pageworn.ui.model.AddressesUiState
+import ch.lkmc.pageworn.ui.model.BookFace
+import ch.lkmc.pageworn.ui.model.CatalogAction
+import ch.lkmc.pageworn.ui.model.CatalogRow
 import ch.lkmc.pageworn.ui.model.ConnectUiState
+import ch.lkmc.pageworn.ui.model.CoverImage
 import ch.lkmc.pageworn.ui.model.LibraryUiState
 import ch.lkmc.pageworn.ui.model.SettingsUiState
+import ch.lkmc.pageworn.ui.model.TransferPhase
+import ch.lkmc.pageworn.ui.model.TransferUi
 import ch.lkmc.pageworn.ui.settings.AddressesScreen
 import ch.lkmc.pageworn.ui.settings.LicencesScreen
 import ch.lkmc.pageworn.ui.settings.SettingsScreen
@@ -54,6 +62,50 @@ class ScreenSemanticsTest {
         compose.runOnIdle { query.value = "harbour" }
 
         compose.onNode(hasSetTextAction()).assert(hasContentDescription("Search title or author"))
+    }
+
+    @Test
+    fun libraryTransferRowsShowAPausedStateAtTheDefaultTextSize() {
+        assertStateTextIsShownOnce(TransferPhase.PAUSED, "Paused")
+    }
+
+    @Test
+    fun libraryTransferRowsShowADownloadingStateAtTheDefaultTextSize() {
+        assertStateTextIsShownOnce(TransferPhase.TRANSFERRING, "Downloading")
+    }
+
+    @Test
+    fun libraryTransferRowsShowAWaitingStateAtTheDefaultTextSize() {
+        assertStateTextIsShownOnce(TransferPhase.WAITING, "Waiting for connection")
+    }
+
+    /**
+     * The default Robolectric font scale renders the non-compact branch, whose compact-only gate
+     * this change removed. [onNodeWithText] also fails on two matches, so each phase text is
+     * asserted to appear exactly once and be displayed.
+     */
+    private fun assertStateTextIsShownOnce(phase: TransferPhase, stateText: String) {
+        val row = CatalogRow(
+            BookFace(BookKey("profile", "item"), "The Night Orchard", "A. Author", CoverImage.Cloth),
+            CatalogAction.Transferring(
+                TransferUi(
+                    jobId = "job", phase = phase, bytesDone = 10, bytesTotal = 100,
+                    stateText = stateText, message = null, canPause = phase == TransferPhase.TRANSFERRING,
+                    canResume = phase == TransferPhase.PAUSED, canRetry = false, canCancel = true,
+                ),
+            ),
+        )
+        compose.setContent {
+            PagewornTheme {
+                LibraryScreen(
+                    LibraryUiState(rows = listOf(row)), rememberLazyListState(),
+                    {}, {}, {}, {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, PaddingValues(),
+                )
+            }
+        }
+
+        compose.onAllNodesWithText(stateText).assertCountEquals(1)
+        compose.onNodeWithText(stateText).assertIsDisplayed()
     }
 
     @Test

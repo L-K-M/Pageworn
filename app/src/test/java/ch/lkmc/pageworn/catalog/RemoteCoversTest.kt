@@ -2,8 +2,11 @@ package ch.lkmc.pageworn.catalog
 
 import com.google.common.truth.Truth.assertThat
 import java.io.File
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
@@ -31,6 +34,24 @@ class RemoteCoversTest {
         assertThat(calls).isEqualTo(1)
         assertThat(first!!.readBytes().asList()).containsExactly(1.toByte(), 2.toByte(), 3.toByte()).inOrder()
         assertThat(dir.listFiles()).hasLength(1)
+    }
+
+    @Test fun aMissIsFetchedOffTheCallersThread() {
+        // Covers load from composition, on the main thread. The fetch chooses a route and reads
+        // each address's credential from the Keystore, so it must not run on the caller.
+        val dir = folder.newFolder()
+        val fetchThread = AtomicReference<Thread>()
+        val covers = covers(dir, fetch = { _, _, _ -> fetchThread.set(Thread.currentThread()); byteArrayOf(1) })
+        val callerThread = AtomicReference<Thread>()
+        val caller = Executors.newSingleThreadExecutor { Thread(it, "caller-main").also(callerThread::set) }
+        try {
+            val file = runBlocking(caller.asCoroutineDispatcher()) { covers.thumbnail("item-1", 10L, 200) }
+            assertThat(file).isNotNull()
+        } finally {
+            caller.shutdown()
+        }
+        assertThat(fetchThread.get()).isNotNull()
+        assertThat(fetchThread.get()).isNotSameInstanceAs(callerThread.get())
     }
 
     @Test fun concurrentCallsForOneKeyShareOneFetch() = runBlocking {
@@ -95,6 +116,31 @@ class RemoteCoversTest {
         assertThat(third.exists()).isTrue()
         val files = requireNotNull(dir.listFiles())
         assertThat(files.sumOf { it.length() }).isAtMost(250L)
+    }
+
+    @Test fun evictionLeavesAnUnpublishedThumbnailAlone() = runBlocking {
+        val dir = folder.newFolder()
+        val covers = covers(dir, fetch = { _, _, _ -> ByteArray(100) }, maxBytes = 150)
+        val victim = checkNotNull(covers.thumbnail("old-item", 1L, 200))
+        victim.setLastModified(2_000)
+        val staged = File.createTempFile("cover-", ".tmp", dir)
+        staged.writeBytes(ByteArray(100))
+        staged.setLastModified(1_000)
+
+        val published = covers.thumbnail("another-item", 1L, 200)
+
+        assertThat(victim.exists()).isFalse()
+        assertThat(staged.length()).isEqualTo(100L)
+        assertThat(published?.length()).isEqualTo(100L)
+    }
+
+    @Test fun firstWriteReclaimsAnInterruptedWritersTemporaryFile() = runBlocking {
+        val dir = folder.newFolder()
+        val orphan = File.createTempFile("cover-", ".tmp", dir)
+        val covers = covers(dir, fetch = { _, _, _ -> byteArrayOf(1) })
+
+        assertThat(covers.thumbnail("item", 1L, 200)).isNotNull()
+        assertThat(orphan.exists()).isFalse()
     }
 
     @Test fun cachedFileNameHidesTheRawItemId() = runBlocking {

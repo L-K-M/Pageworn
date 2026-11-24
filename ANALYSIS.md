@@ -2,38 +2,66 @@
 
 These tasks build on the offline-first player, its paper surfaces, Spectral titles and oxblood place ribbon. The November 2026 review used the implementation at `9e4be6d`, later main revisions, the gallery images and a synthetic library on an API 37 emulator. Each task includes a way to decide whether the change helps.
 
-## Implemented in open pull requests
+## Implemented
 
-- **Keep chapter work off the playback tick.** PR #34. `PlayerStates.player` now carries the timeline's own segment list and current index instead of formatting every chapter row four times a second; the lazy sheet formats only visible rows. The regression test asserts two live states share one list while the index advances.
-- **Name the state of every library transfer.** PR #35. Library rows pair the progress icon with the state word at every text size, not only from 150 percent, so paused and waiting downloads no longer read as bare rings.
-- **Protect writes during cover cache eviction.** PR #25 limits eviction to published thumbnails and reclaims abandoned temporary files on the next process's first write.
-- **Return from missing book details.** PRs #27 and #32 distinguish loading from a missing book. An API 37 removal test checks the return to Downloaded and the saved place.
-- **Retry a download in place.** PR #28 adds Retry to Library and details while retaining Pause and Cancel where available.
-- **Mark a saved place on the details cover.** PRs #29 and #38 show the ribbon for Resume and leave fresh and finished books unmarked.
-- **Bound cover decoding.** PR #30 samples against the longer edge across Compose, cached remote art and widgets. A 256 × 8192 portrait decodes to 8 × 256 for a 128 px target.
-- **Verify formats with the manifest codec.** PR #39 threads the Audiobookshelf codec into the post-download verifier, so MP3 frames inside a CAF container reach the probe instead of being refused after the bytes were fetched. A `TrackProbe` test double covers the gate on the JVM.
-- **Hold Downloaded rows to the checkpoint clock.** PR #43 strips volatile playback fields and holds the moving position to five seconds before combining, so a playing book no longer rebuilds every row four times a second. Transport changes still pass through at once.
+Each entry names the pull request that carried it. Entries were recorded while their PR was
+open; check its state before relying on one. Anything not listed here is still open.
+
+### Merged into main
+
+- **Verify formats with the manifest codec.** PR #39 threads the Audiobookshelf codec into the post-download verifier, so MP3 frames inside a CAF container reach the probe instead of being refused after the bytes were fetched. The probe's own codec is re-checked against the matrix and becomes the published fact. A `TrackProbe` test double covers the gate on the JVM.
 - **Keep a published cover on a transferring row.** PR #46 prefers the edition's stored cover during a repair or replacement, falling back to the server thumbnail only when no local file exists.
 - **Select the sleep length that is actually running.** PR #53 selects a carried-over timer, or a running length whose preset was removed, and lists that length while it runs so exactly one radio carries the countdown.
 - **Settle Library search before querying.** PR #58 debounces non-empty queries by 200 ms while keeping the field immediate, so a large catalog is not re-searched and re-sorted once per character.
+- **Refresh the catalog after signing in again.** PR #37 makes `SIGN_IN` refresh libraries and the catalog like the other reconnect modes, so a cached Library cannot stay stale behind a restored session.
+- **Mark a saved place on the details cover.** PR #38 shows the ribbon for Resume and leaves fresh and finished books unmarked; its companion PR #29 is still open.
+- **Draw focus rings outside keys and paper rows.** PR #57. The key ring surrounds the face, and text actions and disclosure rows gain the same pencil outline as the other controls.
+- **Treat an unreadable library list as a sign-in failure.** PR #56. A failed `/api/libraries` read revokes the fresh session and reports the address problem instead of storing an empty profile or claiming a different server; its companion PR #41 is still open.
+- **Load progress once for the car's book list.** PR #50 replaces the per-edition `book_progress` query in `readyBooks()` with one `ProgressDao.all()`.
+- **Say that a removal keeps the place.** PR #60. The long-unused `AUDIO_REMOVED` copy now appears under the detail action until a download starts or an edition returns.
+- **Bound the plan cache.** PR #45 turns `PlanCache` into an access-ordered LRU of 16 generations instead of an unbounded map.
+- **Coarsen Downloaded's live position.** PR #42 floors a playing row's place to the minute and skips unchanged live states, replacing the four-per-second rebuild of every row. A second approach in PR #43 was closed as a duplicate once #42 merged.
+- **Name the state of every library transfer.** PR #48 pairs the Library progress icon with the state word at every text size, so paused and waiting downloads no longer read as bare rings. PR #35 described the same change and can be closed as a duplicate.
+- **Centralize the Library row message.** PR #36 moves the row's metadata line into `RowBuilders.catalogRowMessage`: a transfer always shows its state text joined with any failure message (blank parts dropped), and `Copy.REPAIR_NEEDED` is shared with the Downloaded badge. `CatalogRowMessageTest` pins the precedence and blank handling.
+- **Fade and crossfade cover art.** PR #51 fades fetched covers in over the cloth (180 ms, off under reduced motion), keeps the previous art on screen while a changed cover loads, crossfades instead of popping, and rethrows `CancellationException` so a cancelled load is never mistaken for missing art.
+- **Pull down on Library to refresh the catalog.** PR #59 wraps the list in a `PullToRefreshBox`; refreshes from pulls, retries and library switches are serialized behind a mutex so the spinner never drops while work is queued.
+- **Settle list rows into place.** PR #62 applies `Modifier.animateItem()` to Library and Downloaded rows and the Downloading header, and omits the trailing divider at the bottom of each list.
+- **Wait for the sleep window's next edge.** PR #64 replaces the 30 s sleep poll with a `collectLatest` loop that delays until `SleepSchedule.nextEdge` (overnight ends after midnight included, DST-tested) and falls back to idle polling if no edge resolves, so the watcher cannot crash.
+- **Keep the Library search field bounded at large font scales.** PR #65 wraps at two lines from 150% text, pins `ImeAction.Search` with a focus-clearing action, and strips newlines from hardware-Enter or pasted text.
+- PR #40 was closed as a duplicate of #60 (removal notice) and PR #47 as a duplicate of #42 (Downloaded row tick).
+
+### Open pull requests
+
+- **Keep chapter work off the playback tick.** PR #34. `PlayerStates.player` now carries the timeline's own segment list and current index instead of formatting every chapter row four times a second; the lazy sheet formats only visible rows. The regression test asserts two live states share one list while the index advances.
+- **Protect writes during cover cache eviction.** PR #25 limits eviction to published thumbnails and reclaims abandoned temporary files on the next process's first write.
+- **Return from missing book details.** PRs #27 and #32 distinguish loading from a missing book. An API 37 removal test checks the return to Downloaded and the saved place.
+- **Retry a download in place.** PR #28 adds Retry to Library and details while retaining Pause and Cancel where available.
+- **Bound cover decoding.** PR #30 samples against the longer edge across Compose, cached remote art and widgets. A 256 × 8192 portrait decodes to 8 × 256 for a 128 px target.
 - **Keep an end-of-chapter sleep stop exact.** PR #44. ExoPlayer reports the pause inline but `isPlaying` false later, so the pause checkpoint could store an ordinary stop over the exact boundary and turn a rested resume into a ten-second rewind. The controller arms the exact pause kind before pausing; the regression test defers that callback and fails on the old code.
 - **Read covers and file checks off the main thread.** PR #49. The System UI resumption control no longer reads up to 2 MB of cover bytes on the main thread, and opening a book verifies track sizes on the IO dispatcher rather than during media-item resolution.
-- **Keep an incomplete first load in the status line.** PR #52. The staged rows stay browsable and Retry sits between the heading block and the rows, rather than in the centred empty-state form.
-- **Disable detail Download after a refusal.** PR #54. An unsupported format or a per-book download denial replaces the primary action with the specified disabled action while the refusal lasts. The pre-tap verdict below remains open.
-- **Treat an unreadable library list as a sign-in failure.** PRs #41 and #56. A failed `/api/libraries` read revokes the fresh session and reports the address problem instead of storing an empty profile or claiming a different server.
-- **Draw focus rings outside keys and paper rows.** PR #57. The key ring surrounds the face, and text actions and disclosure rows gain the same pencil outline as the other controls.
-- **Say that a removal keeps the place.** PR #60. The long-unused `AUDIO_REMOVED` copy now appears under the detail action until a download starts or an edition returns.
-- **Refresh the catalog after signing in again.** PR #37 makes `SIGN_IN` refresh libraries and the catalog like the other reconnect modes, so a cached Library cannot stay stale behind a restored session.
-- **Coarsen Downloaded's live position.** PR #42 floors a playing row's place to the minute and skips unchanged live states; PR #43 holds it to the checkpoint clock. Both replace the four-per-second rebuild of every row.
-- **Bound the plan cache.** PR #45 turns `PlanCache` into an access-ordered LRU of 16 generations instead of an unbounded map.
-- **Load progress once for the car's book list.** PR #50 replaces the per-edition `book_progress` query in `readyBooks()` with one `ProgressDao.all()`.
 - **Show a remote book's description on its details page.** PR #55. The pinned minified listing already carries `media.metadata.description` (verified against the captured v2.38.0 fixtures), so the catalog now stores it (`catalog_book`/`catalog_staging`, schema 3) and details fall back to it when no downloaded edition snapshots its own copy. The HTML-only fallback is stripped to plain text in both parse paths.
 - **Project progress to what Library rows draw.** PR #61. Library rows use only hasPlace/finished, so the view model now projects `BookProgressEntity` to that pair with `distinctUntilChanged`; a moving position no longer re-maps every row of a large library on each checkpoint. Downloaded rows still read exact positions.
-- PR #48 overlaps PR #35 (transfer state text); keep one when they merge.
-
 - **Clear stale cover art during a source change.** PR #26 resets the Compose bitmap when the artwork source changes. The API 37 regression checks the cloth placeholder while a replacement is delayed.
 - **Keep the held shelf order without sorting again.** PR #31 uses the existing order while the membership stays the same. The JVM regression reduces three held rows from eleven progress lookups to three.
 - **Compose long chapter lists lazily.** PR #33 keeps chapter and removal actions reachable. The API 37 regression bounds the initial work for a 400-part edition and checks the controls at 320 dp.
+- **Read a remote book's details before downloading.** PR #63. Details of a book that is not on the phone read its manifest once through the profile's route and keep it per item revision (32 books in memory): the description, the chapter or track list for reading (generated parts are not listed before a download) and the format verdict, so an unsupported book shows the disabled action before any tap. Without a route the page shows what the catalog holds. It overlaps PR #55 on the description: when both merge, prefer the edition's copy, then the manifest's, then the catalog's (`edition?.description ?: preview?.description ?: book?.description`).
+- **Stop a removed book's repair download.** PR #66. Removal goes through `TransferCoordinator.remove`: `EditionStore.remove` still cancels the transfer in the commit that marks the removal and returns it, then the coordinator stops that copy and reclaims its staging as Cancel does. The JVM test holds a three-file repair inside its first file and checks that no later file is requested, staging is gone and the next job runs.
+- **Keep a failed widget draw from ending the app.** PR #67. Each widget request catches its own failure, logs the exception type only, counts as published so `update()` returns, and the collector carries on. Cancellation still passes.
+- **Post the download notice only when it changes.** PR #68. The progress stream is `distinctUntilChangedBy` what the notice draws (title and whole percent), not every 500 ms journal write, which shared the per-app post rate with the media notification.
+- **Run lint and compile device tests in CI.** PR #69 adds `:app:lintDebug :app:compileDebugAndroidTestKotlin` after `scripts/build.sh` and keeps the lint report on failure (0 errors and 51 existing warnings when added).
+- **Letter small cloth covers.** PR #70. Below 64 dp (the mini-player, rows at large text) an art-free cover carries the title's initial in the cover lettering, skipping a leading article, instead of plain cloth. The initial is read by code point, so a letter outside the Basic Multilingual Plane stays whole.
+- **Align status actions and say when the list was fresh.** PR #71. Status-line and empty-state text actions line up with the sentence above them, and the unreachable line says "Last refreshed today at 8:25 PM" (yesterday, a date, a year when needed) instead of a SHORT date stamp.
+- **Keep the sleep timer when a book switch is refused.** PR #72. `PlaybackController.resolve` releases the outgoing book only after the new book passes `checkBeforeOpening`, `plan` and the start-choice check, so a car or Bluetooth request for a damaged or pending-choice book no longer clears the running countdown or checkpoints the book still playing.
+- **Hide a blank narrator and a zero length on details.** PR #73. Audiobookshelf's empty narrator no longer prints a bare "Narrated by", and a book under a minute reads "Under 1 min".
+- **End the notifications notice when leaving Downloaded.** PR #74. A screen opened from the Downloaded section (Settings, details, player) ends the notice, as docs/03 says. One opened over Library leaves it, and so does a launch that opens straight onto the player before any section shows.
+- **Ask for the notification permission when enabling.** PR #75. "Enable notifications" shows Android 13's `POST_NOTIFICATIONS` dialog while Android can still show it, and opens the app's notification settings otherwise. Nothing else asks.
+- **Delete a replaced copy when playback lets it go.** PR #76. The last lease release of a generation that no edition or active transfer names deletes its files (docs/03 rule 5), instead of leaving a whole second copy until the next start or publication.
+- **Show the stored speed while no player holds the book.** PR #77. At rest the hub reports its default 1×, so after a relaunch or a paused swipe-away the Speed utility read 1× and the sheet selected 1× while the next Play applied the stored speed, and tapping the falsely selected row overwrote it. The player now shows `settings.speed` unless the live player holds the book.
+- **Default a typed host and port to HTTPS.** PR #78. The scheme pattern allows dots, so `localhost:13378` or `books.home:8443` read as a scheme and were refused, while `192.168.1.5:13378` worked. A host followed by a port of up to five digits is never taken for a scheme; `[::1]:13378` already worked.
+- **Offer Dismiss where a failed start is shown.** PR #79. The player and details show Dismiss beside "Couldn't start playback", as the copy table asks; details carry it as `playNotice` instead of folding it into their message.
+- **Follow the remaining library when one vanishes.** PR #80. A library picked from a stale selector can be removed by the library refresh that precedes its catalog; the catalog asked for the old ID anyway, `CatalogRefresher` threw, and the uncaught exception in `appScope` ended the process. The catalog now follows the freshly chosen library, and the chosen ID is checked too, because `chooseLibrary` runs outside the refresh lock and a tap on a stale entry could store a vanished ID after the refresh. That second check has no deterministic test.
+- **Fetch a missing remote cover off the main thread.** PR #81. `RemoteCovers.thumbnail` called its fetch on the composition thread, so each uncached cover chose a route and decrypted every address's credential from the Keystore on the main thread while a remote Library scrolled.
+- **Bound a reachability probe as a whole.** PR #82. Only the connect timeout was set, so a server that accepted and then stayed silent held each `/status` probe for OkHttp's 10 s read timeout (about 30 s for three addresses). A `STATUS` request now has a call timeout of twice the connect budget (3 s by default); downloads keep their timeouts.
 
 ## Listening and browsing performance
 
@@ -75,6 +103,16 @@ Check that the last chapter and removal action remain reachable at 200% text, an
 
 **Acceptance.** The first Play of a long VBR file shows its starting state immediately, and a seek near the end still lands within the format matrix tolerance.
 
+**Measured so far.** On the API 37 emulator, scanning a 210 MB, 3.6-hour CBR file built by repeating the frames of `fmt-mp3-cbr` took 144 ms with the file in the page cache, as a just-downloaded file is. Measure a cold cache on a phone before investing. The same scan also runs inside `MediaProbe`'s 20 s readiness budget after a download, because the extractor builds the index in its `seekMap` callback; a timeout there is classed `UNSUPPORTED_FORMAT`, which never retries by itself. If the scan is ever slow, build the index with `Mp3FrameIndex.of(file)` on `Dispatchers.IO` before the probe starts its player. Memory: each index keeps a position and a time `LongArray` per frame, about 22 MB for a ten-hour book, and four are cached; with constant samples per frame the time follows from the frame number, which halves it, and the cache can be bounded by bytes.
+
+### Show a cover's art on its first frame
+
+**Evidence.** `BookCover` starts every cover at null through `produceState`, so the cloth (lettered or plain) is drawn first and the art appears a frame or more later, each time a row scrolls back into view and when the player or details open. There is no in-memory bitmap cache; remote thumbnails have a disk cache only. Open PRs #26 (reset on source change) and #30 (bounded decoding) rewrite the same loader, so start after they merge.
+
+**First change.** A small process-wide LRU of decoded `ImageBitmap`s keyed by source and target size, bounded in bytes, used as `produceState`'s initial value and filled by the existing loaders.
+
+**Acceptance.** Scrolling a row out and back, and opening the player or details of a book with art, never draws cloth first. A changed source (repair, new revision) still shows the new art, and memory stays within the bound with 1,000 distinct covers.
+
 ### Bound the plan cache
 
 **Evidence.** `PlanCache` keeps an edition plan for every generation it has seen and never evicts. Plans are small, but a long-lived install accumulates one per download, repair and replacement.
@@ -94,7 +132,9 @@ evicted when a policy changes.
 
 Try a lifecycle-aware collector and separate projections for static metadata, transport and position. Cache timelines by edition generation. Keep transport state and relevant chapter boundaries immediate, preserve stable row order, and use traces to decide whether paging or stable callback reuse helps. A hidden shelf should have no row rebuilds, while a visible shelf keeps position and badges current at their displayed precision.
 
-**First change.** PRs #42 and #43 coarsen or hold the position and skip unchanged states. Still open: switch the flow to `WhileSubscribed` when no screen needs it, cache timelines against the edition generation set, and measure allocations during a minute of playback with the player closed.
+`LibraryViewModel` and `DownloadedViewModel` build their rows in the `combine` transform on the collector's dispatcher, the main thread; `flowOn(Dispatchers.Default)` before `stateIn` would move the mapping off it.
+
+**First change.** PR #42 (merged) floors the position to the minute and skips unchanged states; PR #43 closed as its duplicate. Still open: switch the flow to `WhileSubscribed` when no screen needs it, cache timelines against the edition generation set, and measure allocations during a minute of playback with the player closed.
 
 ### Distinguish network thumbnail failures from missing art
 
@@ -102,7 +142,17 @@ Try a lifecycle-aware collector and separate projections for static metadata, tr
 
 ### Page the Android Auto shelf before building playback plans
 
-`EditionStore.readyBooks` now loads progress in one query (PR #50); it still builds every ready plan before `BookSessionCallback.onGetChildren` slices a page. For the car path, order the lightweight edition records, then construct plans for the requested page. Decide how missing files affect page boundaries and the empty state. Exercise a 200-edition shelf with two pages, stable recency, removed books, and offline startup. Record query count and latency and leave widget estimates independent.
+`EditionStore.readyBooks` now loads progress in one query (PR #50); it still builds every ready plan before `BookSessionCallback.onGetChildren` slices a page. For the car path, order the lightweight edition records, then construct plans for the requested page, honouring `page` and `pageSize` first and building off the main thread (an independent check confirmed the main-thread build in part). Decide how missing files affect page boundaries and the empty state. Exercise a 200-edition shelf with two pages, stable recency, removed books, and offline startup. Record query count and latency and leave widget estimates independent.
+
+### Smaller platform costs
+
+Each was confirmed in code; none is a visible problem at a one-listener library size, so measure before changing.
+
+- **Prune transfer history and index the active marker.** `observeActive` scans the whole `transfer` table twice a second while a download runs, and finished `transfer`/`transfer_file` rows are never deleted. Superseded generations' `track` and `chapter` rows also stay forever: `commit` installs the new rows without deleting the previous generation's. Add an index on `activeMarker` in a migration, delete terminal rows once they stop being display data, and delete the old generation's rows in the commit transaction once no session can still need them.
+- **Read startup settings off the main thread.** `MainViewModel` reads `lastDestination` and warms `SettingsStore` and `SleepSettingsStore` (SharedPreferences and a provider call) on the main thread before the first frame; StrictMode would flag it. Move the reads into the existing `viewModelScope.launch` on a background dispatcher before `_decided` is set.
+- **Send widget covers only when they change, and skip hidden ones.** The widgets rebuild every cover bitmap into new `RemoteViews` on each 30-second progress step; reuse the bitmaps when the edition set is unchanged. `WidgetViews.reading()` also decodes the cover when it is `GONE` behind a notice and rebuilds `RemoteViews` mappings for every placement; skip the decode and the hidden `setImageViewBitmap` calls.
+- **Draw widget covers at the slot's pixel size.** `WidgetCovers` draws every cover on a fixed 288 px canvas after decoding up to 576 px, so a 112 dp slot on a 3× screen (336 px) is scaled up by the launcher and looks soft, while the decode does four times the stored work. It keeps ten such bitmaps (about 4 MB) for the process lifetime and decodes the ribbon on every cache miss. Size the canvas from the slot and density, bound the cache by bytes, and keep the decoded ribbon.
+- **Add an app-specific Baseline Profile.** ProfileInstaller is present transitively and installs Compose's library profiles (seen in logcat), but the app ships no profile of its own for startup, Library scrolling and the player.
 
 ## State and lifecycle correctness
 
@@ -121,14 +171,6 @@ Try a lifecycle-aware collector and separate projections for static metadata, tr
 **First change.** Return null from `read` on storage or format errors and let callers show the normal sign-in prompt; report a failed persist instead of throwing.
 
 **Acceptance.** A corrupt credential file leaves the address signed out with no crash, and a failed write surfaces as a sign-in failure the listener can retry.
-
-### Dismiss the notifications notice when leaving Downloaded
-
-**Evidence.** `AppNotices.leftDownloaded` runs only when the bottom bookmark changes section. Opening Settings, details or the player from Downloaded leaves the pending notice alive, although the copy table says it stays only until the listener uses its action or goes from Downloaded to another screen.
-
-**First change.** Clear the notice when the main route leaves the Downloaded tab, not only when the tab selection changes.
-
-**Acceptance.** The notice clears on Back to Library, on opening details or the player, and on the tab switch; the setting action still works when it is shown.
 
 ## Playback correctness
 
@@ -158,15 +200,51 @@ The playback contract counts automatic focus recovery among starts for resume re
 
 **First change.** Keep a small in-memory cover-path map maintained by `EditionStore` on publish/remove/recover, or read through a synchronous DAO on a dedicated executor. Verify the car list still gets a fresh URI per generation and a cloth fallback for art-free books.
 
+### Keep a start choice from freezing or skipping a loaded book's place
+
+**Evidence.** The freeze and skip cases need recovery to republish changed audio for a book that an external surface (Bluetooth, the resumption control, the car) already loaded before the Activity or the queue ran `ensureRecovered`, so they are rare; an independent check confirmed both mechanisms.
+
+- *Freeze (medium).* `resolveContinuity` writes through `ProgressStore.saveOutsideSession`, which hands out a new playback generation. The live session keeps the older one, the next Play takes the loaded-book shortcut in `PlayerConnection.start`, and every session write is rejected by `writeIfNewer` without a trace (`ProgressWriter` returns `Unit`). Room stays at the chosen place for the whole session, and "Start over" has no audible effect because the shortcut plays the old item.
+- *Pin (low).* `resolveContinuity` writes the choice but leaves the `NEEDS_CHOICE` problem in `PlayerConnection`, and `PlayerViewModel.shownKey` prefers that problem's book. If the car, a widget or the notification starts another book while the player stays open, the player keeps showing the chosen book until it is collapsed. Dismiss the matching problem once the choice is written. Confirmed by reading the code on `0e60361`, not reproduced.
+- *Skip (low).* `PlayerConnection.start` checks damage and the pending choice only after the loaded-book shortcut, session-direct plays (`beforePlay`) never check it, and every ordinary `save` writes `pendingContinuityChoice = false`, so the next checkpoint erases the choice docs/03 rule 7 requires.
+
+**First change.** When the book is live, apply the choice through `bookTransport.seekTo` so it commits under the session's own generation; for a resting book the same call already falls through to the outside-session write. Keep the flag on ordinary writes and clear it only on the choice path, and check it before the shortcut. Systemically, make `saveOutsideSession` refuse while a newer generation is handed out, and log a rejected write.
+
+**Acceptance.** A JVM test with a real `PlaybackController`, scripted player and in-memory Room: resolve a book, pause, set the flag, choose, play, pass a checkpoint, and the stored place moves on; a checkpoint on a loaded book with a pending choice leaves the flag set.
+
+### Keep a skip during a slow book switch from freezing the new book
+
+`moveBook` waits five seconds for the hub to publish the book. On timeout it writes at rest through `saveOutsideSession`, which takes a newer generation than a session `resolve` has issued but not yet published; that session's writes are then rejected until the next switch. It needs a resolve stalled for more than five seconds. On timeout, re-check `currentMediaItem` and drop the move when it already names the book, or rely on the systemic fix above. A refused load (damaged, pending choice) should not move the place either.
+
+### Decide what an embedded chapter with no length means
+
+`EmbeddedChapters.from` maps a marker whose end equals its start to a missing end (`endTimeMs.takeIf { it != C.TIME_UNSET && it > startTimeMs }`), and `ChapterMapBuilder` then stretches it to the next marker or the book end. A malformed CHAP frame at 10:00–10:00 followed by a chapter at 20:00 becomes a ten-minute chapter. docs/05 rule 1 says to drop empty intervals, but `EmbeddedChaptersTest.aChapterWithoutTitleOrEndKeepsWhatItHas` uses exactly such a frame to mean "no end", so the conflation looks deliberate. Check what common taggers write for an unknown end before changing it; if they write the start again, document the exception instead.
+
+### Arm sleep only for the book the player holds
+
+`setSleep` and the schedule collector arm whenever the player is playing, without `playerHolds(book)`, and `armEndOf` schedules its `PlayerMessage` against whatever source the player has. In the milliseconds of a handover the boundary can fire on the outgoing audio and be committed as the incoming book's place. Require `playerHolds(book)` and defer with `timerOnPlaying`, as `startTimer` does. Test by resolving B without handing its item to the player, choosing End of chapter, and asserting nothing is armed until the item arrives.
+
+### Accept an MP3 index only when the scan reaches the end
+
+**Evidence.** `Mp3FrameIndex.scanOrThrow` stops at the first frame that loses sync (a damaged frame, an embedded tag) and returns the frames it found. The edition's duration, chapters and exact seeks then end there, although linear playback still plays the tail. Media3 itself resyncs within 128 KB.
+
+**First change.** Resync: skip forward to the next position where two consecutive valid frame headers agree, as Media3 does, and stop only at the end of the file or a trailing tag (ID3v1, APE, Lyrics3). If the scan still ends early, return null so the player falls back to Media3's own seeking rather than a truncated map.
+
+**Acceptance.** A fixture with a corrupt frame in the middle and one with an APE tag at the end both index to their full duration; a plain file is unchanged and a seek near the end stays within the format matrix tolerance.
+
 ## Details correctness
 
-### Refuse an unsupported format before the tap
+### Show the saved place on details
 
-**Evidence.** `DetailViewModel.build` can return `Download`, `DownloadDisabled`, `Repair` or `Play`, but never `DetailAction.Unsupported`; `LibraryViewModel` passes `unsupported = false`. The refusal appears only after a tap, when the coordinator reads the manifest. Spec A24b wants details to disable Download with the unsupported-format copy, and the Library row to show it without starting a job. The pinned catalog list response carries no codec or extension, only media metadata, so this needs either stored format summaries captured at item fetch or an on-demand manifest read in details.
+Details lists length and size but not where the listener is ("Chapter 4 · 2 h 12 min left", as the Downloaded row says), and its chapter list does not mark the chapter they are in. Reuse the row's progress text under the facts line and the Chapters sheet's ribbon mark on the current row. PR #38 (merged; companion PR #29 open) already puts the ribbon on the cover for Resume; keep fresh and finished books unmarked.
 
-**First change.** Decide between an item-detail fetch cached by profile, item and revision, and carrying format information in a schema change. Then have details and the Library row share one verdict. Never mark a book unsupported because the network was unavailable.
+### Refuse an unsupported format in the Library row
 
-**Acceptance.** Opening an unsupported book shows the disabled action before any tap, starts no job and requests no audio. An offline previously downloaded book still opens and plays. A cached verdict cannot outlive the item's revision. PR #54 covers disabling the action after a proven refusal. Keep its visit-local verdict and avoid repeatedly fetching the same manifest after a confirmed unsupported format. A transient route error remains retryable.
+**Evidence.** Details now know before the tap: PR #63 reads the item's manifest when details open and keeps the verdict per item revision, and PR #54 keeps a proven refusal for the visit. `LibraryViewModel` still passes `unsupported = false`, so a Library row offers Download for a book the phone cannot play and the refusal appears only after the tap. Spec A24b wants the row to show it without starting a job. The pinned catalog list carries no codec or extension.
+
+**First change.** Let the row use a verdict that is already known (PR #63's `BookPreviews` for a book whose details were opened, PR #54's refusal), or store a format summary at item fetch with a schema change. Do not read a manifest per visible row. Never mark a book unsupported because the network was unavailable.
+
+**Acceptance.** A row whose book has a known unsupported verdict shows it without a tap and starts no job; an unknown verdict keeps Download; a verdict cannot outlive the item's revision, and a transient route error stays retryable. An offline, previously downloaded book still opens and plays, and a confirmed unsupported verdict is not followed by another fetch of the same manifest.
 
 ### Decide how a repair appears next to its book
 
@@ -244,6 +322,20 @@ with the last refresh time; a cached catalog still browses through both.
 
 `catalog/CatalogRefresher.kt` persists RUNNING attempts and stages each page, but process death can leave a first library filling indefinitely until another refresh is started. Attempts also accumulate. Seed an interrupted first refresh and inspect launch and retry. Define what constitutes an abandoned attempt, show its staged rows with Retry, and prune terminal history only after preserving the monotonic sequence and the currently visible first-load attempt. Test a process restart and overlapping attempts. Verify that the last complete catalog remains available offline.
 
+### Probe a known address with its stored trust
+
+**Evidence.** `AccountService.checkAddress` builds the setup probe's policy from the screen's `trustedSha256` alone (`confirmedCertSha256 = trustedSha256, passedNormalValidation = false`), and `ConnectViewModel` prefills a saved address's URL and label but not its trust. Signing in again (after sign-out, or from Settings) to a self-signed address the listener already trusted asks them to trust the same fingerprint again, and a formerly public address that now presents a self-signed certificate is called unrecognized instead of changed (docs/04). Routine routes and transfers use the stored policy correctly. Two independent verifiers confirmed it (medium).
+
+A consequence: `restoreSession` writes `confirmedCertSha256 = address.trustedSha256 ?: existing.confirmedCertSha256` and `certificateState = OK` without looking at `passedNormalValidation`. When a pinned origin has moved to a publicly trusted certificate, the unpinned probe passes, sign-in reports success, and the row keeps the old pin marked OK; the next routed request rejects the new certificate as CHANGED and the address stays blocked until the listener taps Trust in Server addresses. Both verifiers confirmed it; one rated it low because the forced Trust is what docs/04 asks for a changed certificate.
+
+**First change.** When the entered URL equals a saved address, probe with that address's `confirmedCertSha256` and `passedNormalValidation` (pass them from the loaded `AddressEntity` and clear them when the URL is edited, or look the address up inside `checkAddress`); a new or edited origin still probes fresh. With the stored pin in the probe, the moved-certificate case shows the changed copy at sign-in instead of writing an inconsistent row. Do not just drop the pin when the probe passes normal validation: docs/04 says a trusted origin accepts exactly the certificate with that fingerprint, and silently unpinning would also accept a platform-trusted intercepting proxy. That tradeoff is the owner's to decide.
+
+**Acceptance.** Robolectric `AccountService` tests with MockWebServer and `HeldCertificate`: a saved address pinned to the presented certificate checks `Ok` with no Trust step; a saved, normally validated address presenting a self-signed certificate returns `Certificate(CHANGED)`; a pinned address presenting a different certificate that the test's platform trust accepts returns `CHANGED` at sign-in and stores no new state.
+
+### Close address sessions on sign-out
+
+`signOut` revokes and calls `vault.deleteAll()` without a lock shared with `AddressSession.refreshIfCurrent`, which can still write a rotated pair it began before sign-out (`KeystoreTokenVault.write` recreates the file). A catalog page in flight can also publish afterwards and clear `ServerNotice.SignedOut`, because `refreshCatalog` and `done` do not look at session state. docs/04 says sign-out deletes every local credential whether or not a server answered. Two verifiers confirmed it at low severity: the leftover credential is most likely dead on the server and routing no longer reaches it, and the notice returns on the next failed request. Give each session a closed flag or generation under its refresh mutex that `signOut` sets, refuse a rotation write once closed, and skip clearing the notice when a sign-out happened since the refresh began. Test with a held refresh response and a held catalog page across `signOut()`.
+
 ## Layout and navigation
 
 ### Align the two section headings
@@ -280,11 +372,15 @@ and Downloaded in light and dark.
 
 **Prototype.** Group cover and identifying text into one labelled action. Leave Play, Download, transfer controls and progress announcements independent. Try a playing book, a remote book and a waiting transfer at normal and 200% text with wrapped titles. Verify Enter opens details from the descriptive part without toggling playback.
 
+A Repair needed row is the sharpest case: it has no Play key and no repair action, and the text "This copy couldn’t be opened." does nothing on tap, so reaching Repair download means finding the small cover, then scrolling details past the description and chapters (docs/04 lists "Repair download, remove" on that state). A row-level "Repair download" text action, like the transfer rows' Retry, may be the simplest fix.
+
 **Acceptance.** A tap on the title or cover opens the intended book. A transport tap runs only its own action. In TalkBack traversal each book has one details action, its metadata is readable, and action names distinguish books with the same title.
 
 ### Read the jacket copy before downloading
 
 **Done in PR #55.** The pinned minified listing does include `media.metadata.description` (checked against the captured v2.38.0 fixtures), so no extra request is needed: the refresh stores it on the catalog row (schema 3) and details show it for a book that was never downloaded, offline included. The HTML-only fallback is tag-stripped to plain text.
+
+PR #63 adds the chapter or track list (and the description, from the manifest) for a book that is not on the phone yet, when a route is available.
 
 **Remaining.** Long descriptions: compare a short description with an expandable long one on a 360 dp phone before fixing a line limit. A missing description must leave a tidy page.
 
@@ -342,14 +438,22 @@ Prototype lightweight filters for Listening, New and Finished, plus an optional 
 - **Reserve the mini-player's height.** `MainScaffold` measures the mini-player with `onSizeChanged` and applies bottom padding afterwards, so the list can jump for one frame when it appears or disappears. The measured heights are known (60/68 dp), so reserve them directly.
 - **Keep the progress ring decorative.** The compact transfer ring repeats its percentage in visible text and semantics; the ring itself should stay cleared for TalkBack so the row reads once.
 - **Check focus indicators over texture at high contrast.** The reports claim the 3:1 focus check; repeat it over the textured paper and cloth with the final composite.
-- **Keep the search field's name and single line.** The hint disappears as soon as the query is non-empty, leaving only the pencil glyph and the semantics description, and the field becomes multi-line at 150% text. Give it the persistent floating-label treatment of the paper fields, or a compact visible label, and pin `singleLine = true`.
+- **Keep the search field's name and single line.** The hint disappears as soon as the query is non-empty, leaving only the pencil glyph and the semantics description. PR #65 already bounded the field to two lines from 150% text with newline sanitizing; the remaining idea is the persistent floating-label treatment of the paper fields, or a compact visible label.
 - **Rotate the library selector's chevron when its menu is open**, as the disclosure rows already do.
 - **Announce transfer state changes politely.** A transfer that moves between active, paused, waiting and failed while the Library list is on screen changes only a state description. Announce the phase once when it changes for a visible row, without stealing focus.
+- **Warm the sheet scrim.** `PaperSheet` and the dialogs use Material's black scrim, which turns the paper cold grey behind the Speed, Chapters and Sleep sheets. Try the primary ink at the same alpha for the sheets; platform dialogs may have to keep theirs.
+- **Line up chapter titles in the sheet.** In the Chapters sheet the ribbon mark of the current row pushes its title right, so titles do not share one start. Reserve the ribbon's width on every row.
+- **Line up the remaining text actions.** PR #71 aligns status lines and empty states. Rows of actions under text in Settings, Server addresses and the transfer rows still start 8 dp in, because `TextAction` pads its label inside its touch target; give those rows the same leading offset.
+- **Name the chapter in the media notification.** The session metadata carries the book only. Put the current chapter in the subtitle, and serve a lettered cloth cover from `CoverProvider` for art-free books instead of plain cloth.
 - **Refresh reduced-motion and high-contrast state while the process lives.** `PagewornTheme` reads both once per composition; toggling the animator duration scale or a high-text-contrast accessibility setting does not recreate the activity. Observe the change or refresh the flags on configuration change, and give the weakest secondary-ink lines an opaque backing in high contrast.
+- **Mark the Connect screen's cleartext tradeoff with an icon.** The http-address warning is plain secondary-ink text; a small pencil lock or exclamation mark beside it would make the security choice scannable without breaking the system-form look.
+- **Theme the system-owned surfaces.** Material time pickers, the exposed library dropdown and alert dialogs inherit the custom colors but keep the platform elevation and shadow language. A themed `TimePickerDefaults` and matching dialog container would close the gap with the paper-and-brass screens.
+- **Richer empty-state typography.** Empty states are deliberately plain per spec; a larger first line plus a short supporting line would still fit without illustrations.
+- **Give the Library header the same rule Downloaded has** (or record the asymmetry as deliberate): the two destinations share a row language but only Downloaded draws a rule under its heading.
 
 ## Product gaps needing an owner decision
 
-These change the written release scope, so agree on the behavior before building them. Launcher shortcuts, bookmarks and clips, per-book speed, pull-to-refresh, a Quick Settings sleep tile and a real dark theme are already listed under delight candidates.
+These change the written release scope, so agree on the behavior before building them. Launcher shortcuts, bookmarks and clips, per-book speed, a Quick Settings sleep tile and a real dark theme are already listed under delight candidates.
 
 ### Storage usage at a glance
 
@@ -357,7 +461,15 @@ Settings shows per-book sizes in details but no total library size, no largest-f
 
 ### Filters, series and grouping
 
-Downloaded is a flat sorted list. All/unfinished/finished/new filters, series and collection headers, and author indexes would help a large library. A local search within Downloaded (title/author, no network) is the cheapest first step once many books are on the phone. Keep the documented sort stable while a filter is active, and keep equal titles independent by item ID.
+Downloaded is a flat sorted list. All/unfinished/finished/new filters, series and collection headers, and author indexes would help a large library; the pinned listing already carries `media.metadata.seriesName` (empty in the fixtures). A local search within Downloaded (title/author, no network) is the cheapest first step once many books are on the phone. Keep the documented sort stable while a filter is active, and keep equal titles independent by item ID.
+
+### A first-run welcome
+
+First run lands on Connect, and after the first sign-in the listener lands on Library with nothing that explains the two sections, the place ribbon, the two text scales, downloading before listening, or where Sleep and its presets live. A dismissible one-time slip (paper, one paragraph, one action) after the first connect, and one contextual hint at the first download, would cover it without changing the flow. It must be shown once per fresh profile, survive relaunch once dismissed and never return.
+
+### Start over and per-book sound
+
+Only a finished book offers Replay; an unfinished one has no "Start over" outside the changed-audio choice. Per-book speed is already a delight candidate; skip silence and a volume boost for quiet recordings belong with it. docs/05 fixes how speed persists today, so agree on the rule first.
 
 ### More sleep conveniences
 
@@ -389,12 +501,17 @@ A shake-to-extend gesture, an “add five minutes” action on a running timer a
 - Deckled page edges: vary each page layer's corner radius and offset slightly and soften the graphite stroke, so the footer reads as hand-cut sheets rather than concentric rounded rectangles.
 - A blind-stamped inset frame on cloth fallback covers, in a darker cloth tone, to give art-free books more craft without lettering.
 - The selected bookmark's dashed pencil underline reused under a focused utility or selected radio, unifying selection cues for reduced-motion users.
-- A brief place-ribbon settle on a cover when its download completes, tying the completion notice to the object the listener will look for.
+- A brief place-ribbon settle on a cover when its download completes, tying the completion notice to the object the listener will look for; the same gentle swing when playback stops, off with reduced motion.
+- "Where was I?": after a long rest, one line under the title, "You stopped in Chapter 4, three days ago. Starting 10 seconds back."
+- Lamplight fade: during the sleep fade the paper dims by a shade, then returns on the next start.
+- Page-edge thickness: the stack of page edges under the list grows or thins with how much of the current book remains.
+- Listening progress in the Chapters sheet: heard chapters in secondary ink with a pencil tick, the current one with the ribbon.
+- A Quick Settings tile for Play and Pause of the current book, next to the sleep tile idea.
 - Chapter skip commands in the media notification overflow, so bedtime chapter turns do not need the phone unlocked.
 - Previous/next chapter keys in the phone player itself (the car has them as overflow commands; the player currently reaches chapters only through the sheet).
 - A native confirmation before removing a server address; a mis-tap in a wrapping action row currently revokes a paired alias.
 - A brief chapter-title bookplate over the cover when a chapter begins, suppressed by reduced motion.
-- A folded dog-ear on a cover once the book is finished, paired with the existing badge.
+- A folded dog-ear on a cover once the book is finished, paired with the existing badge, or a date pencilled inside the cover on details; dog-ears could also mark the margin marks below.
 - A dated reading log drawn as pencil marginalia: finished and abandoned books, nothing leaving the phone.
 - A subtle cover-tinted cloth accent, opt-in only, so the fixed palette remains the default.
 
@@ -426,7 +543,7 @@ After a timed sleep stop, optionally present the final stop and the already supp
 
 ### Show listening estimates at the chosen speed
 
-Use the existing clock for the chapter and book positions. In the chapter sheet or below the current chapter, try a quiet “About 12 min to listen” estimate that responds to playback speed. Keep elapsed/total book time stable and label the estimate explicitly for TalkBack. Check meaningful rounding at short durations and consider the current sleep cut-off as a separate optional cue.
+Use the existing clock for the chapter and book positions. In the chapter sheet or below the current chapter, try a quiet “About 12 min to listen” estimate that responds to playback speed. Keep elapsed/total book time stable and label the estimate explicitly for TalkBack. Check meaningful rounding at short durations and consider the current sleep cut-off as a separate optional cue. The book line ("Book · 2 h 08 min of 4 h 20 min") is in book time, so at 1.5× the listener cannot see when the book ends; a tap on it could cycle elapsed, left, and left at this speed.
 
 ### Add a local margin mark
 
@@ -440,12 +557,36 @@ Offer a quick “Mark this moment” action in the player and a chronological li
 - **Both scrubbers already draw round caps**, with the smaller thumb on the book bar, and the time row lines up with the visible bar ends.
 - **Catalog search escapes LIKE wildcards**, so `%`, `_` and the escape character match literally.
 - **Progress writes are ordered by playback generation and sequence**, and a late pause sample cannot move a newer place backwards.
+- **Progress sync with the server stays out of v1**: docs/01 places cross-device sync outside the release, so its absence is not a gap.
+- **Widgets after a reboot are not blank.** `AppWidgetService` sends an update when the user unlocks, so no `RECEIVE_BOOT_COMPLETED` receiver is needed.
+- **The MP3 frame scan does not run on the main thread.** It runs on the ProgressiveMediaPeriod loader thread; only its duration matters (see the MP3 index item).
+- **A skip on a never-played book moves its place.** docs/05 and A16g specify that skips work on a book at rest as exact stops; "start new books at zero" covers a start with no move.
+- **ProfileInstaller is present**, transitively, and installs Compose's profiles; only an app profile is missing.
+- **Seconds are truncated, not rounded, at import.** `AbsClient.secondsMs` uses `toLong()`, and `BookTimeline.secondsToMillis` (rounding, per docs/05) has no production caller. The difference stays inside the 5 ms tolerances; align them if a test ever compares exact milliseconds.
+- **A manifest without file times restarts partial files.** `sameSource` needs `mtimeMs` on both sides, so such a manifest resets even complete staged files. v2.38.0 always sends it, and restarting is the spec's conservative default.
+- **Player vertical distribution is correct**: the two weighted spacers around the transport row measure as equal gaps on an API 37 device.
+- **End-of-chapter sleep stop stays EXACT**: the explicit write is protected by the seek discontinuity from the end-of-segment clip, so the pause does not overwrite it with ORDINARY on the common path.
+- **Room schema, migrations, backup exclusion, foreground-service types and the network security configuration** match `docs/03-android-and-data.md`.
 
 ## Download and publication reliability
 
-### Stop an active repair when its edition is removed
+### Race a removal against final publication
 
-`EditionStore.remove` invalidates an unpublished repair in Room. The copy coroutine can continue requesting and writing tracks until its next guarded state update. Reproduce with a repair held mid-stream using a disposable slow response, then remove the edition from details and assert the HTTP body closes and the staged files disappear promptly. Make cancellation ownership explicit between `EditionStore` and `TransferCoordinator`. Keep the pending-removal and cancellation writes atomic, stop the matching writer before reclaiming staging, and cover both orders of a removal racing final publication. Preserve the saved place and keep other jobs runnable.
+PR #66 stops a removed book's repair and reclaims its staging. Still untested: both orders of a removal racing the publish commit (removal first, so the commit is rejected and the job reclaimed; publish first, so the new edition is removed with the book) and that the HTTP body of the stopped copy closes promptly. Preserve the saved place and keep other jobs runnable.
+
+### Lease inside the lock that plans
+
+`PlaybackController.resolve` reads the plan inside the book lock (`EditionStore.plan`), then acquires the lease outside it after two suspending calls; a removal can complete in between and the session leases a deleted generation. Acquire in the same critical section (an `EditionStore.planAndAcquire`), and test by suspending `progress.read` while a removal runs.
+
+Two session requests can also interleave. `BookSessionCallback` starts each `onSetMediaItems`, `onAddMediaItems` and `onPlaybackResumption` future on `Dispatchers.Main.immediate`, and `resolve` suspends before it assigns `loaded`. A second request that arrives meanwhile still sees the first call's outgoing book: it checkpoints and releases that book again and never releases the book the first call loaded, so that generation stays leased (and a replaced copy stays on disk) until the process ends. This is reasoned from the code and not reproduced. A `Mutex` around `resolve` closes both windows; test two resolves with the first suspended in `progress.read`.
+
+### Check space before enqueueing, or say the job checks it
+
+docs/04 (download lifecycle) says a Download tap reads a fresh manifest and checks "permissions, format support and space" before enqueueing. `TransferCoordinator.download` checks space only in the job, before its first audio request, so a phone below the 1 GB margin still creates a job, starts the platform work and posts a notice before the row turns "More space is needed". The listener sees the right outcome and no audio is requested (A21b holds). Either refuse in `download` with `SpacePolicy.shortfall(manifest.tracks.sumKnown(), usableSpace())` and show the same storage row, or amend docs/04 to say the job checks it.
+
+### Cap automatic retries for answers that are not audio
+
+`FileTransferResult.Unexpected` (an HTML page, a malformed body) rests as `FailureCategory.SERVER`, which retries with backoff without a cap. A captive portal or a proxy page keeps a job cycling up to every ten minutes, forever. Give `Unexpected` its own category or an attempt cap, then stop for Retry with the server copy; keep genuine 5xx retrying.
 
 ### Keep first-download order after publication recovery
 
@@ -477,6 +618,18 @@ PR #44 added a fake player whose `isPlaying` change arrives after the applicatio
 
 The API 37 visual checks passed 6 of 6. The 200% text test timed out in its setup waiting for the Activity font scale/night mode after running VisualChecksTest in the same invocation. It passed in isolation. Repeat both test orders to find the shared state. Capture shell output and the resource snapshot on failure, restore original mode and scale, and scope device mutations to disposable emulators. Gradle's connected task on this host can print success even when its internal adb invocation cannot see a private device. Require the runner's actual test count.
 
+### Small coverage and asset gaps
+
+- `WidgetCovers` has no test.
+- Once PR #76 merges: `TransferCoordinatorTest.tearDown` cancels the `background` scope without joining it before `db.close()`, and `SettledPauseTest` and `SleepTimerTest` build an `EditionStore` scope they never cancel. Join and cancel them so a late delete cannot run against a closed database.
+- Once PR #72 merges: `SleepTimerTest.anAcceptedSwitchEndsTheOutgoingBooksTimer` runs a successful switch without asserting the outgoing book's checkpoint, so deleting that write would pass every test. Count `writes` around the accepted `resolve`.
+- PR #74's overlay check (`AppNavHost`'s back-stack collector) is pinned only through the pure `leftTheSections`; a Robolectric test of the composed host would cover a plain leave, a launch onto the player and Player → Sleep → Back.
+- Once PR #82 merges: `ProbeBudgetTest` stalls a plain-HTTP server after the request. A variant with `MockWebServer.useHttps`, a held localhost certificate and a stalled handshake would pin the probe budget on the TLS path too.
+- Both permission requests in `AppNavHost` find the activity with `context as? Activity`. That holds while `MainActivity` calls `setContent` directly; `LocalActivity.current` would survive a wrapped context.
+- One Spectral italic face is bundled but never selected, and several key PNGs are stored larger than they are drawn; trim them once the visual suite can confirm nothing changes.
+
 ## Review evidence
 
 The review built the APK under JDK 21.0.13 with SDK platform 37.0 and compared the live cached Library, player and 200% Downloaded on a disposable API 37 emulator at 1080 × 2400 px and 420 dpi with the mockups and archived captures. The API 34 audit passed eight progress-order and seven playback-failure tests. Its lock-screen assertions timed out waiting for the emulator’s keyguard. Physical audio, TalkBack speech, frame timing, the owner's server and car behavior still need direct verification. Paths such as `ui/detail/BookDetailScreen.kt` are relative to `app/src/main/java/ch/lkmc/pageworn/`.
+
+Another review on `9e4be6d` ran the debug app on an API 37 emulator at 1080 × 2400 px and 480 dpi (360 dp, the owner's phone width) against the local Audiobookshelf fixture and the demo library: Library, Downloaded, the player and its three sheets, details, Settings, the media notification and 200% text. Nine LongCat 2.5 reviewers each read one subsystem; independent Devin SWE-2 and LongCat verifiers tried to refute the subtle findings, and the entries above say when a claim was only partly confirmed. 324 JVM tests passed at the start. PRs #63 and #66 to #76 came out of it; each was checked with JVM tests and, where it changes the screen, on that emulator. A second pass read the player screen and the server, account and catalog code, with refute-first Devin SWE-2 and LongCat verifiers on current main (`ba2d378`); PRs #77 to #82 came from it, each with a JVM regression test that failed on main first, and its unfixed findings are the certificate-trust and sign-out items and the start-choice pin case above.
