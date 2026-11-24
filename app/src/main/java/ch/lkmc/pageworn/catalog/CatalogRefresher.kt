@@ -244,9 +244,9 @@ class CatalogRefresher(
         description = description,
     )
 
-    private fun CatalogBookEntity.toRow() = CatalogRow(itemId, title, authors, narrators, updatedAt, durationMs, sizeBytes, addedAt, description)
+    private fun CatalogBookEntity.toRow() = CatalogRow(itemId, title, authors, narrators, updatedAt, durationMs, sizeBytes, addedAt)
 
-    private fun CatalogStagingEntity.toRow() = CatalogRow(itemId, title, authors, narrators, updatedAt, durationMs, sizeBytes, addedAt, description)
+    private fun CatalogStagingEntity.toRow() = CatalogRow(itemId, title, authors, narrators, updatedAt, durationMs, sizeBytes, addedAt)
 
     companion object {
         /** Escapes the LIKE wildcards and the escape character so the query matches literally. */

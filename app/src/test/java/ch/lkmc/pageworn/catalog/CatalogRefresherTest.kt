@@ -299,7 +299,6 @@ class CatalogRefresherTest {
         val outcome = refresher.refresh(PROFILE, "lib", source)
 
         assertThat(outcome).isEqualTo(RefreshOutcome.Published(1))
-        assertThat(listing("lib").rows.single().description).isEqualTo("A plain tale")
         assertThat(db.catalog().find(PROFILE, "a")?.description).isEqualTo("A plain tale")
     }
 

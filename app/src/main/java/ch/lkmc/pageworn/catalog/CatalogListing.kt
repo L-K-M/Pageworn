@@ -11,7 +11,6 @@ data class CatalogRow(
     val durationMs: Long?,
     val sizeBytes: Long?,
     val addedAt: Long? = null,
-    val description: String? = null,
 )
 
 /** What the Library screen shows above its rows. */
