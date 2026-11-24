@@ -75,7 +75,10 @@ data class LivePlayback(
      */
     fun rowDisplay(): LivePlayback {
         val position = positionMs.coerceAtLeast(0)
-        return copy(positionMs = position - position % ROW_POSITION_STEP_MS, sleepRemainingMs = null)
+        val bucket = position - position % ROW_POSITION_STEP_MS
+        // A real place in the first minute still earns the shelf ribbon.
+        val rowPosition = if (position > 0) bucket.coerceAtLeast(1) else 0
+        return copy(positionMs = rowPosition, sleepRemainingMs = null)
     }
 
     /** Whether [other] still draws the same list rows as this state. */

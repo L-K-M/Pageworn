@@ -105,9 +105,8 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
         // Not the screen's scope: leaving details must not stop between releasing and removing.
         container.appScope.launch {
             container.playerConnection.releaseBook(key)
-            // Set before the store write so no frame shows a gone edition without its reason.
+            container.transfers.remove(key)
             _removed.value = true
-            container.editionStore.remove(key)
         }
     }
 
@@ -148,7 +147,8 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
             sizeText = sizeBytes?.let { Format.bytes(it) },
             action = action,
             message = message,
-            description = edition?.description,
+            // A downloaded edition snapshots its own copy; a remote book reads the catalog's.
+            description = edition?.description ?: book?.description,
             segmentsTitle = plan?.let { PlayerStates.segmentsLabel(it.timeline.division) },
             segments = plan?.let { PlayerStates.segments(it, position) } ?: emptyList(),
             segmentsPlayable = edition != null && edition.state == EditionState.READY,

@@ -1,6 +1,5 @@
 package ch.lkmc.pageworn.ui.components
 
-import android.graphics.BitmapFactory
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -15,6 +14,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import ch.lkmc.pageworn.R
+import ch.lkmc.pageworn.artwork.decodeCover
 import ch.lkmc.pageworn.ui.model.BookFace
 import ch.lkmc.pageworn.ui.model.CoverImage
 import ch.lkmc.pageworn.ui.theme.LocalReducedMotion
@@ -51,8 +52,17 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** Below this size a generated cover shows plain cloth without lettering. */
+/** Below this size a generated cover shows only the initial of its title. */
 private val MIN_LETTERED_COVER = 64.dp
+
+/** Gold leaf on the cloth: the lettering of a generated cover. */
+private val COVER_LETTERING = Color(0xFFF4E4C8)
+
+/** Leading words a small cover skips, so "The Night Orchard" reads N rather than T. */
+private val LEADING_ARTICLES = setOf("the", "a", "an")
+
+/** Separates the words of a title when picking a small cover's initial. */
+private val WORD_SEPARATOR = Regex("\\s+")
 
 /** What a cover's art is doing: loading, on screen, or known to be absent. */
 private sealed interface CoverArt {
@@ -75,6 +85,13 @@ val LocalCoverPainter = androidx.compose.runtime.staticCompositionLocalOf<(@Comp
 
 @Composable
 fun BookCover(face: BookFace, size: Dp, showRibbon: Boolean = false, modifier: Modifier = Modifier) {
+    key(face.cover) {
+        BookCoverContent(face, size, showRibbon, modifier)
+    }
+}
+
+@Composable
+private fun BookCoverContent(face: BookFace, size: Dp, showRibbon: Boolean, modifier: Modifier) {
     val density = LocalDensity.current
     val sizePx = with(density) { size.roundToPx() }
     val loader = LocalCoverLoader.current
@@ -86,10 +103,7 @@ fun BookCover(face: BookFace, size: Dp, showRibbon: Boolean = false, modifier: M
         value = when (val source = face.cover) {
             is CoverImage.Local -> withContext(Dispatchers.IO) {
                 try {
-                    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                    BitmapFactory.decodeFile(source.file.absolutePath, bounds)
-                    val sample = generateSequence(1) { it * 2 }.first { bounds.outWidth / it <= sizePx * 2 || it >= 128 }
-                    BitmapFactory.decodeFile(source.file.absolutePath, BitmapFactory.Options().apply { inSampleSize = sample })?.asImageBitmap()
+                    decodeCover(source.file, sizePx)?.asImageBitmap()
                 } catch (e: CancellationException) {
                     throw e
                 } catch (_: Exception) {
@@ -106,7 +120,7 @@ fun BookCover(face: BookFace, size: Dp, showRibbon: Boolean = false, modifier: M
             CoverImage.Cloth -> CoverArt.Missing
         }
     }
-    // A changed cover keeps the previous art on screen while the new one loads; the new art
+    // A resize keeps art from the same source on screen while the new bitmap loads; the art
     // then fades in over it instead of dropping the old one in a single frame.
     var baseArt by remember { mutableStateOf<ImageBitmap?>(null) }
     var overlayArt by remember { mutableStateOf<ImageBitmap?>(null) }
@@ -173,7 +187,7 @@ fun BookCover(face: BookFace, size: Dp, showRibbon: Boolean = false, modifier: M
                 Image(painterResource(R.drawable.pw_cover_cloth), null, Modifier.fillMaxSize(), contentScale = ContentScale.FillBounds)
                 // Lettering is part of the cover art: it scales with the cover, not with the font
                 // scale, and the row or player beside it carries the readable title. Small covers
-                // stay plain cloth. It appears only when no art will come, not while it loads.
+                // show an initial when no art will come. While loading they stay plain cloth.
                 // Keep the lettering composed while it fades out, or it would vanish a frame
                 // before the art fades in.
                 if (size >= MIN_LETTERED_COVER && (artState is CoverArt.Missing || letteringAlpha > 0f)) {
@@ -181,9 +195,16 @@ fun BookCover(face: BookFace, size: Dp, showRibbon: Boolean = false, modifier: M
                     val authorSize = with(density) { (size * 0.10f).toSp() }
                     Column(Modifier.fillMaxSize().padding(size * 0.09f).clearAndSetSemantics {}.graphicsLayer { alpha = letteringAlpha }, horizontalAlignment = Alignment.CenterHorizontally) {
                         Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                            Text(face.title, color = Color(0xFFF4E4C8), style = PagewornTheme.type.rowTitle.copy(fontWeight = FontWeight.Medium, fontSize = titleSize, lineHeight = titleSize * 1.15f), textAlign = TextAlign.Center, maxLines = 4, overflow = TextOverflow.Ellipsis)
+                            Text(face.title, color = COVER_LETTERING, style = PagewornTheme.type.rowTitle.copy(fontWeight = FontWeight.Medium, fontSize = titleSize, lineHeight = titleSize * 1.15f), textAlign = TextAlign.Center, maxLines = 4, overflow = TextOverflow.Ellipsis)
                         }
-                        face.author?.let { Text(it, color = Color(0xFFF4E4C8), style = PagewornTheme.type.metadata.copy(fontSize = authorSize, lineHeight = authorSize * 1.2f), textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                        face.author?.let { Text(it, color = COVER_LETTERING, style = PagewornTheme.type.metadata.copy(fontSize = authorSize, lineHeight = authorSize * 1.2f), textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                    }
+                } else if (size < MIN_LETTERED_COVER && (artState is CoverArt.Missing || letteringAlpha > 0f)) {
+                    coverInitial(face.title)?.let { initial ->
+                        val initialSize = with(density) { (size * 0.46f).toSp() }
+                        Box(Modifier.fillMaxSize().clearAndSetSemantics {}.graphicsLayer { alpha = letteringAlpha }, contentAlignment = Alignment.Center) {
+                            Text(initial, color = COVER_LETTERING, style = PagewornTheme.type.rowTitle.copy(fontWeight = FontWeight.Medium, fontSize = initialSize, lineHeight = initialSize))
+                        }
                     }
                 }
                 // The settled art sits under the fading-in overlay; both crossfade with cloth
@@ -199,6 +220,27 @@ fun BookCover(face: BookFace, size: Dp, showRibbon: Boolean = false, modifier: M
             }
         }
     }
+}
+
+/**
+ * The letter a small generated cover carries: the first letter or digit of the title, after a
+ * leading article when more words follow. Null when the title has none.
+ */
+internal fun coverInitial(title: String): String? {
+    val words = title.trim().split(WORD_SEPARATOR).filter { it.isNotEmpty() }
+    val first = words.firstOrNull() ?: return null
+    val word = if (words.size > 1 && first.lowercase() in LEADING_ARTICLES) words[1] else first
+
+    // Walk code points, not chars: a letter outside the Basic Multilingual Plane is two chars,
+    // and neither half counts as a letter on its own.
+    var index = 0
+    while (index < word.length) {
+        val codePoint = word.codePointAt(index)
+        val width = Character.charCount(codePoint)
+        if (Character.isLetterOrDigit(codePoint)) return word.substring(index, index + width).uppercase()
+        index += width
+    }
+    return null
 }
 
 private const val CORNER = 0.04f

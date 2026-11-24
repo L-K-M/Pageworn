@@ -225,6 +225,7 @@ class CatalogRefresher(
         sizeBytes = sizeBytes,
         playable = numTracks > 0,
         addedAt = addedAt,
+        description = description,
     )
 
     private fun CatalogStagingEntity.toBook(profileId: String, libraryId: String, refreshId: String) = CatalogBookEntity(
@@ -240,6 +241,7 @@ class CatalogRefresher(
         sizeBytes = sizeBytes,
         refreshId = refreshId,
         addedAt = addedAt,
+        description = description,
     )
 
     private fun CatalogBookEntity.toRow() = CatalogRow(itemId, title, authors, narrators, updatedAt, durationMs, sizeBytes, addedAt)
