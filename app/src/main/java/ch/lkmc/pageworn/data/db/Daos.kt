@@ -252,6 +252,9 @@ interface ProgressDao {
     @Query("SELECT * FROM book_progress WHERE profileId = :profileId AND itemId = :itemId")
     fun observe(profileId: String, itemId: String): Flow<BookProgressEntity?>
 
+    @Query("SELECT * FROM book_progress")
+    suspend fun all(): List<BookProgressEntity>
+
     @Query("SELECT * FROM book_progress WHERE profileId = :profileId")
     fun observeAll(profileId: String): Flow<List<BookProgressEntity>>
 

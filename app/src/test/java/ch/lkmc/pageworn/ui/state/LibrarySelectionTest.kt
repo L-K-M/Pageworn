@@ -18,6 +18,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import java.util.concurrent.TimeUnit
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -99,6 +100,9 @@ class LibrarySelectionTest {
             shadowOf(Looper.getMainLooper()).idle()
             library.state.value.let { if (condition(it)) return it }
             Thread.sleep(WAIT_STEP_MS)
+            // The search query settles through a debounce on the main looper clock, which does
+            // not advance with wall-clock sleeps alone.
+            shadowOf(Looper.getMainLooper()).idleFor(WAIT_STEP_MS, TimeUnit.MILLISECONDS)
         }
         assertWithMessage("$what never showed: ${library.state.value}").fail()
         error("unreachable")
