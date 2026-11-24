@@ -2,6 +2,7 @@ package ch.lkmc.pageworn.ui
 
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertHeightIsAtLeast
@@ -35,6 +36,7 @@ import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import java.io.File
 import kotlinx.coroutines.runBlocking
+import kotlin.math.abs
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -80,11 +82,14 @@ class DestinationStatesTest {
         assertShown(hasContentDescription("Cancel download of Field Notes on Rain"))
 
         visibleBook("The Night Orchard")
-        assertShown(hasText("New"))
+        // The shelf shows covers only, so the local state is what the cover tells TalkBack.
+        assertShown(hasStateDescription("New"))
         visibleBook("Boundary Book")
-        assertShown(hasText("Chapter Two", substring = true))
+        assertShown(SemanticsMatcher("state description mentions Chapter Two") { node ->
+            node.config.getOrNull(SemanticsProperties.StateDescription)?.contains("Chapter Two") == true
+        })
         assertShown(hasContentDescription("Resume Boundary Book"))
-        assertThat(bookTop("The Night Orchard")).isLessThan(bookTop("Boundary Book"))
+        assertBefore("The Night Orchard", "Boundary Book")
 
         bookmark("Library").performClick()
         bookmark("Library").assertIsSelected()
@@ -191,4 +196,21 @@ class DestinationStatesTest {
 
     private fun bookTop(title: String) = composeRule.onNodeWithContentDescription("Open $title")
         .fetchSemanticsNode().boundsInRoot.top
+
+    /** Two books in one row of the shelf share a top within a pixel of rounding. */
+    private companion object {
+        const val SAME_ROW_PX = 1f
+    }
+
+    /**
+     * A18's order on the shelf, in reading order: a later row first, then a later column within
+     * the row it shares.
+     */
+    private fun assertBefore(first: String, second: String) {
+        val before = composeRule.onNodeWithContentDescription("Open $first").fetchSemanticsNode().boundsInRoot
+        val after = composeRule.onNodeWithContentDescription("Open $second").fetchSemanticsNode().boundsInRoot
+        val laterRow = after.top > before.top + SAME_ROW_PX
+        val laterColumn = abs(after.top - before.top) <= SAME_ROW_PX && after.left > before.left + SAME_ROW_PX
+        assertWithMessage("$first before $second").that(laterRow || laterColumn).isTrue()
+    }
 }

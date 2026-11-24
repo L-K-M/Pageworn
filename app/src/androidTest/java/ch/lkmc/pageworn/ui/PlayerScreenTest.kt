@@ -229,7 +229,7 @@ class PlayerScreenTest {
         }
 
         ActivityScenario.launch(MainActivity::class.java).use {
-            awaitNode(hasText("Finished"))
+            // The shelf shows the book's cover, and a finished book's key offers Replay.
             awaitNode(downloadedKey("$REPLAY $BOOK"))
             composeRule.onNode(downloadedKey("$REPLAY $BOOK")).performClick()
             val started = awaitLive("replaying") { it.isPlaying }

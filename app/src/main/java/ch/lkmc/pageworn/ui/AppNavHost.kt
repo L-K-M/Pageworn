@@ -13,6 +13,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -356,7 +357,7 @@ private fun MainRoute(
     val library: LibraryViewModel = viewModel { LibraryViewModel(container) }
     val downloaded: DownloadedViewModel = viewModel { DownloadedViewModel(container) }
     val libraryList = rememberLazyListState()
-    val downloadedList = rememberLazyListState()
+    val downloadedList = rememberLazyGridState()
     val openBook = { key: BookKey -> navController.navigate(Routes.detail(key)) }
     val openSettings = { navController.navigate(Routes.SETTINGS) }
     LaunchedEffect(destination) { if (destination == Destination.LIBRARY) library.firstVisible() }

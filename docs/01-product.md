@@ -10,7 +10,7 @@ A listener leaves home halfway through an audiobook. On the train they open Page
 |---|---|
 | Android only, one listening client | The app works with one account on one server. Two server addresses open the same catalog, downloads and resume positions. Signing out ends the session and keeps the downloaded books and saved places for that account. |
 | Library | Browse authorized audiobook libraries, search by title or author in the selected library, open details, and download. Remember the chosen library per profile and show a selector when several exist; an account with no accessible book libraries shows an explicit empty state. Cache the most recently refreshed catalog. |
-| Downloaded | Open, play, inspect, or remove completed books in airplane mode. Show active, waiting, and failed transfers in a separate downloads-in-progress group. |
+| Downloaded | Open, play, inspect, or remove completed books in airplane mode. Show active, waiting, and failed transfers in a separate downloads-in-progress group, then the ready books as a grid of covers. |
 | Download-only playback | The player accepts a locally committed book. A tap on a remote book’s cover opens details with **Download**. Partial transfers offer progress, pause, resume and cancel. |
 | Progress by book | Keep an independent position for every book on this device. Survive app death, a switch to another book, address changes, and removal and re-download of the same edition. |
 | Format and chapter coverage | Play single- and multi-file audiobooks in every format that the server accepts and Android’s player can play. A book in a format the phone cannot play says so and starts no download. Use the book’s chapter map across file boundaries. A book without chapter marks remains playable. |

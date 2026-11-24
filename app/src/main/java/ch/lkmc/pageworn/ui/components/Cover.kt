@@ -145,7 +145,7 @@ private fun BookCoverContent(face: BookFace, size: Dp, showRibbon: Boolean, modi
     // The place ribbon scales with the cover (48 x 72 px art, 2:3), sits near the spine and hangs
     // below the lower edge from behind the book.
     val ribbonWidth = maxOf(size * 0.1f, 10.dp)
-    val ribbonPeek = maxOf(size * 0.11f, 8.dp)
+    val ribbonPeek = ribbonSpace(size)
     // Art keeps its shape: the book is as tall or as wide as the square allows. A Missing
     // result means no art is drawn at all, so the lettering fallback engages.
     val art = (if (artState is CoverArt.Missing) null else overlayArt ?: baseArt)?.takeIf { previewPainter == null }
@@ -245,6 +245,19 @@ internal fun coverInitial(title: String): String? {
 
 private const val CORNER = 0.04f
 private const val ELEVATION = 0.03f
+
+/** How far a place ribbon hangs below a cover, as a fraction of the cover's size. */
+private const val RIBBON_PEEK = 0.11f
+
+/** The least a place ribbon ever hangs below a cover, however small the cover is. */
+private val MIN_RIBBON_PEEK = 8.dp
+
+/**
+ * The space a cover's ribbon takes below its art. A layout that draws over a cover, as the
+ * Downloaded shelf's play key does, holds this space whether or not the book has a saved place,
+ * so the cover and what sits on it stay still when a place is saved.
+ */
+fun ribbonSpace(size: Dp): Dp = maxOf(size * RIBBON_PEEK, MIN_RIBBON_PEEK)
 
 /** Binds flat art as a book: a crease beside the spine, and light along the top and fore edges. */
 private fun DrawScope.bindEdges() {

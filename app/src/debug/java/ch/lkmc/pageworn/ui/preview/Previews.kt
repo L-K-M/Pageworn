@@ -4,6 +4,7 @@ import ch.lkmc.pageworn.core.sleep.SleepLength
 import ch.lkmc.pageworn.core.timeline.Division
 import ch.lkmc.pageworn.core.timeline.Segment
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.painter.Painter
@@ -65,8 +66,10 @@ private fun DownloadedExample() {
                 books = listOf(
                     ReadyBookRow(orchard, ReadyBadge.InProgress("Chapter 4 · 2 h 12 min left"), hasPlace = true, showsPause = false, starting = false, playable = true),
                     ReadyBookRow(rain, ReadyBadge.New, hasPlace = false, showsPause = false, starting = false, playable = true),
+                    ReadyBookRow(coast, ReadyBadge.Finished, hasPlace = false, showsPause = false, starting = false, playable = true),
+                    ReadyBookRow(hours, ReadyBadge.RepairNeeded("This copy couldn’t be opened."), hasPlace = false, showsPause = false, starting = false, playable = false),
                 ),
-            ), listState = rememberLazyListState(), onOpenBook = {}, onPlayPause = { _, _ -> }, onPauseTransfer = {}, onResumeTransfer = {}, onRetryTransfer = {}, onCancelTransfer = {}, onAction = {}, onOpenSettings = {}, contentPadding = padding)
+            ), listState = rememberLazyGridState(), onOpenBook = {}, onPlayPause = { _, _ -> }, onPauseTransfer = {}, onResumeTransfer = {}, onRetryTransfer = {}, onCancelTransfer = {}, onAction = {}, onOpenSettings = {}, contentPadding = padding)
         }
     }
 }
