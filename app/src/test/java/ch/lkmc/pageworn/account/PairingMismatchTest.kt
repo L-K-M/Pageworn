@@ -97,6 +97,22 @@ class PairingMismatchTest {
         assertThat(List(server.requestCount) { server.takeRequest().path }).containsExactly("/abs/login", "/abs/api/libraries", "/abs/logout").inOrder()
     }
 
+    @Test
+    fun successfulEmptyLibraryLookupCanCreateAProfile() = runBlocking<Unit> {
+        server.enqueue(MockResponse().setBody(fixture("login")))
+        server.enqueue(MockResponse().setBody("""{"libraries": []}"""))
+        val base = (parseBaseUrl(server.url("/abs/").toString(), true) as BaseUrlParse.Valid).baseUrl
+
+        val result = accounts().signIn(CheckedAddress(base, "Away", true, null, false), "listener", "fixture-secret")
+
+        assertThat(result).isInstanceOf(SignInResult.Connected::class.java)
+        val profile = checkNotNull(db.profiles().current())
+        assertThat(profile.pairingLibraryId).isNull()
+        assertThat(db.libraries().forProfile(profile.profileId)).isEmpty()
+        assertThat(List(server.requestCount) { server.takeRequest().path })
+            .containsExactly("/abs/login", "/abs/api/libraries").inOrder()
+    }
+
     private fun accounts(): AccountService {
         val localNetwork = LocalNetworkAccess(ApplicationProvider.getApplicationContext()) { emptyList() }
         val access = ServerAccess(

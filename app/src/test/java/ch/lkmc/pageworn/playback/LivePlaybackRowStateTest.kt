@@ -9,13 +9,20 @@ class LivePlaybackRowStateTest {
 
     @Test
     fun rowDisplayKeepsOnlyTheMinuteScalePlaceAndDropsTheCountdown() {
-        val displayed = LivePlayback(key = key, positionMs = 1_234, sleepRemainingMs = 900, isPlaying = true)
-            .rowDisplay()
-
-        assertThat(displayed.positionMs).isEqualTo(0)
-        assertThat(displayed.sleepRemainingMs).isNull()
-        assertThat(displayed.isPlaying).isTrue()
-        assertThat(displayed.key).isEqualTo(key)
+        val live = LivePlayback(
+            key = key,
+            isPlaying = true,
+            playWhenReady = true,
+            positionMs = 1_234,
+            speed = 1.25f,
+            sleepRemainingMs = 900,
+            failed = true,
+            ended = true,
+            held = true,
+            playbackRequested = true,
+            starting = key,
+        )
+        assertThat(live.rowDisplay()).isEqualTo(live.copy(positionMs = 1, sleepRemainingMs = null))
     }
 
     @Test

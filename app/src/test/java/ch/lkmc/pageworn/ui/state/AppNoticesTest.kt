@@ -1,11 +1,13 @@
 package ch.lkmc.pageworn.ui.state
 
+import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import ch.lkmc.pageworn.data.SettingsStore
 import ch.lkmc.pageworn.ui.model.Copy
 import ch.lkmc.pageworn.ui.model.Destination
 import ch.lkmc.pageworn.ui.model.UiAction
 import com.google.common.truth.Truth.assertThat
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -14,6 +16,13 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 class AppNoticesTest {
+    @Before
+    fun clearSettings() {
+        ApplicationProvider.getApplicationContext<Context>()
+            .getSharedPreferences("pageworn-settings", Context.MODE_PRIVATE)
+            .edit().clear().commit()
+    }
+
     @Test
     fun a16bTheDeniedNoticeSurvivesRelaunchUntilLeavingDownloaded() {
         val settings = SettingsStore(ApplicationProvider.getApplicationContext())
@@ -32,5 +41,22 @@ class AppNoticesTest {
         val laterLaunch = AppNotices(settings)
         laterLaunch.onDownloadEnqueued(notificationsDenied = true)
         assertThat(laterLaunch.downloadedStatus.value).isNull()
+    }
+
+    @Test
+    fun openingAScreenOverDownloadedDismissesTheNoticeAndItNeverReturns() {
+        val settings = SettingsStore(ApplicationProvider.getApplicationContext())
+        val notices = AppNotices(settings)
+        notices.onDownloadEnqueued(notificationsDenied = true)
+        assertThat(notices.downloadedStatus.value?.text).isEqualTo(Copy.NOTIFICATIONS_DISABLED)
+
+        notices.openedOver(Destination.LIBRARY)
+        assertThat(notices.downloadedStatus.value?.action).isEqualTo(UiAction.NOTIFICATION_SETTINGS)
+
+        notices.openedOver(Destination.DOWNLOADED)
+        assertThat(notices.downloadedStatus.value).isNull()
+
+        notices.onDownloadEnqueued(notificationsDenied = true)
+        assertThat(notices.downloadedStatus.value).isNull()
     }
 }

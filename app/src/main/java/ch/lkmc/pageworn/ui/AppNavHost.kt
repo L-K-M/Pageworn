@@ -1,8 +1,11 @@
 package ch.lkmc.pageworn.ui
 
+import android.Manifest
 import android.app.Activity
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -13,6 +16,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,14 +49,17 @@ import ch.lkmc.pageworn.ui.settings.SleepSettingsScreen
 import ch.lkmc.pageworn.ui.state.AddressesViewModel
 import ch.lkmc.pageworn.ui.state.ConnectMode
 import ch.lkmc.pageworn.ui.state.ConnectViewModel
+import ch.lkmc.pageworn.ui.state.DetailState
 import ch.lkmc.pageworn.ui.state.DetailViewModel
 import ch.lkmc.pageworn.ui.state.DownloadedViewModel
 import ch.lkmc.pageworn.ui.state.LibraryViewModel
 import ch.lkmc.pageworn.ui.state.MainViewModel
+import ch.lkmc.pageworn.ui.state.NotificationsRoute
 import ch.lkmc.pageworn.ui.state.PlayerStates
 import ch.lkmc.pageworn.ui.state.PlayerViewModel
 import ch.lkmc.pageworn.ui.state.SettingsViewModel
 import ch.lkmc.pageworn.ui.state.SleepSettingsViewModel
+import ch.lkmc.pageworn.ui.state.notificationsRoute
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -78,6 +85,8 @@ class BookLink(val key: BookKey)
 @Composable
 fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, openBook: BookLink? = null, navController: NavHostController = rememberNavController()) {
     val main: MainViewModel = viewModel { MainViewModel(container) }
+    var shownSection by remember { mutableStateOf<Destination?>(null) }
+    var openingDirectly by remember { mutableStateOf(openPlayer > 0 || openBook != null) }
     val player: PlayerViewModel = viewModel { PlayerViewModel(container) }
     val context = LocalContext.current
     var permissionCallback by remember { mutableStateOf<((Boolean) -> Unit)?>(null) }
@@ -97,6 +106,24 @@ fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, op
             permissionLauncher.launch(LocalNetworkAccess.PERMISSION)
         }
     }
+    val notificationLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    val activity = LocalActivity.current
+    val requestNotifications: () -> Unit = {
+        val granted = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+        val rationale = activity?.shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS) == true
+        if (notificationsRoute(Build.VERSION.SDK_INT, granted, container.settings.notificationsAsked, rationale) == NotificationsRoute.ASK) {
+            // Nothing waits for this answer: the notice is gone, and transfers check the setting when they post.
+            container.settings.notificationsAsked = true
+            notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            context.startActivity(
+                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                    .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+        }
+    }
     val connectMode by main.connectMode.collectAsStateWithLifecycle()
     val blockedAddressId by main.blockedAddressId.collectAsStateWithLifecycle()
     LaunchedEffect(connectMode, blockedAddressId) {
@@ -105,7 +132,20 @@ fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, op
     }
 
     LaunchedEffect(openPlayer) {
-        if (openPlayer > 0) navController.navigate(Routes.PLAYER) { launchSingleTop = true }
+        if (openPlayer > 0) {
+            navController.navigate(Routes.PLAYER) { launchSingleTop = true }
+            openingDirectly = false
+        }
+    }
+
+    // Main can be on the back stack before it has displayed a section, for instance on a cold link.
+    LaunchedEffect(navController) {
+        navController.currentBackStackEntryFlow.collect { entry ->
+            if (entry.destination.route != Routes.MAIN) {
+                shownSection?.let(container.notices::openedOver)
+                shownSection = null
+            }
+        }
     }
 
     val problem by player.problem.collectAsStateWithLifecycle()
@@ -132,6 +172,7 @@ fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, op
             val onPhone = container.editionStore.observeEverything().first().any { it.key == link.key }
             navController.popBackStack(Routes.MAIN, inclusive = false)
             if (onPhone) navController.navigate(Routes.detail(link.key)) else main.select(Destination.DOWNLOADED)
+            openingDirectly = false
         }
     }
 
@@ -146,7 +187,11 @@ fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, op
         popExitTransition = { ExitTransition.None },
     ) {
         composable(Routes.MAIN) {
-            MainRoute(container, main, player, navController, requestLocalNetwork)
+            MainRoute(container, main, player, navController, requestLocalNetwork, requestNotifications) { section ->
+                if (!openingDirectly && navController.currentDestination?.route == Routes.MAIN) {
+                    shownSection = section
+                }
+            }
         }
         composable(Routes.PLAYER) {
             val state by player.player.collectAsStateWithLifecycle()
@@ -187,21 +232,26 @@ fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, op
             }
             val detail: DetailViewModel = viewModel(key = mediaId) { DetailViewModel(container, key) }
             val state by detail.state.collectAsStateWithLifecycle()
-            state?.let {
-                val notice = problem?.takeIf { p -> p.key == key }?.let(PlayerStates::notice)
-                BookDetailScreen(
-                    state = if (notice == null) it else it.copy(message = notice),
-                    onBack = { navController.popBackStack() },
-                    onDownload = detail::download,
-                    onRetry = detail::download,
-                    onPlayPause = { player.playPause(key, it) },
-                    onRepair = detail::download,
-                    onPauseTransfer = detail::pauseTransfer,
-                    onResumeTransfer = detail::resumeTransfer,
-                    onCancelTransfer = detail::cancelTransfer,
-                    onSelectSegment = { start -> player.playFrom(key, start) },
-                    onRemove = detail::remove,
-                )
+            when (val current = state) {
+                DetailState.Loading -> Unit
+                DetailState.Missing -> LaunchedEffect(key) { navController.popBackStack() }
+                is DetailState.Available -> {
+                    val book = current.book
+                    val notice = problem?.takeIf { it.key == key }?.let(PlayerStates::notice)
+                    BookDetailScreen(
+                        state = if (notice == null) book else book.copy(message = notice),
+                        onBack = { navController.popBackStack() },
+                        onDownload = detail::download,
+                        onRetry = detail::download,
+                        onPlayPause = { player.playPause(key, it) },
+                        onRepair = detail::download,
+                        onPauseTransfer = detail::pauseTransfer,
+                        onResumeTransfer = detail::resumeTransfer,
+                        onCancelTransfer = detail::cancelTransfer,
+                        onSelectSegment = { start -> player.playFrom(key, start) },
+                        onRemove = detail::remove,
+                    )
+                }
             }
         }
         composable(Routes.SETTINGS) {
@@ -287,11 +337,19 @@ fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, op
 }
 
 @Composable
-private fun MainRoute(container: AppContainer, main: MainViewModel, player: PlayerViewModel, navController: NavHostController, requestLocalNetwork: ((Boolean) -> Unit) -> Unit) {
-    val context = LocalContext.current
+private fun MainRoute(
+    container: AppContainer,
+    main: MainViewModel,
+    player: PlayerViewModel,
+    navController: NavHostController,
+    requestLocalNetwork: ((Boolean) -> Unit) -> Unit,
+    requestNotifications: () -> Unit,
+    onSectionShown: (Destination) -> Unit,
+) {
     val destination by main.destination.collectAsStateWithLifecycle()
     val decided by main.decided.collectAsStateWithLifecycle()
     if (!decided) return
+    SideEffect { onSectionShown(destination) }
     val mini by player.mini.collectAsStateWithLifecycle()
     val library: LibraryViewModel = viewModel { LibraryViewModel(container) }
     val downloaded: DownloadedViewModel = viewModel { DownloadedViewModel(container) }
@@ -361,11 +419,7 @@ private fun MainRoute(container: AppContainer, main: MainViewModel, player: Play
                             UiAction.BROWSE_LIBRARY -> main.select(Destination.LIBRARY)
                             UiAction.NOTIFICATION_SETTINGS -> {
                                 container.notices.dismiss()
-                                context.startActivity(
-                                    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-                                        .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-                                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                                )
+                                requestNotifications()
                             }
                             else -> Unit
                         }

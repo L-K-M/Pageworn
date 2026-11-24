@@ -12,13 +12,16 @@ import ch.lkmc.pageworn.data.db.LocalEditionEntity
 import ch.lkmc.pageworn.data.db.PagewornDatabase
 import ch.lkmc.pageworn.data.db.PendingRemovalEntity
 import ch.lkmc.pageworn.data.db.TrackEntity
+import ch.lkmc.pageworn.data.db.TransferEntity
 import ch.lkmc.pageworn.data.db.TransferState
 import ch.lkmc.pageworn.playback.EditionPlan
 import ch.lkmc.pageworn.playback.EditionSource
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
@@ -164,9 +167,14 @@ class EditionStore(
     /** Every track file is on the disk with the size it was verified at. */
     private suspend fun filesIntact(edition: LocalEditionEntity): Boolean {
         val dir = files.published(edition.generationId)
-        return db.editions().tracks(edition.generationId).all { track ->
-            val file = File(dir, track.localFilename)
-            file.isFile && file.length() == track.sizeBytes
+        return withContext(Dispatchers.IO) {
+            db.editions().tracks(edition.generationId).all { track ->
+                val name = track.localFilename
+                val file = File(dir, name)
+                // Keep the integrity check inside the published directory even if a future
+                // writer ever stores a name with a separator.
+                !name.contains('/') && !name.contains('\\') && file.isFile && file.length() == track.sizeBytes
+            }
         }
     }
 
@@ -195,16 +203,20 @@ class EditionStore(
      * Explicit removal (rule 5). The caller has paused and checkpointed the book and released its
      * readers. Marks removal pending and invalidates any unpublished transfer in one transaction,
      * deletes the audio, then clears the edition rows. Progress is kept. A second removal is harmless.
+     *
+     * Returns the transfer it cancelled, if any. Its copy may still be running and its staged files
+     * are still on disk: `TransferCoordinator.remove` stops and reclaims it.
      */
-    suspend fun remove(key: BookKey) = lockFor(key).withLock {
-        db.withTransaction {
+    suspend fun remove(key: BookKey): TransferEntity? = lockFor(key).withLock {
+        val cancelled = db.withTransaction {
             val edition = db.editions().edition(key.profileId, key.itemId)
             db.editions().upsertPendingRemoval(PendingRemovalEntity(key.profileId, key.itemId, edition?.generationId, clock.wallMillis()))
             db.transfers().active(key.profileId, key.itemId)?.let { job ->
-                db.transfers().upsert(job.copy(state = TransferState.CANCELLED, activeMarker = null, updatedAt = clock.wallMillis()))
+                job.copy(state = TransferState.CANCELLED, activeMarker = null, updatedAt = clock.wallMillis()).also { db.transfers().upsert(it) }
             }
         }
         finishRemovalLocked(key)
+        cancelled
     }
 
     private suspend fun finishRemoval(key: BookKey) = lockFor(key).withLock { finishRemovalLocked(key) }

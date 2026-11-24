@@ -2,7 +2,6 @@ package ch.lkmc.pageworn
 
 import android.content.Context
 import android.content.Intent
-import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
@@ -16,6 +15,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.asImageBitmap
+import ch.lkmc.pageworn.artwork.decodeCover
 import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.ui.AppNavHost
 import ch.lkmc.pageworn.ui.BookLink
@@ -58,7 +58,7 @@ class MainActivity : ComponentActivity() {
         val container = (application as PagewornApp).container
         val covers = CoverLoader { cover, sizePx ->
             val file = container.remoteCovers.thumbnail(cover.itemId, cover.updatedAt, sizePx) ?: return@CoverLoader null
-            withContext(Dispatchers.IO) { BitmapFactory.decodeFile(file.absolutePath)?.asImageBitmap() }
+            withContext(Dispatchers.IO) { decodeCover(file, sizePx)?.asImageBitmap() }
         }
         setContent {
             PagewornTheme {
