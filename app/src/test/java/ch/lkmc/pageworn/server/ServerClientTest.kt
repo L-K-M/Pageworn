@@ -56,6 +56,12 @@ class ServerClientTest {
             "HTTPS://EXAMPLE.COM:443/abs///" to "https://example.com/abs/",
             "http://EXAMPLE.COM:80/a" to "http://example.com/a/",
             "https://EXAMPLE.COM:8443/a" to "https://example.com:8443/a/",
+            // A host and a port without a scheme still default to HTTPS, whatever the host's letters.
+            "books.example.com:8443" to "https://books.example.com:8443/",
+            "localhost:13378/abs" to "https://localhost:13378/abs/",
+            "192.168.1.5:13378" to "https://192.168.1.5:13378/",
+            "LOCALHOST:13378" to "https://localhost:13378/",
+            "[::1]:13378" to "https://[::1]:13378/",
         )
         for ((input, expected) in cases) {
             val actual = parseBaseUrl(input, true) as BaseUrlParse.Valid
@@ -63,7 +69,7 @@ class ServerClientTest {
         }
         val cleartext = parseBaseUrl("http://h/a", false) as BaseUrlParse.NeedsCleartextChoice
         assertThat(cleartext.baseUrl.origin).isEqualTo("http://h")
-        for (input in listOf("https://user:pass@h", "https://h/a?q=1", "https://h/a#part", "ftp://h", "https://")) {
+        for (input in listOf("https://user:pass@h", "https://h/a?q=1", "https://h/a#part", "ftp://h", "https://", "mailto:listener", "tel:1234567")) {
             assertThat(parseBaseUrl(input, true)).isInstanceOf(BaseUrlParse.Invalid::class.java)
         }
         val base = (parseBaseUrl("https://h/abs/", false) as BaseUrlParse.Valid).baseUrl
@@ -175,6 +181,16 @@ class ServerClientTest {
         val withoutTracks = Regex(""""numTracks":\s*\d+""").replace(fixture("items-page0"), "\"numTracks\": 0")
         server.enqueue(MockResponse().setBody(withoutTracks))
         assertThat((client.itemsPage("token", "library", 0, 3) as ServerResult.Ok).value.entries.map { it.numTracks }).containsExactly(0, 0, 0)
+        server.takeRequest()
+        // The minified listing carries the description; the plain form wins over the HTML one.
+        val described = Regex(""""description"\s*:\s*null""").replace(fixture("items-page0"), """"description": "<p>A tale</p>", "descriptionPlain": "A tale"""")
+        server.enqueue(MockResponse().setBody(described))
+        assertThat((client.itemsPage("token", "library", 0, 3) as ServerResult.Ok).value.entries[0].description).isEqualTo("A tale")
+        server.takeRequest()
+        // Older servers carry only the HTML form; its tags are stripped so no markup reaches the UI.
+        val htmlOnly = Regex(""""description"\s*:\s*null""").replace(fixture("items-page0"), """"description": "<p>A <b>tale</b></p>"""")
+        server.enqueue(MockResponse().setBody(htmlOnly))
+        assertThat((client.itemsPage("token", "library", 0, 3) as ServerResult.Ok).value.entries[0].description).isEqualTo("A tale")
         server.takeRequest()
         assertThat(server.takeRequest().path).isEqualTo("/abs/api/libraries/library/items?page=0&limit=3&sort=media.metadata.title&minified=1")
         try {

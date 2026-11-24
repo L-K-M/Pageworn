@@ -48,6 +48,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import ch.lkmc.pageworn.R
 import ch.lkmc.pageworn.core.sleep.SleepLength
+import ch.lkmc.pageworn.core.timeline.Division
+import ch.lkmc.pageworn.core.timeline.Segment
 import ch.lkmc.pageworn.ui.components.BookCover
 import ch.lkmc.pageworn.ui.components.PaperRule
 import ch.lkmc.pageworn.ui.components.PaperSheet
@@ -61,7 +63,7 @@ import ch.lkmc.pageworn.ui.model.Copy
 import ch.lkmc.pageworn.ui.model.Format
 import ch.lkmc.pageworn.ui.model.KeyAction
 import ch.lkmc.pageworn.ui.model.PlayerUiState
-import ch.lkmc.pageworn.ui.model.SegmentRow
+import ch.lkmc.pageworn.ui.state.PlayerStates
 import ch.lkmc.pageworn.ui.model.SleepUi
 import ch.lkmc.pageworn.ui.model.StartAction
 import ch.lkmc.pageworn.ui.theme.PagewornTheme
@@ -131,7 +133,7 @@ fun PlayerScreen(state: PlayerUiState, onCollapse: () -> Unit, onPlayPause: (Key
     }
     when (sheet) {
         PlayerSheet.SPEED -> PaperSheet("Speed", sheetState, { sheet = null }) { SpeedSheet(state.speed) { onSelectSpeed(it); sheet = null } }
-        PlayerSheet.SEGMENTS -> PaperSheet(state.segmentsLabel, sheetState, { sheet = null }) { SegmentsSheet(state.segmentName, state.segments) { onSelectSegment(it); sheet = null } }
+        PlayerSheet.SEGMENTS -> PaperSheet(state.segmentsLabel, sheetState, { sheet = null }) { SegmentsSheet(state.division, state.segmentName, state.segments, state.segmentIndex) { onSelectSegment(it); sheet = null } }
         PlayerSheet.SLEEP -> PaperSheet("Sleep timer", sheetState, { sheet = null }) { SleepSheet(state.sleep) { onSelectSleep(it); sheet = null } }
         null -> Unit
     }
@@ -155,17 +157,20 @@ private fun SpeedSheet(selected: Float, onSelect: (Float) -> Unit) {
 }
 
 @Composable
-private fun SegmentsSheet(segmentName: String, segments: List<SegmentRow>, onSelect: (Long) -> Unit) {
+private fun SegmentsSheet(division: Division, segmentName: String, segments: List<Segment>, segmentIndex: Int, onSelect: (Long) -> Unit) {
     // A long book has dozens of parts: open on the one playing, with some before it for context.
-    val list = rememberLazyListState((segments.indexOfFirst { it.current } - ROWS_ABOVE_CURRENT).coerceAtLeast(0))
+    // Find the row by its domain index rather than assuming it is also the list position.
+    // A -1 (no match) coerces to 0: better to open at the top than crash on a stale index.
+    val list = rememberLazyListState((segments.indexOfFirst { it.index == segmentIndex } - ROWS_ABOVE_CURRENT).coerceAtLeast(0))
     Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp)) {
         LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false), list) {
             items(segments, key = { it.index }) { segment ->
                 PaperRule()
-                Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(role = Role.Button) { onSelect(segment.startMs) }.semantics { if (segment.current) stateDescription = "Current ${segmentName.lowercase()}" }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    if (segment.current) Image(painterResource(R.drawable.pw_place_ribbon), null, Modifier.padding(end = 8.dp).size(12.dp, 18.dp))
-                    Text(segment.title, Modifier.weight(1f), color = if (segment.generated) PagewornTheme.colors.secondaryInk else PagewornTheme.colors.primaryInk, style = PagewornTheme.type.rowTitle)
-                    Text(segment.durationText, Modifier.padding(start = 8.dp), color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.metadata)
+                val current = segment.index == segmentIndex
+                Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(role = Role.Button) { onSelect(segment.startMs) }.semantics { if (current) stateDescription = "Current ${segmentName.lowercase()}" }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    if (current) Image(painterResource(R.drawable.pw_place_ribbon), null, Modifier.padding(end = 8.dp).size(12.dp, 18.dp))
+                    Text(PlayerStates.segmentTitle(division, segment), Modifier.weight(1f), color = if (segment.generated) PagewornTheme.colors.secondaryInk else PagewornTheme.colors.primaryInk, style = PagewornTheme.type.rowTitle)
+                    Text(Format.clock(segment.durationMs), Modifier.padding(start = 8.dp), color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.metadata)
                 }
             }
         }

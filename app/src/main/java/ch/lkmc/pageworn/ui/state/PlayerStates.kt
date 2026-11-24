@@ -68,12 +68,20 @@ object PlayerStates {
      */
     fun sleep(live: LivePlayback, division: Division, mode: SleepSettings, book: BookKey): SleepUi {
         val endLabel = endLabel(division)
+        // A running timer keeps its length even after its preset is removed, or when it was
+        // carried over after a stop while the mode is now off. The same can be true of the mode's
+        // stored length on older preferences; both need their own row to stay selectable.
+        val running = live.sleep.takeIf { live.key == book && it != SleepState.Off }?.length
+        val selected = running ?: mode.length.takeIf { mode.enabled }
         val options = buildList {
             add(SleepOption(null, "Off"))
-            mode.presets.forEach { add(SleepOption(SleepLength.Minutes(it), Format.minutes(it))) }
+            mode.presets.sorted().forEach { add(SleepOption(SleepLength.Minutes(it), Format.minutes(it))) }
+            if (selected is SleepLength.Minutes && none { it.length == selected }) {
+                // Keep the synthesized length among the rendered presets in order.
+                add(mode.presets.count { it <= selected.minutes } + 1, SleepOption(selected, Format.minutes(selected.minutes)))
+            }
             add(SleepOption(SleepLength.EndOfSegment, endLabel))
         }
-        val selected = mode.length.takeIf { mode.enabled }
         val remaining = live.sleepRemainingMs?.takeIf { live.key == book && live.sleep != SleepState.Off }
         if (remaining != null) {
             return SleepUi(
@@ -109,6 +117,8 @@ object PlayerStates {
     /**
      * The player for [plan]. When the live player holds this book its position and state win;
      * otherwise the saved place is shown, as Downloaded and the ribbon show it while the book rests.
+     * [restingSpeed] is the stored speed, which the next Play applies. It shows whenever the live
+     * player does not hold this book, as after a relaunch, when the hub reports its default 1×.
      */
     fun player(
         plan: EditionPlan,
@@ -116,6 +126,7 @@ object PlayerStates {
         progress: BookProgressEntity?,
         live: LivePlayback,
         sleepMode: SleepSettings = SleepSettings(),
+        restingSpeed: Float = 1f,
     ): PlayerUiState {
         val timeline = plan.timeline
         val isLive = live.key == plan.key
@@ -132,6 +143,7 @@ object PlayerStates {
             narrator = edition?.narrators,
             segmentLine = segmentTitle(timeline.division, segment),
             segmentName = segmentName(timeline.division),
+            division = timeline.division,
             segmentStartMs = segment.startMs,
             segmentEndMs = segment.endMs,
             positionMs = position,
@@ -144,10 +156,13 @@ object PlayerStates {
             transportEnabled = !failed && !choiceNeeded,
             transportDisabledReason = failure ?: Copy.CHOOSE_START.takeIf { choiceNeeded },
             failureMessage = failure,
-            speed = live.speed,
+            speed = if (isLive) live.speed else restingSpeed,
             sleep = sleep(live, timeline.division, sleepMode, plan.key),
             segmentsLabel = segmentsLabel(timeline.division),
-            segments = segments(plan, position),
+            // The timeline already owns the segment list; building display rows here would format
+            // every chapter's duration on each live tick, four times a second.
+            segments = timeline.segments,
+            segmentIndex = timeline.segmentIndexAt(position),
             hasPlace = !finished && progress != null && (progress.positionMs > 0 || isLive),
             finished = finished,
             continuityChoice = progress?.takeIf { it.pendingContinuityChoice }?.let {

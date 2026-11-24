@@ -23,6 +23,7 @@ import ch.lkmc.pageworn.data.db.TransferEntity
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.launch
 
 /**
@@ -90,6 +91,9 @@ class JobSchedulerTransfers(private val context: Context) : TransferScheduler {
 internal suspend fun AppContainer.runTransferQueueWithProgress(report: (TransferEntity?) -> Unit) = coroutineScope {
     val updates = launch {
         combine(transfers.active, database.transfers().observeActive()) { id, jobs -> jobs.firstOrNull { it.jobId == id } }
+            // Progress is journaled every 500 ms, and notification posts share a per-app rate limit
+            // with the media notification: post only when what the notice draws changes.
+            .distinctUntilChangedBy { TransferNotice.of(it) }
             .collect { report(it) }
     }
     try {
@@ -156,15 +160,26 @@ object TransferNotifications {
             .setContentIntent(open)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
-        if (job == null) return builder.setContentTitle(context.getString(R.string.transfer_preparing)).build()
-        val total = job.bytesTotal
-        builder.setContentTitle(job.title)
-        if (total != null && total > 0) {
-            val percent = (job.bytesDone * 100 / total).toInt().coerceIn(0, 100)
+        val notice = TransferNotice.of(job) ?: return builder.setContentTitle(context.getString(R.string.transfer_preparing)).build()
+        builder.setContentTitle(notice.title)
+        val percent = notice.percent
+        if (percent != null) {
             builder.setProgress(100, percent, false).setContentText(context.getString(R.string.transfer_percent, percent))
         } else {
             builder.setProgress(0, 0, true)
         }
         return builder.build()
+    }
+}
+
+/** What the transfer notification draws for a job: its book and percent, when the size is known. Null while preparing. */
+internal data class TransferNotice(val title: String, val percent: Int?) {
+    companion object {
+        fun of(job: TransferEntity?): TransferNotice? = job?.let { TransferNotice(it.title, percentOf(it)) }
+
+        private fun percentOf(job: TransferEntity): Int? {
+            val total = job.bytesTotal?.takeIf { it > 0 } ?: return null
+            return (job.bytesDone * 100 / total).toInt().coerceIn(0, 100)
+        }
     }
 }

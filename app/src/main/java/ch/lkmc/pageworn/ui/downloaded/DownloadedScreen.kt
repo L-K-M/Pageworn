@@ -62,15 +62,23 @@ fun DownloadedScreen(state: DownloadedUiState, listState: LazyListState, onOpenB
         if (state.empty != null) item(key = "empty") { EmptyStateView(state.empty, onAction) }
         else {
             if (state.transfers.isNotEmpty()) item(key = "downloading") {
-                Text("Downloading", Modifier.padding(start = 20.dp, top = 12.dp, bottom = 8.dp).semantics { heading() }, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.sheetTitle.copy(fontSize = PagewornTheme.type.rowTitle.fontSize * 1.15f))
+                // Fades with the last transfer row instead of popping out a frame early.
+                Text("Downloading", Modifier.animateItem().padding(start = 20.dp, top = 12.dp, bottom = 8.dp).semantics { heading() }, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.sheetTitle.copy(fontSize = PagewornTheme.type.rowTitle.fontSize * 1.15f))
             }
             items(state.transfers.size, key = { "transfer:${state.transfers[it].transfer.jobId}" }) { index ->
-                DownloadTransferRow(state.transfers[index], onOpenBook, onPauseTransfer, onResumeTransfer, onRetryTransfer, onCancelTransfer)
-                HorizontalDivider(Modifier.padding(horizontal = 20.dp), color = PagewornTheme.colors.secondaryInk.copy(alpha = .25f))
+                // A finished transfer fades out of the group above as its book fades in below.
+                Column(Modifier.animateItem()) {
+                    DownloadTransferRow(state.transfers[index], onOpenBook, onPauseTransfer, onResumeTransfer, onRetryTransfer, onCancelTransfer)
+                    // The divider after the last transfer separates the sections while books
+                    // follow, and stays away when it is the bottom of the list.
+                    if (index != state.transfers.lastIndex || state.books.isNotEmpty()) HorizontalDivider(Modifier.padding(horizontal = 20.dp), color = PagewornTheme.colors.secondaryInk.copy(alpha = .25f))
+                }
             }
             items(state.books.size, key = { state.books[it].face.key.mediaId }) { index ->
-                DownloadedBookRow(state.books[index], onOpenBook, onPlayPause)
-                HorizontalDivider(Modifier.padding(horizontal = 20.dp), color = PagewornTheme.colors.secondaryInk.copy(alpha = .25f))
+                Column(Modifier.animateItem()) {
+                    DownloadedBookRow(state.books[index], onOpenBook, onPlayPause)
+                    if (index != state.books.lastIndex) HorizontalDivider(Modifier.padding(horizontal = 20.dp), color = PagewornTheme.colors.secondaryInk.copy(alpha = .25f))
+                }
             }
         }
     }
@@ -115,7 +123,7 @@ private fun DownloadedBookRow(row: ReadyBookRow, onOpenBook: (BookKey) -> Unit, 
                     ReadyBadge.New -> Text("New", Modifier.padding(top = 4.dp).background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = .6f), RoundedCornerShape(100)).padding(horizontal = 10.dp, vertical = 3.dp), color = PagewornTheme.colors.accent, style = PagewornTheme.type.status)
                     is ReadyBadge.InProgress -> Text(badge.text, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status)
                     ReadyBadge.Finished -> Text("Finished", color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status)
-                    is ReadyBadge.RepairNeeded -> { Text("Repair needed", color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status); Text(badge.message, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status) }
+                    is ReadyBadge.RepairNeeded -> { Text(Copy.REPAIR_NEEDED, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status); if (badge.message.isNotBlank()) Text(badge.message, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status) }
                 }
             }
             if (!compact && row.playable) PlayPauseKey(row.showsPause, row.face.title, ROW_KEY, starting = row.starting, start = row.start) { onPlayPause(row.face.key, it) }
