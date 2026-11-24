@@ -19,6 +19,7 @@ import ch.lkmc.pageworn.ui.model.CoverImage
 import ch.lkmc.pageworn.ui.model.DetailAction
 import ch.lkmc.pageworn.ui.model.Format
 import ch.lkmc.pageworn.ui.model.StartAction
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -50,8 +51,40 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
 
     private val actions = TransferActions(container)
 
-    val state: StateFlow<BookDetailUiState?> = combine(inputs, container.playbackHub.state, actions.refusal) { i, live, refusal ->
-        build(i, i.edition?.let { plans.plan(it) }, live)?.let { built -> refusal?.let { built.copy(message = it.text) } ?: built }
+    /**
+     * Set once this screen removes the audio. The confirmation stays in memory for this screen;
+     * its display is masked while an edition or transfer exists, so another path removing the
+     * book cannot resurrect it.
+     */
+    private val _removed = MutableStateFlow(false)
+    private val removed = _removed
+
+    val state: StateFlow<BookDetailUiState?> = combine(
+        inputs,
+        container.playbackHub.state,
+        actions.refusal,
+        removed,
+    ) { i, live, refusal, removed ->
+        build(i, i.edition?.let { plans.plan(it) }, live)?.let { built ->
+            val removalIsNewest = removed && i.edition == null && i.transfer == null
+            val refusalHere = refusal?.takeIf { it.key == key && !removalIsNewest }
+            when {
+                // A refusal about this book is newer and actionable while the book still
+                // exists, and outranks the removal confirmation. Once the book is gone, the
+                // removal is the newest fact.
+                refusalHere != null -> {
+                    // Only the primary Download action gives way. A playable, transferring or
+                    // repairing book keeps its own control and carries the message beside it.
+                    val action = if (built.action == DetailAction.Download) refusalHere.disabledAction ?: built.action else built.action
+                    built.copy(message = refusalHere.text, action = action)
+                }
+                removalIsNewest -> {
+                    // The saved place survives the removal, and the listener should hear so.
+                    built.copy(message = Copy.AUDIO_REMOVED)
+                }
+                else -> built
+            }
+        }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /** Download, or Repair download: stages a fresh generation and keeps the saved place. */
@@ -65,6 +98,8 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
         // Not the screen's scope: leaving details must not stop between releasing and removing.
         container.appScope.launch {
             container.playerConnection.releaseBook(key)
+            // Set before the store write so no frame shows a gone edition without its reason.
+            _removed.value = true
             container.editionStore.remove(key)
         }
     }
@@ -101,8 +136,8 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
         val position = if (isLive) live.positionMs else i.progress?.positionMs
         return BookDetailUiState(
             face = BookFace(key, title, authors, cover),
-            narrator = edition?.narrators ?: book?.narrators,
-            durationText = durationMs?.let { Format.hoursMinutes(it) },
+            narrator = shownNarrator(edition?.narrators, book?.narrators),
+            durationText = durationMs?.let { Format.bookLength(it) },
             sizeText = sizeBytes?.let { Format.bytes(it) },
             action = action,
             message = message,
@@ -114,3 +149,10 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
         )
     }
 }
+
+/**
+ * The narrator to print: the edition's, else the catalog's. Audiobookshelf sends an empty string
+ * for a book without one, which must not print a bare "Narrated by".
+ */
+internal fun shownNarrator(editionNarrators: String?, bookNarrators: String?): String? =
+    listOf(editionNarrators, bookNarrators).firstNotNullOfOrNull { it?.trim()?.takeIf(String::isNotEmpty) }

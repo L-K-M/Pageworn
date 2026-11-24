@@ -60,6 +60,7 @@ object Copy {
         if (shortfallBytes == null || shortfallBytes <= 0) STORAGE_FULL else "$STORAGE_FULL ${Format.bytes(shortfallBytes)} more is needed."
     const val AUDIO_REMOVED = "Download removed. Your place is saved."
     const val DAMAGED_COPY = "This copy couldn’t be opened."
+    const val REPAIR_NEEDED = "Repair needed"
     const val PLAY_DID_NOT_START = "Couldn’t start playback. Another app may be using audio."
     const val CHOOSE_START = "Choose where to start."
     const val STARTING = "Starting"
@@ -111,6 +112,9 @@ object Format {
         val m = totalMinutes % 60
         return if (h > 0) String.format(Locale.US, "%d h %02d min", h, m) else "$m min"
     }
+
+    /** A book's total length as a fact: whole minutes, or "Under 1 min" for a positive length below one minute. */
+    fun bookLength(ms: Long): String = if (ms > 0 && ms < 60_000) "Under 1 min" else hoursMinutes(ms)
 
     /** "Book · 2 h 08 min of 4 h 20 min". */
     fun bookLine(positionMs: Long, durationMs: Long) = "Book · ${hoursMinutes(positionMs)} of ${hoursMinutes(durationMs)}"
