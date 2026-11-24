@@ -1,7 +1,10 @@
 package ch.lkmc.pageworn.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,11 +16,14 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.StrokeCap
@@ -55,10 +61,20 @@ fun TextAction(label: String, spokenLabel: String? = null, modifier: Modifier = 
     // A short visible label can carry a fuller spoken name, e.g. "Cancel" read as "Cancel download of <title>".
     val spoken = if (spokenLabel == null) Modifier else Modifier.semantics { contentDescription = spokenLabel }
     val visible = if (spokenLabel == null) Modifier else Modifier.clearAndSetSemantics {}
-    Box(modifier.heightIn(min = 48.dp).widthIn(min = 48.dp).clickable(role = Role.Button, onClick = onClick).then(spoken).padding(horizontal = TEXT_ACTION_INSET), contentAlignment = Alignment.Center) {
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
+    Box(
+        modifier.heightIn(min = 48.dp).widthIn(min = 48.dp)
+            .clickable(interactionSource = interaction, role = Role.Button, onClick = onClick)
+            .then(if (focused) Modifier.border(2.dp, PagewornTheme.colors.primaryInk, FOCUS_SHAPE) else Modifier)
+            .then(spoken).padding(horizontal = TEXT_ACTION_INSET),
+        contentAlignment = Alignment.Center,
+    ) {
         Text(label, visible, color = PagewornTheme.colors.accent, style = PagewornTheme.type.ribbonLabel.copy(fontWeight = FontWeight.SemiBold))
     }
 }
+
+private val FOCUS_SHAPE = RoundedCornerShape(8.dp)
 
 @Composable
 fun StatusLineView(line: StatusLine, onAction: (UiAction) -> Unit) {
