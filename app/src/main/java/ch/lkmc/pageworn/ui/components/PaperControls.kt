@@ -122,10 +122,14 @@ fun PaperCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.()
  */
 @Composable
 fun DisclosureRow(label: String, detail: String? = null, expanded: Boolean? = null, onClick: () -> Unit) {
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
     Row(
         Modifier.fillMaxWidth().heightIn(min = 56.dp)
             .semantics { expanded?.let { stateDescription = if (it) "Expanded" else "Collapsed" } }
-            .clickable(role = Role.Button, onClick = onClick).padding(horizontal = 16.dp, vertical = 10.dp),
+            .clickable(interactionSource = interaction, role = Role.Button, onClick = onClick)
+            .then(if (focused) Modifier.border(2.dp, PagewornTheme.colors.primaryInk, CONTROL_SHAPE) else Modifier)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {

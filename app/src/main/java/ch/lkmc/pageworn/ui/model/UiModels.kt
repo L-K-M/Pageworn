@@ -1,6 +1,8 @@
 package ch.lkmc.pageworn.ui.model
 
+import ch.lkmc.pageworn.core.timeline.Segment
 import ch.lkmc.pageworn.core.sleep.SleepLength
+import ch.lkmc.pageworn.core.timeline.Division
 import ch.lkmc.pageworn.catalog.CatalogSort
 import ch.lkmc.pageworn.core.BookKey
 import java.io.File
@@ -43,6 +45,7 @@ enum class UiAction {
     BROWSE_LIBRARY,
     CHECK_AGAIN,
     CLEAR_SEARCH,
+    REFRESH,
 }
 
 /** A recoverable condition shown as live type between the heading block and the first row. */
@@ -123,6 +126,8 @@ data class LibraryUiState(
     /** When set, replaces the rows (and, for no audiobook libraries, the selector and search). */
     val empty: EmptyState? = null,
     val showSelectorAndSearch: Boolean = true,
+    /** A catalog refresh is running: the pull-to-refresh indicator spins. */
+    val refreshing: Boolean = false,
 )
 
 // --- Downloaded --------------------------------------------------------------------------------
@@ -231,6 +236,8 @@ data class PlayerUiState(
     val segmentLine: String,
     /** What such a segment is called: "Chapter", "Track" or "Part". */
     val segmentName: String,
+    /** How the edition is divided, for naming an untitled segment in the sheet. */
+    val division: Division,
     val segmentStartMs: Long,
     val segmentEndMs: Long,
     val positionMs: Long,
@@ -252,7 +259,10 @@ data class PlayerUiState(
     val sleep: SleepUi,
     /** "Chapters" or "Tracks". */
     val segmentsLabel: String,
-    val segments: List<SegmentRow>,
+    /** The edition's segments, shared with its timeline so a live tick does not rebuild them. */
+    val segments: List<Segment>,
+    /** The [Segment.index] of the segment holding the position, for the sheet's place marker and scroll. */
+    val segmentIndex: Int,
     val hasPlace: Boolean,
     val finished: Boolean = false,
     val continuityChoice: ContinuityChoice? = null,
