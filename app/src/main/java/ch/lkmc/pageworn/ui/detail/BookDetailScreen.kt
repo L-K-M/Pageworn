@@ -36,13 +36,21 @@ import ch.lkmc.pageworn.ui.model.BookDetailUiState
 import ch.lkmc.pageworn.ui.model.Copy
 import ch.lkmc.pageworn.ui.model.DetailAction
 import ch.lkmc.pageworn.ui.model.KeyAction
+import ch.lkmc.pageworn.ui.model.StartAction
 import ch.lkmc.pageworn.ui.theme.PagewornTheme
 
+/**
+ * The ribbon marks a saved place, so it belongs only to a book that resumes from one. A fresh
+ * play and a finished replay both start at zero, so they deliberately show no ribbon.
+ */
+internal fun showsPlaceRibbon(action: DetailAction): Boolean =
+    (action as? DetailAction.Play)?.start == StartAction.RESUME
+
 @Composable
-fun BookDetailScreen(state: BookDetailUiState, onBack: () -> Unit, onDownload: () -> Unit, onPlayPause: (KeyAction) -> Unit, onRepair: () -> Unit, onPauseTransfer: (String) -> Unit, onResumeTransfer: (String) -> Unit, onCancelTransfer: (String) -> Unit, onSelectSegment: (Long) -> Unit, onRemove: () -> Unit) {
+fun BookDetailScreen(state: BookDetailUiState, onBack: () -> Unit, onDownload: () -> Unit, onRetry: () -> Unit, onPlayPause: (KeyAction) -> Unit, onRepair: () -> Unit, onPauseTransfer: (String) -> Unit, onResumeTransfer: (String) -> Unit, onCancelTransfer: (String) -> Unit, onSelectSegment: (Long) -> Unit, onRemove: () -> Unit) {
     Column(Modifier.fillMaxSize().paperBackground().statusBarsPadding().navigationBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Row(Modifier.fillMaxWidth()) { BackAction(onBack) }
-        BookCover(state.face, 168.dp, showRibbon = state.action is DetailAction.Play)
+        BookCover(state.face, 168.dp, showRibbon = showsPlaceRibbon(state.action))
         Text(state.face.title, Modifier.padding(top = 20.dp).semantics { heading() }, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.playerTitle, textAlign = TextAlign.Center)
         state.face.author?.let { Text(it, Modifier.padding(top = 2.dp), color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.author, textAlign = TextAlign.Center) }
         PaperRule(Modifier.fillMaxWidth(.78f).padding(vertical = 10.dp))
@@ -52,7 +60,12 @@ fun BookDetailScreen(state: BookDetailUiState, onBack: () -> Unit, onDownload: (
         Column(Modifier.fillMaxWidth().padding(vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             when (val action = state.action) {
                 DetailAction.Download -> PaperButton(Copy.DOWNLOAD, onDownload, Modifier.semantics { contentDescription = "Download ${state.face.title}" })
-                DetailAction.DownloadDisabled, DetailAction.Unsupported -> PaperButton(Copy.DOWNLOAD, {}, Modifier.semantics { contentDescription = "Download ${state.face.title}"; stateDescription = state.message ?: if (action == DetailAction.Unsupported) Copy.UNSUPPORTED_FORMAT else Copy.DOWNLOAD_DISABLED }, enabled = false)
+                DetailAction.DownloadDisabled, DetailAction.Unsupported -> {
+                    PaperButton(Copy.DOWNLOAD, {}, Modifier.semantics { contentDescription = "Download ${state.face.title}"; stateDescription = state.message ?: if (action == DetailAction.Unsupported) Copy.UNSUPPORTED_FORMAT else Copy.DOWNLOAD_DISABLED }, enabled = false)
+                    // A disabled primary action still needs a way back when the refusal was
+                    // transient or the server has changed since it was recorded.
+                    TextAction(Copy.RETRY, spokenLabel = "Retry download of ${state.face.title}", onClick = onRetry)
+                }
                 is DetailAction.Play -> PlayPauseKey(action.showsPause, state.face.title, 68.dp, starting = action.starting, start = action.start, onClick = onPlayPause)
                 DetailAction.Repair -> PaperButton(Copy.REPAIR_DOWNLOAD, onRepair, Modifier.semantics { contentDescription = "Repair download of ${state.face.title}" })
                 is DetailAction.Transferring -> {

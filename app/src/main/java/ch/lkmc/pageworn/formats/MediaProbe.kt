@@ -22,7 +22,7 @@ import java.io.File
  * to learn its actual container, codec, duration and embedded chapter markers before an edition is
  * published. A track the player cannot open is reported as unplayable, whatever its file name says.
  */
-class MediaProbe(private val context: Context) {
+class MediaProbe(private val context: Context) : TrackProbe {
 
     data class Result(
         val playable: Boolean,
@@ -34,7 +34,9 @@ class MediaProbe(private val context: Context) {
         val chapters: List<RawChapter> = emptyList(),
     )
 
-    suspend fun probe(file: File, timeoutMs: Long = 20_000): Result = withContext(Dispatchers.Main) {
+    override suspend fun probe(file: File): Result = probe(file, DEFAULT_TIMEOUT_MS)
+
+    suspend fun probe(file: File, timeoutMs: Long): Result = withContext(Dispatchers.Main) {
         val player = ExoPlayer.Builder(context)
             .setMediaSourceFactory(ProgressiveMediaSource.Factory(FileDataSource.Factory(), BookMediaSourceFactory.extractorsFactory()))
             .build()
@@ -72,4 +74,8 @@ class MediaProbe(private val context: Context) {
     }
 
     private fun describe(e: PlaybackException) = "${e.errorCodeName}: ${e.cause?.message ?: e.message}"
+
+    private companion object {
+        const val DEFAULT_TIMEOUT_MS = 20_000L
+    }
 }
