@@ -5,6 +5,7 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
@@ -231,6 +232,7 @@ class PlayerScreenTest {
         ActivityScenario.launch(MainActivity::class.java).use {
             // The shelf shows the book's cover, and a finished book's key offers Replay.
             awaitNode(downloadedKey("$REPLAY $BOOK"))
+            composeRule.onNode(hasContentDescription("Open $BOOK")).assert(hasStateDescription("Finished"))
             composeRule.onNode(downloadedKey("$REPLAY $BOOK")).performClick()
             val started = awaitLive("replaying") { it.isPlaying }
             assertThat(started.positionMs).isLessThan(1_500L)

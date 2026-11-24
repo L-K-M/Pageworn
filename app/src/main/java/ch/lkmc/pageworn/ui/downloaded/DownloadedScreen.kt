@@ -163,9 +163,13 @@ private fun LazyGridItemScope.DownloadedBookCell(row: ReadyBookRow, onOpenBook: 
                     PlayPauseKey(row.showsPause, row.face.title, GRID_KEY, starting = row.starting, start = row.start) { onPlayPause(row.face.key, it) }
                 }
             }
-            // A damaged edition is the one state the cover cannot show, and the only one that stops
-            // the book from playing, so it keeps its words under the art.
-            if (row.badge is ReadyBadge.RepairNeeded) Text(Copy.REPAIR_NEEDED, Modifier.padding(top = 2.dp), color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            // A damaged edition is the one state a cover cannot show, and the only one that stops
+            // the book from playing, so it keeps its label and its reason under the art. The
+            // reason is what details offers to repair from.
+            (row.badge as? ReadyBadge.RepairNeeded)?.let { repair ->
+                Text(Copy.REPAIR_NEEDED, Modifier.padding(top = 2.dp), color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                if (repair.message.isNotBlank()) Text(repair.message, Modifier.padding(top = 2.dp), color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
         }
     }
 }

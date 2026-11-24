@@ -73,6 +73,7 @@ class DownloadedGridTest {
 
         // The listener knows these books: the row's title, author and badge text are gone.
         compose.onAllNodesWithText("The Night Orchard").assertCountEquals(0)
+        compose.onAllNodesWithText("A. Author").assertCountEquals(0)
         compose.onAllNodesWithText("2 h 12 min left").assertCountEquals(0)
         compose.onAllNodesWithText("New").assertCountEquals(0)
     }
@@ -119,6 +120,8 @@ class DownloadedGridTest {
         show(books = listOf(hours))
 
         compose.onNodeWithText(Copy.REPAIR_NEEDED).assertIsDisplayed()
+        val reason = (hours.badge as ReadyBadge.RepairNeeded).message
+        compose.onNodeWithText(reason).assertIsDisplayed()
         compose.onAllNodesWithContentDescription("Play Small Hours").assertCountEquals(0)
         compose.onAllNodesWithContentDescription("Resume Small Hours").assertCountEquals(0)
         assertThat(stateOf("Open Small Hours")).isNull()
