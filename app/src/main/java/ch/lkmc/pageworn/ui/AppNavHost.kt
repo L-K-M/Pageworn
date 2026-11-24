@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -83,6 +84,8 @@ class BookLink(val key: BookKey)
 @Composable
 fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, openBook: BookLink? = null, navController: NavHostController = rememberNavController()) {
     val main: MainViewModel = viewModel { MainViewModel(container) }
+    var shownSection by remember { mutableStateOf<Destination?>(null) }
+    var openingDirectly by remember { mutableStateOf(openPlayer > 0 || openBook != null) }
     val player: PlayerViewModel = viewModel { PlayerViewModel(container) }
     val context = LocalContext.current
     var permissionCallback by remember { mutableStateOf<((Boolean) -> Unit)?>(null) }
@@ -102,16 +105,16 @@ fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, op
             permissionLauncher.launch(LocalNetworkAccess.PERMISSION)
         }
     }
+    val notificationLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    val activity = LocalActivity.current
     val requestNotifications: () -> Unit = {
-        val activity = context as? Activity
         val granted = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
         val rationale = activity?.shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS) == true
         if (notificationsRoute(Build.VERSION.SDK_INT, granted, container.settings.notificationsAsked, rationale) == NotificationsRoute.ASK) {
             // Nothing waits for this answer: the notice is gone, and transfers check the setting when they post.
-            permissionCallback = null
             container.settings.notificationsAsked = true
-            permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         } else {
             context.startActivity(
                 Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
@@ -128,7 +131,20 @@ fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, op
     }
 
     LaunchedEffect(openPlayer) {
-        if (openPlayer > 0) navController.navigate(Routes.PLAYER) { launchSingleTop = true }
+        if (openPlayer > 0) {
+            navController.navigate(Routes.PLAYER) { launchSingleTop = true }
+            openingDirectly = false
+        }
+    }
+
+    // Main can be on the back stack before it has displayed a section, for instance on a cold link.
+    LaunchedEffect(navController) {
+        navController.currentBackStackEntryFlow.collect { entry ->
+            if (entry.destination.route != Routes.MAIN) {
+                shownSection?.let(container.notices::openedOver)
+                shownSection = null
+            }
+        }
     }
 
     val problem by player.problem.collectAsStateWithLifecycle()
@@ -155,6 +171,7 @@ fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, op
             val onPhone = container.editionStore.observeEverything().first().any { it.key == link.key }
             navController.popBackStack(Routes.MAIN, inclusive = false)
             if (onPhone) navController.navigate(Routes.detail(link.key)) else main.select(Destination.DOWNLOADED)
+            openingDirectly = false
         }
     }
 
@@ -169,7 +186,11 @@ fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, op
         popExitTransition = { ExitTransition.None },
     ) {
         composable(Routes.MAIN) {
-            MainRoute(container, main, player, navController, requestLocalNetwork, requestNotifications)
+            MainRoute(container, main, player, navController, requestLocalNetwork, requestNotifications) { section ->
+                if (!openingDirectly && navController.currentDestination?.route == Routes.MAIN) {
+                    shownSection = section
+                }
+            }
         }
         composable(Routes.PLAYER) {
             val state by player.player.collectAsStateWithLifecycle()
@@ -216,6 +237,7 @@ fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, op
                     state = if (notice == null) it else it.copy(message = notice),
                     onBack = { navController.popBackStack() },
                     onDownload = detail::download,
+                    onRetry = detail::download,
                     onPlayPause = { player.playPause(key, it) },
                     onRepair = detail::download,
                     onPauseTransfer = detail::pauseTransfer,
@@ -316,10 +338,12 @@ private fun MainRoute(
     navController: NavHostController,
     requestLocalNetwork: ((Boolean) -> Unit) -> Unit,
     requestNotifications: () -> Unit,
+    onSectionShown: (Destination) -> Unit,
 ) {
     val destination by main.destination.collectAsStateWithLifecycle()
     val decided by main.decided.collectAsStateWithLifecycle()
     if (!decided) return
+    SideEffect { onSectionShown(destination) }
     val mini by player.mini.collectAsStateWithLifecycle()
     val library: LibraryViewModel = viewModel { LibraryViewModel(container) }
     val downloaded: DownloadedViewModel = viewModel { DownloadedViewModel(container) }
@@ -361,7 +385,7 @@ private fun MainRoute(
                     onAction = { action ->
                         when (action) {
                             UiAction.CLEAR_SEARCH -> library.setQuery("")
-                            UiAction.RETRY, UiAction.CHECK_AGAIN -> library.refresh()
+                            UiAction.RETRY, UiAction.CHECK_AGAIN, UiAction.REFRESH -> library.refresh()
                             // Connection setup signs in to the profile's first address when none is named.
                             UiAction.SIGN_IN -> navController.navigate(Routes.connect(ConnectMode.SIGN_IN))
                             UiAction.OPEN_ADDRESSES -> navController.navigate(Routes.ADDRESSES)

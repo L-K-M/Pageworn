@@ -1,6 +1,8 @@
 package ch.lkmc.pageworn.ui.preview
 
 import ch.lkmc.pageworn.core.sleep.SleepLength
+import ch.lkmc.pageworn.core.timeline.Division
+import ch.lkmc.pageworn.core.timeline.Segment
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -88,8 +90,8 @@ private val player = PlayerUiState(
     bookDurationMs = 260 * 60_000L,
     showsPause = true, transportEnabled = true, speed = 1f,
     sleep = SleepUi(previewSleepOptions, null, null, "Sleep, off"),
-    segmentsLabel = "Chapters", segments = listOf(
-        SegmentRow(4, "The Gate", "21 min", false, true, 0),
+    segmentsLabel = "Chapters", division = Division.CHAPTERS, segmentIndex = 4, segments = listOf(
+        Segment(4, 119 * 60_000L + 40_000L, 140 * 60_000L + 40_000L, "The Gate", generated = false),
     ), hasPlace = true,
 )
 

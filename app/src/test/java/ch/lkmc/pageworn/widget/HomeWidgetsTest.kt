@@ -15,7 +15,9 @@ import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.playback.LivePlayback
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -50,6 +52,26 @@ class HomeWidgetsTest {
         val id = shadowOf(manager).createWidget(BookshelfWidget::class.java, R.layout.pw_widget_empty)
 
         await { shown(id)?.findViewById<TextView>(R.id.widget_notice)?.text?.toString() == "Your downloaded books will appear here." }
+    }
+
+    @Test
+    fun aFailedRequestLeavesLaterRequestsWorking() = runBlocking<Unit> {
+        val key = books.download("recovering", title = "The Recovering")
+        container.settings.setLastActiveBook(key)
+        shadowOf(manager).createWidget(NowReadingWidget::class.java, R.layout.pw_widget_empty)
+
+        val failing = AtomicBoolean(true)
+        val widgets = HomeWidgets(app, container) { if (failing.get()) throw IllegalStateException("a failing request") }
+        widgets.start()
+
+        // The failed request is answered instead of leaving its caller waiting.
+        withTimeout(10_000) { widgets.update() }
+
+        // The collector survived it: with a widget placed, update() returns only once this
+        // instance has drawn. (The app's own instance draws the widget too, so the views alone
+        // would not show it.)
+        failing.set(false)
+        withTimeout(10_000) { widgets.update() }
     }
 
     @Test
