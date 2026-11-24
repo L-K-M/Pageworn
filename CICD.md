@@ -30,8 +30,7 @@ physical-device checks follow the [milestone plan](docs/06-delivery-and-tests.md
 The standard GLM 5.3 workflow reviews ready PRs from branches in this repository
 using the pinned `L-K-M/zai-code-review` action. It uses the base branch's
 workflow and cancels stale runs when new commits arrive. It requires the
-`ZAI_API_KEY` repository secret. `MIMO_API_KEY` enables the MiMo fast tier and
-`STEPFUN_API_KEY` enables the StepFun fallback. A skipped or failed run leaves
+`ZAI_API_KEY` repository secret. `STEPFUN_API_KEY` enables the StepFun fast tier. A skipped or failed run leaves
 the revision without an automated review. Follow the review rules in
 [AGENTS.md](AGENTS.md).
 
