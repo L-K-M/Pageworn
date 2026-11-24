@@ -190,7 +190,7 @@ fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, op
             val state by detail.state.collectAsStateWithLifecycle()
             when (val current = state) {
                 DetailState.Loading -> Unit
-                DetailState.Missing -> LaunchedEffect(Unit) { navController.popBackStack() }
+                DetailState.Missing -> LaunchedEffect(key) { navController.popBackStack() }
                 is DetailState.Available -> {
                     val book = current.book
                     val notice = problem?.takeIf { it.key == key }?.let(PlayerStates::notice)
@@ -198,6 +198,7 @@ fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, op
                         state = if (notice == null) book else book.copy(message = notice),
                         onBack = { navController.popBackStack() },
                         onDownload = detail::download,
+                        onRetry = detail::download,
                         onPlayPause = { player.playPause(key, it) },
                         onRepair = detail::download,
                         onPauseTransfer = detail::pauseTransfer,
@@ -338,7 +339,7 @@ private fun MainRoute(container: AppContainer, main: MainViewModel, player: Play
                     onAction = { action ->
                         when (action) {
                             UiAction.CLEAR_SEARCH -> library.setQuery("")
-                            UiAction.RETRY, UiAction.CHECK_AGAIN -> library.refresh()
+                            UiAction.RETRY, UiAction.CHECK_AGAIN, UiAction.REFRESH -> library.refresh()
                             // Connection setup signs in to the profile's first address when none is named.
                             UiAction.SIGN_IN -> navController.navigate(Routes.connect(ConnectMode.SIGN_IN))
                             UiAction.OPEN_ADDRESSES -> navController.navigate(Routes.ADDRESSES)
