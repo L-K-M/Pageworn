@@ -8,6 +8,7 @@ import ch.lkmc.pageworn.catalog.CatalogListing
 import ch.lkmc.pageworn.catalog.CatalogSort
 import ch.lkmc.pageworn.catalog.ListingStatus
 import ch.lkmc.pageworn.core.BookKey
+import ch.lkmc.pageworn.data.db.BookProgressEntity
 import ch.lkmc.pageworn.data.db.LibraryEntity
 import ch.lkmc.pageworn.data.db.LocalEditionEntity
 import ch.lkmc.pageworn.data.db.ProfileEntity
@@ -102,9 +103,7 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
                 // The rows draw only whether a place exists and whether the book is finished: the
                 // position that moves every few seconds would rebuild every row of a large library
                 // on the main thread each time.
-                db.progress().observeAll(s.profile.profileId)
-                    .map { list -> list.associate { it.itemId to RowProgress(it.positionMs > 0, it.finished) } }
-                    .distinctUntilChanged(),
+                db.progress().observeAll(s.profile.profileId).forLibraryRows(),
                 container.playbackHub.state.map { it.transportOnly() }.distinctUntilChanged(),
             ) { editions, transfers, progress, live -> LocalState(editions, transfers, progress, live) }
         }
@@ -304,3 +303,8 @@ data class RowProgress(val hasPlace: Boolean, val finished: Boolean)
 
 /** Typing settles before the catalog is searched; clearing stays immediate. */
 private const val SEARCH_DEBOUNCE_MS = 200L
+
+
+internal fun Flow<List<BookProgressEntity>>.forLibraryRows(): Flow<Map<String, RowProgress>> =
+    map { entries -> entries.associate { it.itemId to RowProgress(it.positionMs > 0, it.finished) } }
+        .distinctUntilChanged()
