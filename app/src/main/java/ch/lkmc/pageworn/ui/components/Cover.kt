@@ -1,6 +1,5 @@
 package ch.lkmc.pageworn.ui.components
 
-import android.graphics.BitmapFactory
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -44,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import ch.lkmc.pageworn.R
+import ch.lkmc.pageworn.artwork.decodeCover
 import ch.lkmc.pageworn.ui.model.BookFace
 import ch.lkmc.pageworn.ui.model.CoverImage
 import ch.lkmc.pageworn.ui.theme.LocalReducedMotion
@@ -94,10 +94,7 @@ private fun BookCoverContent(face: BookFace, size: Dp, showRibbon: Boolean, modi
         value = when (val source = face.cover) {
             is CoverImage.Local -> withContext(Dispatchers.IO) {
                 try {
-                    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                    BitmapFactory.decodeFile(source.file.absolutePath, bounds)
-                    val sample = generateSequence(1) { it * 2 }.first { bounds.outWidth / it <= sizePx * 2 || it >= 128 }
-                    BitmapFactory.decodeFile(source.file.absolutePath, BitmapFactory.Options().apply { inSampleSize = sample })?.asImageBitmap()
+                    decodeCover(source.file, sizePx)?.asImageBitmap()
                 } catch (e: CancellationException) {
                     throw e
                 } catch (_: Exception) {
