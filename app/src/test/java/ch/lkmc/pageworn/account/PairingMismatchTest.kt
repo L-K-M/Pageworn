@@ -64,6 +64,39 @@ class PairingMismatchTest {
         assertThat(List(server.requestCount) { server.takeRequest().path }).containsExactly("/abs/login", "/abs/api/libraries", "/abs/logout").inOrder()
     }
 
+    @Test
+    fun anUnreadableLibraryListIsNotAPairingMismatch() = runBlocking<Unit> {
+        db.profiles().upsert(ProfileEntity(PROFILE, ACCOUNT, "listener", "library-of-the-first-server", null, "2.38.0", 0))
+        val paired = AddressEntity("home", PROFILE, "https://home.invalid/", "Home", priority = 0)
+        db.addresses().upsert(paired)
+        server.enqueue(MockResponse().setBody(fixture("login")))
+        server.enqueue(MockResponse().setResponseCode(500))
+        server.enqueue(MockResponse().setBody(fixture("logout")))
+        val base = (parseBaseUrl(server.url("/abs/").toString(), true) as BaseUrlParse.Valid).baseUrl
+
+        val result = accounts().signIn(CheckedAddress(base, "Away", true, null, false), "listener", "fixture-secret")
+
+        assertThat(result).isEqualTo(SignInResult.AddressFailed(AddressProblem.Unreachable))
+        assertThat(db.addresses().forProfile(PROFILE)).containsExactly(paired)
+        assertThat(vault.addresses()).isEmpty()
+        assertThat(List(server.requestCount) { server.takeRequest().path }).containsExactly("/abs/login", "/abs/api/libraries", "/abs/logout").inOrder()
+    }
+
+    @Test
+    fun anUnreadableLibraryListCreatesNoEmptyProfile() = runBlocking<Unit> {
+        server.enqueue(MockResponse().setBody(fixture("login")))
+        server.enqueue(MockResponse().setResponseCode(500))
+        server.enqueue(MockResponse().setBody(fixture("logout")))
+        val base = (parseBaseUrl(server.url("/abs/").toString(), true) as BaseUrlParse.Valid).baseUrl
+
+        val result = accounts().signIn(CheckedAddress(base, "Away", true, null, false), "listener", "fixture-secret")
+
+        assertThat(result).isEqualTo(SignInResult.AddressFailed(AddressProblem.Unreachable))
+        assertThat(db.profiles().current()).isNull()
+        assertThat(vault.addresses()).isEmpty()
+        assertThat(List(server.requestCount) { server.takeRequest().path }).containsExactly("/abs/login", "/abs/api/libraries", "/abs/logout").inOrder()
+    }
+
     private fun accounts(): AccountService {
         val localNetwork = LocalNetworkAccess(ApplicationProvider.getApplicationContext()) { emptyList() }
         val access = ServerAccess(

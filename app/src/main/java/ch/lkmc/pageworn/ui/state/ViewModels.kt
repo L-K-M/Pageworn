@@ -1,8 +1,8 @@
 package ch.lkmc.pageworn.ui.state
 
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.delay
 import ch.lkmc.pageworn.core.sleep.SleepLength
+import ch.lkmc.pageworn.core.sleep.SleepSchedule
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ch.lkmc.pageworn.AppContainer
@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -34,6 +35,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.ZoneId
 import java.util.LinkedHashMap
 
 /** Caches edition plans (timeline, files, cover) by generation for row labels and the player. */
@@ -92,8 +94,13 @@ class PlayerViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
-    private val playerStates = combine(shown, container.playbackHub.state, container.sleepSettings.settings) { s, live, sleep ->
-        s?.let { PlayerStates.player(it.plan, it.edition, it.progress, live, sleep) }
+    private val playerStates = combine(
+        shown,
+        container.playbackHub.state,
+        container.sleepSettings.settings,
+        container.settings.speed,
+    ) { s, live, sleep, speed ->
+        s?.let { PlayerStates.player(it.plan, it.edition, it.progress, live, sleep, restingSpeed = speed) }
     }.shareIn(viewModelScope, SharingStarted.Eagerly, replay = 1)
 
     val player: StateFlow<PlayerUiState?> = playerStates.stateIn(viewModelScope, SharingStarted.Eagerly, null)
@@ -106,11 +113,27 @@ class PlayerViewModel(private val container: AppContainer) : ViewModel() {
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     init {
-        // A schedule edge can pass while nothing plays and no playback service runs to notice it.
+        // A schedule edge can pass while nothing plays and no playback service runs to notice it,
+        // so the mode is re-checked when it is due: at the window's next edge, not on a fixed poll.
         viewModelScope.launch {
-            while (isActive) {
-                container.sleepSettings.refresh()
-                delay(SLEEP_SCHEDULE_CHECK_MS)
+            // collectLatest restarts the wait when the settings change; the inner loop re-checks
+            // at each edge, so a passed window edge is applied without waiting for a change.
+            container.sleepSettings.settings.collectLatest { mode ->
+                while (true) {
+                    container.sleepSettings.refresh()
+                    val now = container.liveClock.wallMillis()
+                    val delayMs = if (mode.automatic) {
+                        try {
+                            (SleepSchedule.nextEdge(mode.window, now, ZoneId.systemDefault()).atMillis - now)
+                                .coerceIn(1, MAX_SCHEDULE_WAIT_MS)
+                        } catch (_: Exception) {
+                            // No resolvable edge (e.g. a degenerate or DST-collapsed window):
+                            // fall back to idle polling instead of killing the watcher.
+                            SCHEDULE_IDLE_WAIT_MS
+                        }
+                    } else SCHEDULE_IDLE_WAIT_MS
+                    delay(delayMs)
+                }
             }
         }
     }
@@ -301,4 +324,8 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
     }
 }
 
-private const val SLEEP_SCHEDULE_CHECK_MS = 30_000L
+/** How often the schedule is re-checked while the automatic window is off. */
+private const val SCHEDULE_IDLE_WAIT_MS = 60_000L
+
+/** The longest wait for the next window edge, so a clock jump cannot stall the check. */
+private const val MAX_SCHEDULE_WAIT_MS = 10 * 60_000L

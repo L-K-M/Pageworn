@@ -3,6 +3,7 @@ package ch.lkmc.pageworn.widget
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
+import android.util.Log
 import android.view.ViewConfiguration
 import ch.lkmc.pageworn.AppContainer
 import ch.lkmc.pageworn.core.BookKey
@@ -11,6 +12,7 @@ import ch.lkmc.pageworn.data.db.LocalEditionEntity
 import ch.lkmc.pageworn.playback.PlayProblem
 import ch.lkmc.pageworn.ui.model.KeyAction
 import ch.lkmc.pageworn.ui.state.PlanCache
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -28,7 +30,12 @@ import kotlinx.coroutines.launch
  * Keeps the home screen widgets on the app's own state, and carries out their keys through the
  * services the screens use. It reads nothing while no widget is placed, and never uses the network.
  */
-class HomeWidgets(private val context: Context, private val container: AppContainer) {
+class HomeWidgets(
+    private val context: Context,
+    private val container: AppContainer,
+    /** Runs before each request is drawn. Tests make it throw; the app leaves it empty. */
+    private val beforePublishing: suspend (request: Long) -> Unit = {},
+) {
     private val plans = PlanCache(container)
     private val views by lazy { WidgetViews(context, container.sessionActivity(context)) }
 
@@ -40,7 +47,26 @@ class HomeWidgets(private val context: Context, private val container: AppContai
     private var taps = 0L
 
     fun start() {
-        container.appScope.launch { requests.collectLatest(::publishFrom) }
+        container.appScope.launch { requests.collectLatest(::publishSafely) }
+    }
+
+    /**
+     * The collector runs in the application scope, which has no exception handler: an exception
+     * while drawing would end the process, playback included. A failed request is logged by type
+     * only, counts as published so [update] does not wait forever, and leaves the widgets as they
+     * were until the next request. Cancellation still passes, so [collectLatest] can drop a stale
+     * request.
+     */
+    private suspend fun publishSafely(request: Long) {
+        try {
+            beforePublishing(request)
+            publishFrom(request)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            Log.w(TAG, "Widget request $request failed: ${failure.javaClass.name}")
+            published.value = request
+        }
     }
 
     /** Widgets were added or removed, or the configuration they are drawn for changed. */
@@ -144,4 +170,8 @@ class HomeWidgets(private val context: Context, private val container: AppContai
         combine(books, container.playbackHub.state.map { it.transportOnly() }.distinctUntilChanged()) { b, live ->
             WidgetStates.shelf(b.editions, { container.editionFiles.published(it.generationId) }, b.progress, live, b.problem, b.settling)
         }.distinctUntilChanged()
+
+    private companion object {
+        const val TAG = "HomeWidgets"
+    }
 }

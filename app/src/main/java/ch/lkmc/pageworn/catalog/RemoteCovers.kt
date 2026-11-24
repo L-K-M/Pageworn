@@ -25,6 +25,14 @@ class RemoteCovers(
     private val locks = ConcurrentHashMap<String, Mutex>()
     private val failures = ConcurrentHashMap<String, Long>()
 
+    // The application owns one cache. Sweep interrupted writes once, before any writer in
+    // this process can create a temp file. No timestamp can distinguish a slow writer.
+    private val writeDirectory by lazy {
+        dir.listFiles { _, name -> name.startsWith(TEMP_PREFIX) && name.endsWith(TEMP_SUFFIX) }
+            ?.forEach { if (it.isFile) it.delete() }
+        dir
+    }
+
     suspend fun thumbnail(itemId: String, updatedAt: Long, widthPx: Int): File? {
         val key = key(itemId, updatedAt, widthPx)
         if (failureActive(key)) return null
@@ -38,7 +46,9 @@ class RemoteCovers(
                 withContext(Dispatchers.IO) { touch(cached) }
                 return@withLock cached
             }
-            val bytes = fetch(itemId, widthPx, updatedAt)
+            // Callers are composition, on the main thread; the fetch picks a route and reads each
+            // address's credential from the Keystore before its request, so it leaves the caller.
+            val bytes = withContext(Dispatchers.IO) { fetch(itemId, widthPx, updatedAt) }
             if (bytes == null) {
                 failures[key] = nowMs() + NEGATIVE_TTL_MS
                 return@withLock null
@@ -64,10 +74,11 @@ class RemoteCovers(
     }
 
     private fun write(itemId: String, updatedAt: Long, widthPx: Int, bytes: ByteArray): File? {
-        dir.mkdirs()
+        val directory = writeDirectory
+        directory.mkdirs()
         val target = fileFor(itemId, updatedAt, widthPx)
         val temp = try {
-            File.createTempFile(TEMP_PREFIX, TEMP_SUFFIX, dir)
+            File.createTempFile(TEMP_PREFIX, TEMP_SUFFIX, directory)
         } catch (_: IOException) {
             return null
         }
@@ -97,7 +108,8 @@ class RemoteCovers(
     }
 
     private fun evictIfNeeded() {
-        val files = dir.listFiles().orEmpty().filter(File::isFile)
+        // Other keys can be writing temporary files while this thumbnail is published.
+        val files = dir.listFiles().orEmpty().filter { it.name.endsWith(EXTENSION) && it.isFile }
         var total = files.sumOf(File::length)
         if (total <= maxBytes) return
         for (file in files.sortedBy(File::lastModified)) {
