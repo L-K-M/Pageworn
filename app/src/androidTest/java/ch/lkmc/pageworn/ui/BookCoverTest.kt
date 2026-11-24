@@ -35,7 +35,7 @@ class BookCoverTest {
     fun aNewCoverSourceDoesNotShowTheOldArtworkWhileLoading() {
         val first = CoverImage.Remote("profile", "book", 1L)
         val second = first.copy(updatedAt = 2L)
-        val face = mutableStateOf(BookFace(BookKey("profile", "book"), "Book", null, CoverImage.Cloth))
+        val face = mutableStateOf(BookFace(BookKey("profile", "book"), "", null, CoverImage.Cloth))
         val requested = CompletableDeferred<Unit>()
         val replacement = CompletableDeferred<ImageBitmap>()
         val loader = CoverLoader { source, _ ->
