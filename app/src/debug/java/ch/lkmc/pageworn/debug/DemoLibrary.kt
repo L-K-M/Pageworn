@@ -2,6 +2,8 @@ package ch.lkmc.pageworn.debug
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import androidx.annotation.DrawableRes
 import ch.lkmc.pageworn.AppContainer
 import ch.lkmc.pageworn.R
@@ -18,7 +20,8 @@ import java.util.UUID
 
 /**
  * Debug and test only: a profile with one library whose books show each local state from the
- * generated fixtures (M1). Two books are ready, one is transferring and the rest are available.
+ * generated fixtures (M1). Two books are ready, one is transferring and the rest are available;
+ * [seedShelf] readies six more.
  * Nothing here talks to a server; the catalog is the synthetic one a refresh would publish.
  */
 object DemoLibrary {
@@ -92,6 +95,66 @@ object DemoLibrary {
                 bytesTotal = 1_726_330, bytesDone = 1_070_324, title = "Field Notes on Rain", authors = "Ada Bell",
             ),
         )
+    }
+
+    /** A ready book of the fuller shelf: its art, if any, and the local state it shows. */
+    private data class ShelfBook(val key: BookKey, val title: String, val authors: String, @DrawableRes val cover: Int?, val state: ShelfState, val shape: CoverShape = CoverShape.SQUARE)
+
+    private enum class ShelfState { NEW, IN_PROGRESS, FINISHED, REPAIR_NEEDED }
+
+    /** Most audiobook art is square; a portrait cover is a printed book's, narrower than its frame. */
+    private enum class CoverShape { SQUARE, PORTRAIT }
+
+    private val shelf = listOf(
+        ShelfBook(glassCoast, "The Glass Coast", "Mara Ellis", R.drawable.pw_cover_glass_coast, ShelfState.IN_PROGRESS, CoverShape.PORTRAIT),
+        ShelfBook(smallHours, "Small Hours", "Kit Mercer", R.drawable.pw_cover_small_hours, ShelfState.FINISHED),
+        ShelfBook(BookKey(PROFILE, "lantern-keeper"), "The Lantern Keeper", "Wren Hollis", null, ShelfState.NEW),
+        ShelfBook(BookKey(PROFILE, "winter-ledger"), "A Winter Ledger", "Tomas Reyne", null, ShelfState.IN_PROGRESS),
+        ShelfBook(BookKey(PROFILE, "salt-marsh"), "Letters from the Salt Marsh", "Ines Calder", null, ShelfState.NEW),
+        ShelfBook(BookKey(PROFILE, "quiet-engines"), "Quiet Engines", "Odile Marsh", null, ShelfState.REPAIR_NEEDED),
+    )
+
+    /**
+     * The demo with a fuller Downloaded shelf for visual checks: six more ready books, with art
+     * (one of it portrait) and without, new, part-heard, finished and needing repair. Tests keep
+     * using [seed] alone.
+     */
+    suspend fun seedShelf(context: Context, container: AppContainer, fixtures: FixtureSource, now: Long = System.currentTimeMillis()) {
+        seed(context, container, fixtures, now)
+        val track = fixtures.files("no-chapters-single").single()
+        val durationMs = fixtures.durationMs(track)
+        val extra = shelf.filter { book -> catalog.none { it.key == book.key } }
+        container.database.catalog().insertAll(
+            extra.mapIndexed { i, b ->
+                CatalogBookEntity(PROFILE, LIBRARY, b.key.itemId, b.title, b.authors, null, catalog.size + i, now, durationMs, track.length(), REFRESH, addedAt = now - (addedOrder.size + i) * DAY_MS)
+            },
+        )
+        for (book in shelf) {
+            val generationId = UUID.randomUUID().toString()
+            LocalEditions.publish(
+                container, book.key, book.title, book.authors,
+                listOf(LocalEditions.Track(track, durationMs)),
+                cover = book.cover?.let { if (book.shape == CoverShape.PORTRAIT) portraitCoverFile(context, it, book.key.itemId) else coverFile(context, it, book.key.itemId) },
+                generationId = generationId,
+            )
+            val fingerprint = container.editionStore.anyPlan(book.key)?.fingerprint
+            when (book.state) {
+                ShelfState.NEW -> Unit
+                ShelfState.IN_PROGRESS -> container.progressStore.saveOutsideSession(book.key, durationMs / 3, durationMs, fingerprint, StopKind.ORDINARY)
+                ShelfState.FINISHED -> container.progressStore.saveOutsideSession(book.key, durationMs, durationMs, fingerprint, StopKind.ORDINARY, finished = true)
+                ShelfState.REPAIR_NEEDED -> container.editionStore.markRepairNeeded(book.key, generationId)
+            }
+        }
+    }
+
+    /** The left two thirds of a square demo cover: 2:3 art whose lettering, at the left, survives. */
+    private fun portraitCoverFile(context: Context, @DrawableRes res: Int, name: String): File {
+        val square = BitmapFactory.decodeResource(context.resources, res)
+        val portrait = Bitmap.createBitmap(square, 0, 0, square.width * 2 / 3, square.height)
+        val out = File(context.cacheDir, "demo-covers/$name-portrait.png")
+        out.parentFile?.mkdirs()
+        out.outputStream().use { portrait.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        return out
     }
 
     @SuppressLint("ResourceType") // The fixture drawables are PNG files copied byte for byte.

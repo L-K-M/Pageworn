@@ -11,9 +11,11 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasStateDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -237,8 +239,11 @@ class RepairIntegrationTest {
         }
         assertThat(stored(key)).isEqualTo(place)
         ActivityScenario.launch(MainActivity::class.java).use {
-            awaitText(Copy.DAMAGED_COPY)
-            composeRule.onNodeWithText(Copy.DAMAGED_COPY).assertIsDisplayed()
+            // Library prints the reason on the book's row. The Downloaded shelf, if the app opens
+            // there, prints "Repair needed" under the faded cover and gives TalkBack the reason.
+            val damaged = hasText(Copy.DAMAGED_COPY) or hasStateDescription(Copy.DAMAGED_COPY)
+            composeRule.waitUntil(10_000) { composeRule.onAllNodes(damaged).fetchSemanticsNodes().isNotEmpty() }
+            composeRule.onAllNodes(damaged).onFirst().assertIsDisplayed()
         }
 
         // A repair that fails: the server answers 404 for track A until the job stops. The damaged

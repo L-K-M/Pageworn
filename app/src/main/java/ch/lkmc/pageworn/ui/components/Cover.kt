@@ -5,8 +5,10 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -83,15 +85,26 @@ val LocalCoverLoader = androidx.compose.runtime.staticCompositionLocalOf<CoverLo
 /** Allows debug previews to provide bundled art without referencing it in production. */
 val LocalCoverPainter = androidx.compose.runtime.staticCompositionLocalOf<(@Composable (BookFace) -> Painter?)?> { null }
 
+/**
+ * Something laid over a cover's lower end corner, such as a play key: [content] fills the book as
+ * drawn, and [reach] is how far in from the book's end edge it covers the art.
+ */
+class CoverCorner(val reach: Dp, val content: @Composable BoxScope.() -> Unit)
+
+/**
+ * A book's cover in a square frame of [size]. Art keeps its shape, so a portrait or landscape book
+ * is narrower or shorter than the frame. A [corner] is laid out over the book as drawn, not over the
+ * frame, so it stays on the art whatever its shape, and generated lettering keeps clear of it.
+ */
 @Composable
-fun BookCover(face: BookFace, size: Dp, showRibbon: Boolean = false, modifier: Modifier = Modifier) {
+fun BookCover(face: BookFace, size: Dp, showRibbon: Boolean = false, modifier: Modifier = Modifier, corner: CoverCorner? = null) {
     key(face.cover) {
-        BookCoverContent(face, size, showRibbon, modifier)
+        BookCoverContent(face, size, showRibbon, modifier, corner)
     }
 }
 
 @Composable
-private fun BookCoverContent(face: BookFace, size: Dp, showRibbon: Boolean, modifier: Modifier) {
+private fun BookCoverContent(face: BookFace, size: Dp, showRibbon: Boolean, modifier: Modifier, corner: CoverCorner?) {
     val density = LocalDensity.current
     val sizePx = with(density) { size.roundToPx() }
     val loader = LocalCoverLoader.current
@@ -193,11 +206,18 @@ private fun BookCoverContent(face: BookFace, size: Dp, showRibbon: Boolean, modi
                 if (size >= MIN_LETTERED_COVER && (artState is CoverArt.Missing || letteringAlpha > 0f)) {
                     val titleSize = with(density) { (size * 0.15f).toSp() }
                     val authorSize = with(density) { (size * 0.10f).toSp() }
-                    Column(Modifier.fillMaxSize().padding(size * 0.09f).clearAndSetSemantics {}.graphicsLayer { alpha = letteringAlpha }, horizontalAlignment = Alignment.CenterHorizontally) {
+                    val margin = size * LETTERING_MARGIN
+                    Column(Modifier.fillMaxSize().padding(margin).clearAndSetSemantics {}.graphicsLayer { alpha = letteringAlpha }, horizontalAlignment = Alignment.CenterHorizontally) {
                         Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                             Text(face.title, color = COVER_LETTERING, style = PagewornTheme.type.rowTitle.copy(fontWeight = FontWeight.Medium, fontSize = titleSize, lineHeight = titleSize * 1.15f), textAlign = TextAlign.Center, maxLines = 4, overflow = TextOverflow.Ellipsis)
                         }
-                        face.author?.let { Text(it, color = COVER_LETTERING, style = PagewornTheme.type.metadata.copy(fontSize = authorSize, lineHeight = authorSize * 1.2f), textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                        // With something on the lower corner the author line moves to the start,
+                        // like an imprint, and ends before it rather than running under it.
+                        face.author?.let {
+                            val authorStyle = PagewornTheme.type.metadata.copy(fontSize = authorSize, lineHeight = authorSize * 1.2f)
+                            if (corner == null) Text(it, color = COVER_LETTERING, style = authorStyle, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            else Text(it, Modifier.fillMaxWidth().padding(end = (corner.reach + CORNER_CLEARANCE - margin).coerceAtLeast(0.dp)), color = COVER_LETTERING, style = authorStyle, textAlign = TextAlign.Start, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
                     }
                 } else if (size < MIN_LETTERED_COVER && (artState is CoverArt.Missing || letteringAlpha > 0f)) {
                     coverInitial(face.title)?.let { initial ->
@@ -218,6 +238,10 @@ private fun BookCoverContent(face: BookFace, size: Dp, showRibbon: Boolean, modi
                     }
                 }
             }
+        }
+        // Outside the book's clip and shadow, so a key over its corner keeps its own rim and target.
+        corner?.let {
+            Box(Modifier.padding(start = (size - bookWidth) / 2, top = size - bookHeight).size(bookWidth, bookHeight), content = it.content)
         }
     }
 }
@@ -245,6 +269,12 @@ internal fun coverInitial(title: String): String? {
 
 private const val CORNER = 0.04f
 private const val ELEVATION = 0.03f
+
+/** The inset of a generated cover's lettering from its edges, as a fraction of the cover's size. */
+private const val LETTERING_MARGIN = 0.09f
+
+/** Cloth left between a generated cover's author line and what sits on its corner. */
+private val CORNER_CLEARANCE = 3.dp
 
 /** How far a place ribbon hangs below a cover, as a fraction of the cover's size. */
 private const val RIBBON_PEEK = 0.11f
