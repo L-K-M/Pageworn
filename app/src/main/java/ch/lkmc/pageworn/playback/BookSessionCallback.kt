@@ -18,6 +18,7 @@ import ch.lkmc.pageworn.AppContainer
 import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.core.sleep.SleepLength
 import com.google.common.collect.ImmutableList
+import com.google.common.io.ByteStreams
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.CoroutineScope
@@ -26,6 +27,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.guava.future
+import java.io.IOException
+import java.io.InputStream
 
 /**
  * Session callback: who may connect, what the car sees, and how a book media ID becomes a playable
@@ -190,8 +193,12 @@ class BookSessionCallback(
             val plan = container.editionSource.plan(key) ?: throw UnsupportedOperationException("Book is not ready")
             val artwork = plan.coverFile?.let { file ->
                 withContext(Dispatchers.IO) {
-                    file.takeIf { it.isFile && it.length() < MAX_COVER_BYTES }?.readBytes()
-                        ?.takeIf { it.size < MAX_COVER_BYTES }
+                    try {
+                        file.takeIf { it.isFile && it.length() < MAX_COVER_BYTES }
+                            ?.inputStream()?.use(::readResumptionArtwork)
+                    } catch (_: IOException) {
+                        null
+                    }
                 }
             }
             val position = container.progressStore.read(key)?.positionMs ?: 0L
@@ -239,6 +246,12 @@ class BookSessionCallback(
         /** A bound on the artwork bytes embedded in resumption metadata. */
         const val MAX_COVER_BYTES = 2_000_000
     }
+}
+
+/** The file can grow after its size check, so enforce the limit on the stream too. */
+internal fun readResumptionArtwork(input: InputStream): ByteArray? {
+    val limit = BookSessionCallback.MAX_COVER_BYTES
+    return ByteStreams.limit(input, limit.toLong()).readBytes().takeIf { it.size < limit }
 }
 
 object PagewornCommands {
