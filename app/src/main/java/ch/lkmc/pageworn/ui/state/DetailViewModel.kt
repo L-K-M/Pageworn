@@ -21,6 +21,7 @@ import ch.lkmc.pageworn.ui.model.CoverImage
 import ch.lkmc.pageworn.ui.model.DetailAction
 import ch.lkmc.pageworn.ui.model.Format
 import ch.lkmc.pageworn.ui.model.StartAction
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -32,6 +33,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 internal sealed interface DetailState {
@@ -77,10 +79,11 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
     private val preview = inputs.map { i ->
         i.book?.updatedAt?.takeIf { i.edition == null && i.profile?.profileId == key.profileId }
     }.distinctUntilChanged().flatMapLatest { revision ->
-        flow {
+        flow<RevisionPreview?> {
             emit(null)
             if (revision != null) {
-                container.previews.preview(key, revision)?.let { emit(RevisionPreview(revision, it)) }
+                val book = withContext(Dispatchers.IO) { container.previews.preview(key, revision) }
+                if (book != null) emit(RevisionPreview(revision, book))
             }
         }
     }
@@ -172,7 +175,7 @@ class DetailViewModel(private val container: AppContainer, private val key: Book
             sizeText = sizeBytes?.let { Format.bytes(it) },
             action = action,
             message = message,
-            description = edition?.description ?: preview?.description ?: book?.description,
+            description = edition?.description?.takeIf(String::isNotBlank) ?: preview?.description ?: book?.description,
             segmentsTitle = plan?.let { PlayerStates.segmentsLabel(it.timeline.division) }
                 ?: previewTimeline?.let { PlayerStates.segmentsLabel(it.division) },
             segments = plan?.let { PlayerStates.segments(it, position) }
