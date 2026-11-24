@@ -67,6 +67,27 @@ data class LivePlayback(
 
     /** This state without its moving clock, for lists that draw only each book's key. */
     fun transportOnly(): LivePlayback = copy(positionMs = 0, sleepRemainingMs = null)
+
+    /**
+     * This state at the granularity a downloaded row displays, so a playing book does not
+     * rebuild and re-sort the whole list on every player tick. The chapter/time-left text is
+     * minute-scale; the remaining countdown belongs to the player, not to rows.
+     */
+    fun rowDisplay(): LivePlayback {
+        val position = positionMs.coerceAtLeast(0)
+        return copy(positionMs = position - position % ROW_POSITION_STEP_MS, sleepRemainingMs = null)
+    }
+
+    /** Whether [other] still draws the same list rows as this state. */
+    fun sameRowsAs(other: LivePlayback): Boolean =
+        key == other.key && positionMs == other.positionMs && playWhenReady == other.playWhenReady &&
+            isPlaying == other.isPlaying && starting == other.starting && failed == other.failed &&
+            speed == other.speed && playbackRequested == other.playbackRequested
+
+    private companion object {
+        /** Long enough that the remaining-time text changes no more than once a minute. */
+        const val ROW_POSITION_STEP_MS = 60_000L
+    }
 }
 
 class PlaybackHub {

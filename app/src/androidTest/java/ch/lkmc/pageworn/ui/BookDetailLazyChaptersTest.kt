@@ -44,7 +44,7 @@ class BookDetailLazyChaptersTest {
                 BookDetailScreen(
                     state = detailState(segmentCount),
                     onBack = {},
-                    onDownload = {},
+                    onDownload = {}, onRetry = {},
                     onPlayPause = {},
                     onRepair = {},
                     onPauseTransfer = {},

@@ -35,7 +35,7 @@ interface DownloadChannel {
 
 /** Opens a staged track the way the player will, before publication. */
 fun interface TrackVerifier {
-    suspend fun verify(file: File, extension: String): TrackCheck
+    suspend fun verify(file: File, extension: String, codec: String?): TrackCheck
 }
 
 sealed interface TrackCheck {
