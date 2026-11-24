@@ -114,6 +114,8 @@ object PlayerStates {
     /**
      * The player for [plan]. When the live player holds this book its position and state win;
      * otherwise the saved place is shown, as Downloaded and the ribbon show it while the book rests.
+     * [restingSpeed] is the stored speed, which the next Play applies. It shows whenever the live
+     * player does not hold this book, as after a relaunch, when the hub reports its default 1×.
      */
     fun player(
         plan: EditionPlan,
@@ -121,6 +123,7 @@ object PlayerStates {
         progress: BookProgressEntity?,
         live: LivePlayback,
         sleepMode: SleepSettings = SleepSettings(),
+        restingSpeed: Float = 1f,
     ): PlayerUiState {
         val timeline = plan.timeline
         val isLive = live.key == plan.key
@@ -137,6 +140,7 @@ object PlayerStates {
             narrator = edition?.narrators,
             segmentLine = segmentTitle(timeline.division, segment),
             segmentName = segmentName(timeline.division),
+            division = timeline.division,
             segmentStartMs = segment.startMs,
             segmentEndMs = segment.endMs,
             positionMs = position,
@@ -149,10 +153,13 @@ object PlayerStates {
             transportEnabled = !failed && !choiceNeeded,
             transportDisabledReason = failure ?: Copy.CHOOSE_START.takeIf { choiceNeeded },
             failureMessage = failure,
-            speed = live.speed,
+            speed = if (isLive) live.speed else restingSpeed,
             sleep = sleep(live, timeline.division, sleepMode, plan.key),
             segmentsLabel = segmentsLabel(timeline.division),
-            segments = segments(plan, position),
+            // The timeline already owns the segment list; building display rows here would format
+            // every chapter's duration on each live tick, four times a second.
+            segments = timeline.segments,
+            segmentIndex = timeline.segmentIndexAt(position),
             hasPlace = !finished && progress != null && (progress.positionMs > 0 || isLive),
             finished = finished,
             continuityChoice = progress?.takeIf { it.pendingContinuityChoice }?.let {
