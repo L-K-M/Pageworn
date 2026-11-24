@@ -116,9 +116,11 @@ class DestinationStatesTest {
         composeRule.onNode(hasScrollToIndexAction()).performScrollToIndex(0)
         val search = composeRule.onNode(hasSetTextAction())
         search.performTextInput("Ward")
+        // Every other book must have left, not only one: a row below the screen is absent before
+        // the search applies, as Boundary Book is once a status line pushes the list down.
         composeRule.waitUntil(10_000) {
             composeRule.onAllNodes(hasContentDescription("Open The Night Orchard")).fetchSemanticsNodes().isNotEmpty() &&
-                composeRule.onAllNodes(hasContentDescription("Open Boundary Book")).fetchSemanticsNodes().isEmpty()
+                titles.filterNot { it == "The Night Orchard" }.all { composeRule.onAllNodes(hasContentDescription("Open $it")).fetchSemanticsNodes().isEmpty() }
         }
         visibleBook("The Night Orchard")
         titles.filterNot { it == "The Night Orchard" }.forEach { title ->

@@ -183,8 +183,17 @@ class PlayKeyTapTest {
             val mini = hasContentDescription("Open player, Shelf 1")
             awaitNode(mini)
             val band = composeRule.onNode(mini).fetchSemanticsNode().boundsInWindow
-            val row = hasText("Shelf $MIDDLE_ROW") and hasAnyAncestor(hasScrollToIndexAction())
+            // The shelf shows covers, not titles, so a book on screen is followed by its cover.
+            val shelfCover = SemanticsMatcher("a shelf cover") { node ->
+                node.config.getOrNull(SemanticsProperties.ContentDescription).orEmpty().any { it.startsWith("Open Shelf ") }
+            } and hasAnyAncestor(hasScrollToIndexAction())
+            awaitNode(shelfCover)
+            val cover = composeRule.onAllNodes(shelfCover).fetchSemanticsNodes().first().config[SemanticsProperties.ContentDescription].first()
+            val row = hasContentDescription(cover) and hasAnyAncestor(hasScrollToIndexAction())
             val before = centre(row)
+            // A shelf that cannot scroll could not show a drag moving it.
+            val range = composeRule.onNode(hasScrollToIndexAction()).fetchSemanticsNode().config[SemanticsProperties.VerticalScrollAxisRange]
+            assertThat(range.maxValue()).isGreaterThan(0f)
             // The margin left of the mini-player's own button is still the mini-player.
             drag(Offset(band.left / 4, band.bottom - 4), Offset(band.left / 4, band.top - DRAG_PX))
             composeRule.waitForIdle()
@@ -359,8 +368,8 @@ class PlayKeyTapTest {
         const val BOOK = "Boundary Book"
         const val OLDER = "Older Book"
         const val NEWER = "Newer Book"
-        const val SHELF = 9
-        const val MIDDLE_ROW = 4
+        /** Enough covers that the shelf scrolls under the mini-player, three or five to a row. */
+        const val SHELF = 24
         const val TAP_MS = 40L
         const val DOUBLE_TAP_GAP_MS = 150L
         const val NOT_A_DOUBLE_TAP_MS = 500L

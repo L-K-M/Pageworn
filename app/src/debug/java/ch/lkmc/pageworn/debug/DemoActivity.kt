@@ -17,6 +17,8 @@ import kotlin.concurrent.thread
  *
  *     adb push fixtures/out/assets/fixtures/. /sdcard/Android/data/ch.lkmc.pageworn/files/fixtures/
  *     adb shell am start -n ch.lkmc.pageworn/.debug.DemoActivity
+ *
+ * Add `--ez shelf true` for a fuller Downloaded shelf ([DemoLibrary.seedShelf]).
  */
 class DemoActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -33,13 +35,22 @@ class DemoActivity : Activity() {
             override fun durationMs(file: File): Long =
                 runBlocking { probe.probe(file) }.durationMs ?: error("${file.name} did not open")
         }
+        val fullShelf = intent.getBooleanExtra(EXTRA_SHELF, false)
         thread(name = "demo-seed") {
-            runCatching { runBlocking { DemoLibrary.seed(this@DemoActivity, container, source) } }
-                .onFailure { Log.e("DemoActivity", "Seeding failed", it) }
+            runCatching {
+                runBlocking {
+                    if (fullShelf) DemoLibrary.seedShelf(this@DemoActivity, container, source)
+                    else DemoLibrary.seed(this@DemoActivity, container, source)
+                }
+            }.onFailure { Log.e("DemoActivity", "Seeding failed", it) }
             runOnUiThread {
                 startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
                 finish()
             }
         }
+    }
+
+    private companion object {
+        const val EXTRA_SHELF = "shelf"
     }
 }
