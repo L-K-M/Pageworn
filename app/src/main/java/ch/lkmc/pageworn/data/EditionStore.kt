@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
@@ -51,10 +52,6 @@ class EditionStore(
     private val bookLocks = ConcurrentHashMap<BookKey, Mutex>()
     private fun lockFor(key: BookKey) = bookLocks.getOrPut(key) { Mutex() }
 
-    fun acquire(generationId: String) {
-        leases.merge(generationId, 1, Int::plus)
-    }
-
     /**
      * Ends one session's hold. When the last hold on a generation that a repair or replacement
      * superseded ends, its files go now rather than at the next start (rule 5).
@@ -80,8 +77,9 @@ class EditionStore(
      * transfer row names that generation throughout, so it is never mistaken for an unused one.
      */
     private suspend fun deleteIfUnused(generationId: String) {
-        if (leases.containsKey(generationId)) return
         if (generationId in db.editions().referencedGenerations()) return
+        // Once the edition no longer names this generation, a new playback plan cannot lease it.
+        if (leases.containsKey(generationId)) return
         files.deleteGeneration(generationId)
     }
 
@@ -187,18 +185,23 @@ class EditionStore(
 
     /** Deletes generations that no edition, active transfer, writer or playback session references. */
     suspend fun sweep(activeWriters: Set<String> = emptySet()) {
+        val directories = listOf(files.editionsRoot, files.stagingRoot)
+            .flatMap { root -> root.listFiles().orEmpty().filter(File::isDirectory) }
         val referenced = db.editions().referencedGenerations().toSet() + activeWriters + leases.keys
-        listOf(files.editionsRoot, files.stagingRoot).forEach { root ->
-            root.listFiles()?.filter { it.isDirectory && it.name !in referenced }?.forEach { it.deleteRecursively() }
-        }
+        directories.filter { it.name !in referenced }.forEach { it.deleteRecursively() }
     }
 
     /** Every track file is on the disk with the size it was verified at. */
     private suspend fun filesIntact(edition: LocalEditionEntity): Boolean {
         val dir = files.published(edition.generationId)
-        return db.editions().tracks(edition.generationId).all { track ->
-            val file = File(dir, track.localFilename)
-            file.isFile && file.length() == track.sizeBytes
+        return withContext(Dispatchers.IO) {
+            db.editions().tracks(edition.generationId).all { track ->
+                val name = track.localFilename
+                val file = File(dir, name)
+                // Keep the integrity check inside the published directory even if a future
+                // writer ever stores a name with a separator.
+                !name.contains('/') && !name.contains('\\') && file.isFile && file.length() == track.sizeBytes
+            }
         }
     }
 
@@ -260,11 +263,19 @@ class EditionStore(
 
     // --- Playback source -----------------------------------------------------------------------
 
-    override suspend fun plan(key: BookKey): EditionPlan? = lockFor(key).withLock {
-        if (isRemovalPending(key)) return@withLock null
-        val edition = db.editions().edition(key.profileId, key.itemId) ?: return@withLock null
-        if (edition.state != EditionState.READY) return@withLock null
-        toPlan(edition)
+    override suspend fun plan(key: BookKey): EditionPlan? = lockFor(key).withLock { playablePlanLocked(key) }
+
+    /** Verify and lease the selected generation under the same lock used to publish its replacement. */
+    suspend fun leaseForPlayback(key: BookKey): EditionPlan? = lockFor(key).withLock {
+        if (!checkBeforeOpening(key)) return@withLock null
+        playablePlanLocked(key)?.also { leases.merge(it.generationId, 1, Int::plus) }
+    }
+
+    private suspend fun playablePlanLocked(key: BookKey): EditionPlan? {
+        if (isRemovalPending(key)) return null
+        val edition = db.editions().edition(key.profileId, key.itemId) ?: return null
+        if (edition.state != EditionState.READY) return null
+        return toPlan(edition)
     }
 
     /** The edition's plan regardless of its state, for showing chapters and the saved place. */
@@ -299,7 +310,10 @@ class EditionStore(
     override suspend fun readyBooks(): List<EditionPlan> {
         val profileEditions = db.editions().all().filter { it.state == EditionState.READY }
         val removals = db.editions().pendingRemovals().map { BookKey(it.profileId, it.itemId) }.toSet()
-        val progress = profileEditions.associate { it.key to db.progress().get(it.profileId, it.itemId) }
+        // One query for the whole car list rather than one per book. `book_progress` holds one
+        // row per listened book; if it grows large, join against READY editions instead of
+        // loading every profile's rows.
+        val progress = db.progress().all().associateBy { it.key }
         return DownloadedOrder.sort(profileEditions.filter { it.key !in removals }) { progress[it.key]?.lastListenedAt }
             .mapNotNull { toPlan(it) }
     }

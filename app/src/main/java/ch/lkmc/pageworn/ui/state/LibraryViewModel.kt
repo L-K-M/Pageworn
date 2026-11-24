@@ -22,6 +22,7 @@ import ch.lkmc.pageworn.ui.model.StatusLine
 import ch.lkmc.pageworn.ui.model.UiAction
 import java.text.DateFormat
 import java.util.Date
+import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
@@ -36,6 +37,8 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Library: the chosen library's last published catalog, with each row showing the book's local
@@ -107,12 +110,21 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
 
     private val actions = TransferActions(container)
 
-    private data class Conditions(val notice: ServerNotice?, val checked: Boolean, val refusal: DownloadRefusal?)
+    /** True while a catalog refresh runs or waits, so the pull-to-refresh indicator spins. */
+    private val refreshing = MutableStateFlow(false)
 
-    private val conditions = combine(container.accounts.notice, librariesChecked, actions.refusal) { notice, checked, refusal -> Conditions(notice, checked, refusal) }
+    /** How many refreshes are queued or running; drives [refreshing]. */
+    private val queuedRefreshes = AtomicInteger(0)
+
+    /** Serializes refreshes; see [refreshCatalog]. */
+    private val refreshLock = Mutex()
+
+    private data class Conditions(val notice: ServerNotice?, val checked: Boolean, val refusal: DownloadRefusal?, val refreshing: Boolean)
+
+    private val conditions = combine(container.accounts.notice, librariesChecked, actions.refusal, refreshing) { notice, checked, refusal, refreshing -> Conditions(notice, checked, refusal, refreshing) }
 
     val state: StateFlow<LibraryUiState> = combine(scope, queries, listing, local, conditions) { s, q, rows, l, condition ->
-        withRefusal(build(s, q.typed, q.searching, rows, l, condition.notice, condition.checked), condition.refusal)
+        withRefusal(build(s, q.typed, q.searching, rows, l, condition.notice, condition.checked), condition.refusal).copy(refreshing = condition.refreshing)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryUiState(sort = container.settings.librarySort.value))
 
     /** A Download tap refused for the book itself says why on its row. */
@@ -140,8 +152,32 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     /** Runs in the application scope, so leaving the screen does not cancel a refresh. */
-    fun refresh() {
-        container.appScope.launch { if (container.accounts.refreshLibraryAndCatalog()) librariesChecked.value = true }
+    fun refresh() = refreshCatalog(null)
+
+    private fun refreshCatalog(libraryId: String?) {
+        container.appScope.launch {
+            queueRefresh()
+            try {
+                // Pull-to-refresh and library switches can overlap; one refresh at a time keeps
+                // the spinner honest about work actually in flight.
+                refreshLock.withLock { runRefresh(libraryId) }
+            } finally {
+                dequeueRefresh()
+            }
+        }
+    }
+
+    private suspend fun runRefresh(libraryId: String?) {
+        if (container.accounts.refreshLibraryAndCatalog(libraryId)) librariesChecked.value = true
+    }
+
+    private suspend fun queueRefresh() {
+        queuedRefreshes.incrementAndGet()
+        refreshing.value = true
+    }
+
+    private suspend fun dequeueRefresh() {
+        if (queuedRefreshes.decrementAndGet() == 0) refreshing.value = false
     }
 
     fun setQuery(value: String) {
@@ -150,16 +186,38 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
 
     fun setSort(sort: CatalogSort) = container.settings.setLibrarySort(sort)
 
+    /**
+     * Switches the catalog to [libraryId] and refreshes it. The pull-to-refresh spinner stays
+     * up during the switch on purpose: the list below is about to be replaced wholesale, so a
+     * spinning indicator is the honest signal rather than a flicker.
+     */
     fun selectLibrary(libraryId: String) {
         container.appScope.launch {
-            container.accounts.chooseLibrary(libraryId)
-            container.accounts.refreshLibraryAndCatalog(libraryId)
+            queueRefresh()
+            try {
+                // The switch and its refresh hold the same lock, so no pull-to-refresh can
+                // interleave between choosing the library and loading its catalog.
+                refreshLock.withLock {
+                    container.accounts.chooseLibrary(libraryId)
+                    runRefresh(libraryId)
+                }
+            } finally {
+                dequeueRefresh()
+            }
         }
     }
 
     private fun build(s: Scope?, q: String, searching: String, listing: CatalogListing, local: LocalState, notice: ServerNotice?, checked: Boolean): LibraryUiState {
         if (s == null) return LibraryUiState()
+        // The incomplete status line is authoritative even if a future notice path would leave
+        // statusOf without one; the rows then stay empty with a visible Retry rather than a
+        // silent blank screen.
         val status = statusOf(notice, listing)
+            ?: if (listing.status == ListingStatus.INCOMPLETE) {
+                StatusLine(Copy.LIBRARY_INCOMPLETE, UiAction.RETRY, Copy.RETRY)
+            } else {
+                null
+            }
         if (s.libraries.isEmpty()) {
             if (!checked && notice == null) return LibraryUiState(status = StatusLine(Copy.LIBRARY_LOADING, showsProgress = true), showSelectorAndSearch = false)
             return LibraryUiState(
@@ -189,14 +247,17 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
         }
         val statusAsEmpty = status?.let { EmptyState(it.text, it.action, it.actionLabel) }
         val published = listing.lastRefreshAt != null
+        // An incomplete first load keeps its staged rows under the status line. Only a notice
+        // with no cached catalog, an empty library or a failed search replaces the rows.
         val empty = when {
             catalogRows.isNotEmpty() -> null
             // A cached catalog stays searchable while the server is away; the status line stays above.
             searching.isNotBlank() && published -> EmptyState(Copy.NO_SEARCH_RESULTS, UiAction.CLEAR_SEARCH, Copy.CLEAR_SEARCH)
             notice != null -> statusAsEmpty
             listing.status == ListingStatus.FILLING -> null
-            listing.status == ListingStatus.INCOMPLETE -> EmptyState(Copy.LIBRARY_INCOMPLETE, UiAction.RETRY, Copy.RETRY)
             searching.isNotBlank() -> EmptyState(Copy.NO_SEARCH_RESULTS, UiAction.CLEAR_SEARCH, Copy.CLEAR_SEARCH)
+            // A failed load never claims an empty library; the status line stays authoritative.
+            listing.status == ListingStatus.INCOMPLETE -> null
             // A pending or typed query must not borrow the empty-library prompt.
             published && q.isBlank() -> EmptyState(Copy.EMPTY_LIBRARY, UiAction.CHECK_AGAIN, Copy.CHECK_AGAIN)
             else -> null

@@ -795,12 +795,14 @@ class TransferCoordinatorTest {
         val key = book("a06c-held", "A" to source(61), "B" to source(62))
         drive(enqueue(key))
         val old = db.editions().edition(PROFILE, key.itemId)!!.generationId
-        editions.acquire(old)
+        assertThat(editions.leaseForPlayback(key)?.generationId).isEqualTo(old)
         editions.markRepairNeeded(key, old)
         drive(enqueue(key))
         val new = db.editions().edition(PROFILE, key.itemId)!!.generationId
         assertThat(new).isNotEqualTo(old)
         assertThat(files.published(old).isDirectory).isTrue()
+        assertThat(editions.leaseForPlayback(key)?.generationId).isEqualTo(new)
+        editions.release(new)
 
         editions.release(old)
         settled()
@@ -813,8 +815,8 @@ class TransferCoordinatorTest {
         val key = book("a06c-current", "A" to source(63))
         drive(enqueue(key))
         val current = db.editions().edition(PROFILE, key.itemId)!!.generationId
-        editions.acquire(current)
-        editions.acquire(current)
+        assertThat(editions.leaseForPlayback(key)?.generationId).isEqualTo(current)
+        assertThat(editions.leaseForPlayback(key)?.generationId).isEqualTo(current)
 
         editions.release(current)
         settled()

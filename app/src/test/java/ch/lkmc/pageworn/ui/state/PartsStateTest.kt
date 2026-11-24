@@ -27,8 +27,20 @@ class PartsStateTest {
         assertThat(player.bookLine).isEqualTo("Book · 2 h 08 min of 4 h 20 min")
         assertThat(player.segmentsLabel).isEqualTo("Parts")
         assertThat(player.segments).hasSize(26)
-        assertThat(player.segments.single { it.current }.title).isEqualTo("Part 13")
+        val current = player.segments.single { it.index == player.segmentIndex }
+        assertThat(current.startMs).isEqualTo(120 * MINUTE)
+        assertThat(current.endMs).isEqualTo(130 * MINUTE)
         assertThat(player.sleep.options.last().label).isEqualTo("End of part")
+    }
+
+    @Test
+    fun a24TheLiveTickSharesTheTimelineSegmentsInsteadOfRebuildingThem() {
+        val plan = EditionPlan(key, "gen", "fingerprint", "Title", "Author", null, listOf(File("000.mp3")), timeline)
+        val first = PlayerStates.player(plan, null, null, live)
+        val later = PlayerStates.player(plan, null, null, live.copy(positionMs = 139 * MINUTE))
+
+        assertThat(later.segments).isSameInstanceAs(first.segments)
+        assertThat(later.segmentIndex).isNotEqualTo(first.segmentIndex)
     }
 
     @Test

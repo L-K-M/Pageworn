@@ -128,15 +128,6 @@ class PlaybackController(
      */
     suspend fun resolve(key: BookKey, explicitStartMs: Long?): Pair<MediaItem, Long>? {
         val outgoing = loaded
-        if (outgoing != null && outgoing.key != key) {
-            // Book switch: checkpoint the old book now, release its timer and reader.
-            saveSettledPause()
-            checkpointIfPlaying()
-            clearSleep()
-            clippedAtMs = null
-            // Playback goes on with the new book: that is a start, with a fresh timer.
-            if (exo.playWhenReady) timerOnPlaying = true
-        }
         if (outgoing != null && outgoing.key == key && !failed) {
             val start = explicitStartMs?.let { outgoing.plan.timeline.clamp(it) }
                 // Asked again before the player took the book: its position is still another item's.
@@ -145,31 +136,45 @@ class PlaybackController(
             else retargetSleepAfterSeek(start)
             return playableItem(outgoing.plan) to start
         }
-        if (!editions.checkBeforeOpening(key)) return null
-        val plan = editions.plan(key) ?: return null
-        val session = progress.newSession(key)
-        val stored = progress.read(key)
-        val saved = stored?.let { Saved(it.positionMs, it.stopKind, it.updatedAt, it.finished) }
-        if (stored?.pendingContinuityChoice == true && explicitStartMs == null) return null
-        val start = explicitStartMs?.let { plan.timeline.clamp(it) }
-            ?: saved?.let { ResumeRewind.startPosition(it.positionMs, it.stopKind, it.updatedAt, clock.wallMillis(), it.finished) }?.coerceIn(0, plan.timeline.durationMs)
-            ?: 0L
-        outgoing?.let { editions.release(it.plan.generationId) }
-        editions.acquire(plan.generationId)
-        loaded = Loaded(plan, session, saved)
-        startResolved = explicitStartMs == null
-        failed = false
-        pendingSeek = false
-        played = false
-        lastCommittedPosition = C.TIME_UNSET
-        settings.setLastActiveBook(key)
-        if (explicitStartMs != null || saved?.finished == true) {
-            // Moving the position (a chapter choice, Replay) makes the next start exact; Replay also
-            // resets the finished state in the same write.
-            save(start, StopKind.EXACT, finished = false, listened = false)
+        val plan = editions.leaseForPlayback(key) ?: return null
+        var accepted = false
+        try {
+            val session = progress.newSession(key)
+            val stored = progress.read(key)
+            val saved = stored?.let { Saved(it.positionMs, it.stopKind, it.updatedAt, it.finished) }
+            if (stored?.pendingContinuityChoice == true && explicitStartMs == null) return null
+            val start = explicitStartMs?.let { plan.timeline.clamp(it) }
+                ?: saved?.let { ResumeRewind.startPosition(it.positionMs, it.stopKind, it.updatedAt, clock.wallMillis(), it.finished) }?.coerceIn(0, plan.timeline.durationMs)
+                ?: 0L
+            val current = loaded
+            if (current != null && current.key != key) {
+                // Book switch: checkpoint the old book now, release its timer and reader.
+                saveSettledPause()
+                checkpointIfPlaying()
+                clearSleep()
+                clippedAtMs = null
+                // Playback goes on with the new book: that is a start, with a fresh timer.
+                if (exo.playWhenReady) timerOnPlaying = true
+            }
+            current?.let { editions.release(it.plan.generationId) }
+            loaded = Loaded(plan, session, saved)
+            accepted = true
+            startResolved = explicitStartMs == null
+            failed = false
+            pendingSeek = false
+            played = false
+            lastCommittedPosition = C.TIME_UNSET
+            settings.setLastActiveBook(key)
+            if (explicitStartMs != null || saved?.finished == true) {
+                // Moving the position (a chapter choice, Replay) makes the next start exact; Replay also
+                // resets the finished state in the same write.
+                save(start, StopKind.EXACT, finished = false, listened = false)
+            }
+            publish()
+            return playableItem(plan) to start
+        } finally {
+            if (!accepted) editions.release(plan.generationId)
         }
-        publish()
-        return playableItem(plan) to start
     }
 
     fun playableItem(plan: EditionPlan): MediaItem =
