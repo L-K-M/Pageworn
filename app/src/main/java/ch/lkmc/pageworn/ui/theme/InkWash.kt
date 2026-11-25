@@ -21,11 +21,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * The paper's pressed state, which replaces the Material ripple app-wide: a wash of [ink] over a
- * control, which clips itself to its own shape. A press shows at once and stays for the same
- * moment as a key's after a quick tap, then fades, rather than spreading a grey circle from the
- * finger. Keyboard focus and a hovering pointer get a lighter wash, as the ripple gave them.
- * The drawn keys and the leather button draw their own press instead.
+ * The paper's pressed state, which replaces the Material ripple wherever a control takes the
+ * default indication. It washes [ink] over the control's bounds, as far as the ripple's state
+ * layer reached, so a control with a shape clips itself to it. A press shows at once and stays
+ * for the same moment as a key's after a quick tap, then fades, rather than spreading a grey
+ * circle from the finger. Keyboard focus and a hovering pointer get a lighter wash, as the ripple
+ * gave them. The drawn keys and the leather button draw their own press instead, and Material
+ * switches and menu items keep their ripple.
  */
 @Immutable
 data class InkWash(private val ink: Color) : IndicationNodeFactory {
@@ -39,18 +41,21 @@ private class InkWashNode(private val interactionSource: InteractionSource, priv
 
     override fun onAttach() {
         coroutineScope.launch {
-            // Only the next press or release replaces a press's change; focus and hover arriving
+            // Only the next press or release replaces a press's fade; focus and hover arriving
             // while a released press is still shown must not leave the wash on.
-            var change: Job? = null
+            var fade: Job? = null
             interactionSource.interactions.collect {
                 when (it) {
                     is PressInteraction.Press -> {
-                        change?.cancel()
-                        change = launch { press.snapTo(1f) }
+                        fade?.cancel()
+                        // At once, here: a quick tap in a scrolling list reports its press and
+                        // release together, and a launched snap would be cancelled by the release
+                        // before it ran.
+                        press.snapTo(1f)
                     }
                     is PressInteraction.Release, is PressInteraction.Cancel -> {
-                        change?.cancel()
-                        change = launch {
+                        fade?.cancel()
+                        fade = launch {
                             delay(MIN_PRESS_VISIBLE_MS)
                             press.animateTo(0f, tween(WASH_FADE_MS))
                         }

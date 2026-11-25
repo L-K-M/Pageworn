@@ -217,6 +217,32 @@ class PressFeedbackTest {
         assertWithMessage("faded").that(patch.meanLuminance()).isWithin(RESTORED).of(resting)
     }
 
+    @Test
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun aQuickTapReportedAllAtOnceStillWashes() {
+        // A quick tap in a scrolling list is reported as a press and its release together, once
+        // the finger has left; the release must not cancel the press before it is drawn. The
+        // test dispatcher runs launched work at once, so it cannot reproduce a release that
+        // overtakes a queued press: that was seen on the emulator, by screen recording a quick
+        // tap on Library's Sort control.
+        val source = MutableInteractionSource()
+        show { Box(Modifier.size(48.dp).semantics { contentDescription = "patch" }.indication(source, InkWash(PagewornTheme.colors.primaryInk))) }
+        val patch = compose.onNodeWithContentDescription("patch")
+        val resting = patch.meanLuminance()
+        compose.mainClock.autoAdvance = false
+        val press = PressInteraction.Press(Offset.Zero)
+
+        runBlocking {
+            source.emit(press)
+            source.emit(PressInteraction.Release(press))
+        }
+        compose.mainClock.advanceTimeBy(STILL_SHOWN_MS)
+        assertWithMessage("just released").that(patch.meanLuminance()).isLessThan(resting - WASHED)
+
+        compose.mainClock.advanceTimeBy(SETTLE_MS)
+        assertWithMessage("faded").that(patch.meanLuminance()).isWithin(RESTORED).of(resting)
+    }
+
     private fun show(content: @Composable () -> Unit) {
         compose.setContent {
             CompositionLocalProvider(LocalHapticFeedback provides haptics) {
