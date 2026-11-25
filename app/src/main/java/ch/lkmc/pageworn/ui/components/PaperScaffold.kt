@@ -102,6 +102,7 @@ fun Modifier.paperBackground(): Modifier {
 
 @Composable
 fun BindingFooter(destination: Destination, onSelect: (Destination) -> Unit, modifier: Modifier = Modifier, topPage: Color = PagewornTheme.colors.paper) {
+    val sound = rememberTapSound()
     val colors = PagewornTheme.colors
     val type = PagewornTheme.type
     val reducedMotion = LocalReducedMotion.current
@@ -123,7 +124,13 @@ fun BindingFooter(destination: Destination, onSelect: (Destination) -> Unit, mod
             for (item in Destination.entries) {
                 val selected = item == destination
                 val shift by animateDpAsState(if (selected) 6.dp else 0.dp, animationSpec = tween(if (reducedMotion) 0 else 140), label = "bookmark")
-                Box(Modifier.weight(1f).height(bandHeight).selectable(selected = selected, role = Role.Tab, onClick = { onSelect(item) }), contentAlignment = Alignment.TopCenter) {
+                Box(
+                    Modifier.weight(1f).height(bandHeight).selectable(selected = selected, role = Role.Tab) {
+                        if (!selected) sound()
+                        onSelect(item)
+                    },
+                    contentAlignment = Alignment.TopCenter,
+                ) {
                     Box(Modifier.size(width = tabWidth, height = bandHeight), contentAlignment = Alignment.TopCenter) {
                         if (!highContrast) Image(
                             painterResource(R.drawable.pw_tab_oxblood),

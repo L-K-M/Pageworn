@@ -1,0 +1,8 @@
+Interface Sounds 1.0 by Kenney
+https://kenney.nl/assets/interface-sounds
+
+Creative Commons Zero 1.0 Universal (CC0-1.0)
+https://creativecommons.org/publicdomain/zero/1.0/
+
+click_001.ogg is bundled as pw_key_click.ogg.
+tick_001.ogg is bundled as pw_light_tick.ogg.

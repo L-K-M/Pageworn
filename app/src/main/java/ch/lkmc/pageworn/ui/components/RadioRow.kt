@@ -20,7 +20,13 @@ import ch.lkmc.pageworn.ui.theme.PagewornTheme
 @Composable
 fun RadioRow(label: String, selected: Boolean, detail: String? = null, onClick: () -> Unit) {
     PaperRule()
-    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).selectable(selected = selected, role = Role.RadioButton, onClick = onClick).padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+    val sound = rememberTapSound()
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 48.dp)
+            .selectable(selected = selected, role = Role.RadioButton) { sound(); onClick() }
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Column(Modifier.weight(1f)) {
             Text(label, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.author.copy(fontSize = PagewornTheme.type.rowTitle.fontSize))
             detail?.let { Text(it, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.status) }

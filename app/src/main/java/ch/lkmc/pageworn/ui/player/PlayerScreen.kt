@@ -62,6 +62,7 @@ import ch.lkmc.pageworn.ui.components.TapFeel
 import ch.lkmc.pageworn.ui.components.TextAction
 import ch.lkmc.pageworn.ui.components.paperBackground
 import ch.lkmc.pageworn.ui.components.rememberTapFeel
+import ch.lkmc.pageworn.ui.components.rememberTapSound
 import ch.lkmc.pageworn.ui.model.Copy
 import ch.lkmc.pageworn.ui.model.Format
 import ch.lkmc.pageworn.ui.model.KeyAction
@@ -164,6 +165,7 @@ private fun SpeedSheet(selected: Float, onSelect: (Float) -> Unit) {
 
 @Composable
 private fun SegmentsSheet(division: Division, segmentName: String, segments: List<Segment>, segmentIndex: Int, onSelect: (Long) -> Unit) {
+    val sound = rememberTapSound()
     // A long book has dozens of parts: open on the one playing, with some before it for context.
     // Find the row by its domain index rather than assuming it is also the list position.
     // A -1 (no match) coerces to 0: better to open at the top than crash on a stale index.
@@ -173,7 +175,7 @@ private fun SegmentsSheet(division: Division, segmentName: String, segments: Lis
             items(segments, key = { it.index }) { segment ->
                 PaperRule()
                 val current = segment.index == segmentIndex
-                Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(role = Role.Button) { onSelect(segment.startMs) }.semantics { if (current) stateDescription = "Current ${segmentName.lowercase()}" }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(role = Role.Button) { sound(); onSelect(segment.startMs) }.semantics { if (current) stateDescription = "Current ${segmentName.lowercase()}" }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     if (current) Image(painterResource(R.drawable.pw_place_ribbon), null, Modifier.padding(end = 8.dp).size(12.dp, 18.dp))
                     Text(PlayerStates.segmentTitle(division, segment), Modifier.weight(1f), color = if (segment.generated) PagewornTheme.colors.secondaryInk else PagewornTheme.colors.primaryInk, style = PagewornTheme.type.rowTitle)
                     Text(Format.clock(segment.durationMs), Modifier.padding(start = 8.dp), color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.metadata)

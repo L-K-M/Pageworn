@@ -92,7 +92,7 @@ private fun Key(face: Int, inlay: Int?, title: String, faceWidth: Dp, faceHeight
             }
             .then(gestures)
             .clickable(enabled = enabled, role = Role.Button, interactionSource = interaction, indication = null) {
-                if (!takes()) return@clickable
+                if (!enabled || !takes()) return@clickable
                 tapFeel()
                 onClick()
             },

@@ -26,6 +26,7 @@ import ch.lkmc.pageworn.ui.components.PaperField
 import ch.lkmc.pageworn.ui.components.PaperScreen
 import ch.lkmc.pageworn.ui.components.TextAction
 import ch.lkmc.pageworn.ui.components.paperSwitchColors
+import ch.lkmc.pageworn.ui.components.rememberTapSound
 import ch.lkmc.pageworn.ui.model.ConnectStep
 import ch.lkmc.pageworn.ui.model.ConnectUiState
 import ch.lkmc.pageworn.ui.model.Copy
@@ -33,6 +34,7 @@ import ch.lkmc.pageworn.ui.theme.PagewornTheme
 
 @Composable
 fun ConnectScreen(state: ConnectUiState, onUrlChange: (String) -> Unit, onLabelChange: (String) -> Unit, onAllowCleartextChange: (Boolean) -> Unit, onContinue: () -> Unit, onUsernameChange: (String) -> Unit, onPasswordChange: (String) -> Unit, onSignIn: () -> Unit, onTrust: () -> Unit, onRetry: () -> Unit, onAllowLocalNetwork: () -> Unit, onConfirmPairing: () -> Unit, onCancelPairing: () -> Unit, onOpenDownloaded: (() -> Unit)?, onBack: (() -> Unit)?) {
+    val sound = rememberTapSound()
     PaperScreen(state.heading, onBack) {
         when (state.step) {
             ConnectStep.ADDRESS -> {
@@ -44,7 +46,7 @@ fun ConnectScreen(state: ConnectUiState, onUrlChange: (String) -> Unit, onLabelC
                 state.localNetworkAction?.let { TextAction(it, onClick = onAllowLocalNetwork) }
                 PaperField(state.label, onLabelChange, "Label (optional)")
                 if (state.url.trim().startsWith("http://", ignoreCase = true) || state.allowCleartext || state.cleartextExplanation != null) {
-                    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(value = state.allowCleartext, role = Role.Switch, onValueChange = onAllowCleartextChange), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(value = state.allowCleartext, role = Role.Switch) { sound(); onAllowCleartextChange(it) }, verticalAlignment = Alignment.CenterVertically) {
                         Switch(state.allowCleartext, onCheckedChange = null, colors = paperSwitchColors())
                         Text(Copy.ALLOW_CLEARTEXT, Modifier.padding(start = 8.dp), color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.metadata)
                     }

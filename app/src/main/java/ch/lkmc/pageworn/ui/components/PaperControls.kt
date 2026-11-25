@@ -133,10 +133,14 @@ fun PaperCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.()
 fun DisclosureRow(label: String, detail: String? = null, expanded: Boolean? = null, onClick: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
+    val sound = rememberTapSound()
     Row(
         Modifier.fillMaxWidth().heightIn(min = 56.dp)
             .semantics { expanded?.let { stateDescription = if (it) "Expanded" else "Collapsed" } }
-            .clickable(interactionSource = interaction, role = Role.Button, onClick = onClick)
+            .clickable(interactionSource = interaction, role = Role.Button) {
+                sound()
+                onClick()
+            }
             .then(if (focused) Modifier.border(2.dp, PagewornTheme.colors.primaryInk, CONTROL_SHAPE) else Modifier)
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -178,7 +182,11 @@ fun PaperButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifie
             .drawBehind { drawOutline(KEY_SHAPE.createOutline(size, layoutDirection, this), Brush.verticalGradient(listOf(lerp(LEATHER_HIGH, LEATHER_LOW, depth), LEATHER_LOW))) }
             .border(if (focused) 3.dp else 2.dp, if (focused) colors.primaryInk else colors.brass, KEY_SHAPE)
             .clip(KEY_SHAPE)
-            .clickable(interactionSource = interaction, indication = null, enabled = enabled, role = Role.Button) { tapFeel(); onClick() }
+            .clickable(interactionSource = interaction, indication = null, enabled = enabled, role = Role.Button) {
+                if (!enabled) return@clickable
+                tapFeel()
+                onClick()
+            }
             .padding(horizontal = 22.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
