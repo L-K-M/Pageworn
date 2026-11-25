@@ -13,6 +13,8 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasStateDescription
 import androidx.compose.ui.test.hasSetTextAction
@@ -148,9 +150,48 @@ class ScreenSemanticsTest {
     @Test
     fun signOutAsksOnce() {
         val state = SettingsUiState("listener", signedIn = true, versionText = "Pageworn", confirmSignOut = true)
-        compose.setContent { PagewornTheme { SettingsScreen(state, {}, {}, {}, {}, {}, {}, {}, {}, {}) } }
+        compose.setContent { PagewornTheme { SettingsScreen(state, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) } }
 
         compose.onAllNodesWithText("Sign out?", substring = true).assertCountEquals(1)
+    }
+
+    @Test
+    fun soundEffectsTogglesFromItsRowAndAnnouncesBothStates() {
+        val enabled = mutableStateOf(true)
+        val requested = mutableListOf<Boolean>()
+        compose.setContent {
+            PagewornTheme {
+                SettingsScreen(
+                    SettingsUiState("listener", signedIn = true, versionText = "Pageworn", uiSoundsEnabled = enabled.value),
+                    onBack = {},
+                    onOpenAddresses = {},
+                    onOpenSleep = {},
+                    onSetUiSoundsEnabled = { next -> requested += next; enabled.value = next },
+                    onSignOut = {},
+                    onConfirmSignOut = {},
+                    onDismissSignOut = {},
+                    onSignIn = {},
+                    onExportDiagnostics = {},
+                    onOpenLicences = {},
+                )
+            }
+        }
+
+        compose.onAllNodesWithText("Sound effects").assertCountEquals(1)
+        compose.onNodeWithText("Interface").assertExists()
+        compose.onNodeWithText("Sound effects").assertIsOn()
+
+        compose.onNodeWithText("Sound effects").performClick()
+        compose.runOnIdle {
+            assertThat(requested).containsExactly(false)
+        }
+        compose.onNodeWithText("Sound effects").assertIsOff()
+
+        compose.onNodeWithText("Sound effects").performClick()
+        compose.runOnIdle {
+            assertThat(requested).containsExactly(false, true)
+        }
+        compose.onNodeWithText("Sound effects").assertIsOn()
     }
 
     @Test

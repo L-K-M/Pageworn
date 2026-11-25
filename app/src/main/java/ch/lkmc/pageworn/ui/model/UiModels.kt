@@ -307,6 +307,8 @@ data class SettingsUiState(
     val confirmSignOut: Boolean = false,
     /** The Sleep timer row's summary, e.g. "15, 30, 45 and 60 minutes · Automatic off". */
     val sleepSummary: String = "15, 30, 45 and 60 minutes · Automatic off",
+    /** Whether taps play the app's own click and tick sounds. */
+    val uiSoundsEnabled: Boolean = true,
 )
 
 /** One timer length offered on the Sleep timer page. */

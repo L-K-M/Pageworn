@@ -8,6 +8,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import ch.lkmc.pageworn.ui.theme.MIN_PRESS_VISIBLE_MS
@@ -27,11 +28,26 @@ enum class TapFeel(internal val haptic: HapticFeedbackType) {
     LIGHT(HapticFeedbackType.ContextClick),
 }
 
-/** Plays the haptic of [feel]; call it once for each tap the control takes. */
+internal val LocalPlayTapSound = staticCompositionLocalOf<(TapFeel) -> Unit> { {} }
+
+/** Plays the sound of [feel] for a control that takes a tap. */
+@Composable
+internal fun rememberTapSound(feel: TapFeel = TapFeel.LIGHT): () -> Unit {
+    val play = LocalPlayTapSound.current
+    return remember(play, feel) { { play(feel) } }
+}
+
+/** Plays the haptic and sound of [feel]; call it once for each tap the control takes. */
 @Composable
 fun rememberTapFeel(feel: TapFeel): () -> Unit {
     val haptic = LocalHapticFeedback.current
-    return remember(haptic, feel) { { haptic.performHapticFeedback(feel.haptic) } }
+    val sound = rememberTapSound(feel)
+    return remember(haptic, feel, sound) {
+        {
+            haptic.performHapticFeedback(feel.haptic)
+            sound()
+        }
+    }
 }
 
 /**

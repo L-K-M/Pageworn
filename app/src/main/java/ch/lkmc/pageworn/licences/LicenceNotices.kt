@@ -11,19 +11,21 @@ import org.json.JSONObject
  * The dependency half is the AboutLibraries JSON generated from the app
  * variant's runtime classpath (`prepareLibraryDefinitionsRelease` for the
  * release build), so the release notices list the libraries it ships and their
- * licence texts. Spectral is a bundled font rather than a dependency, so its
- * copyright and licence text are appended from the checked-in raw resource.
+ * licence texts. Notices for bundled assets come from checked-in raw resources.
  */
 internal object LicenceNotices {
 
     /**
-     * One `(name, licence notice)` pair per shipped dependency, plus Spectral.
+     * One `(name, licence notice)` pair per shipped dependency or credited asset.
      * The list is static for the process, so call it from a `remember` block.
      */
     internal fun entries(context: Context): List<Pair<String, String>> {
         val dependencyEntries = dependencyEntries(context)
-        val spectral = spectralEntry(context)
-        return (dependencyEntries + spectral).sortedWith(compareBy({ it.first.lowercase() }, { it.first }))
+        val assets = listOf(
+            "Spectral" to readRawResource(context, R.raw.spectral_ofl).trimEnd(),
+            "Interface Sounds by Kenney" to readRawResource(context, R.raw.pw_sound_credits).trimEnd(),
+        )
+        return (dependencyEntries + assets).sortedWith(compareBy({ it.first.lowercase() }, { it.first }))
     }
 
     private fun dependencyEntries(context: Context): List<Pair<String, String>> {
@@ -54,11 +56,6 @@ internal object LicenceNotices {
             notices += text
         }
         return notices.distinct().joinToString("\n\n")
-    }
-
-    private fun spectralEntry(context: Context): Pair<String, String> {
-        val notice = readRawResource(context, R.raw.spectral_ofl).trimEnd()
-        return "Spectral" to notice
     }
 
     private fun readRawResource(context: Context, resource: Int): String =

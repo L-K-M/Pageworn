@@ -21,6 +21,8 @@ import ch.lkmc.pageworn.ui.AppNavHost
 import ch.lkmc.pageworn.ui.BookLink
 import ch.lkmc.pageworn.ui.components.CoverLoader
 import ch.lkmc.pageworn.ui.components.LocalCoverLoader
+import ch.lkmc.pageworn.ui.components.LocalPlayTapSound
+import ch.lkmc.pageworn.ui.components.UiSounds
 import ch.lkmc.pageworn.ui.theme.PagewornTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -47,6 +49,7 @@ class MainActivity : ComponentActivity() {
     private var openPlayer by mutableIntStateOf(0)
     private var openDownloaded by mutableIntStateOf(0)
     private var openBook by mutableStateOf<BookLink?>(null)
+    private var uiSounds: UiSounds? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // The paper stays light when the phone is dark, so the bars always draw dark icons. The
@@ -56,13 +59,18 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         takeLinks(intent)
         val container = (application as PagewornApp).container
+        val sounds = UiSounds(this) { container.settings.uiSoundsEnabled.value }
+        uiSounds = sounds
         val covers = CoverLoader { cover, sizePx ->
             val file = container.remoteCovers.thumbnail(cover.itemId, cover.updatedAt, sizePx) ?: return@CoverLoader null
             withContext(Dispatchers.IO) { decodeCover(file, sizePx)?.asImageBitmap() }
         }
         setContent {
             PagewornTheme {
-                CompositionLocalProvider(LocalCoverLoader provides covers) {
+                CompositionLocalProvider(
+                    LocalCoverLoader provides covers,
+                    LocalPlayTapSound provides sounds::play,
+                ) {
                     AppNavHost(container, openPlayer, openDownloaded, openBook)
                 }
             }
@@ -80,6 +88,12 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         takeLinks(intent)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        uiSounds?.close()
+        uiSounds = null
     }
 
     private fun takeLinks(intent: Intent) {

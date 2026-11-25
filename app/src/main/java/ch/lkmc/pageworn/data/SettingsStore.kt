@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/** Lightweight preferences: last active book, chosen speed, Library order, last destination, one-time notices. */
+/** Lightweight preferences: last active book, chosen speed, Library order, UI sounds, last destination, one-time notices. */
 class SettingsStore(context: Context) {
     private val prefs = context.getSharedPreferences("pageworn-settings", Context.MODE_PRIVATE)
 
@@ -21,6 +21,9 @@ class SettingsStore(context: Context) {
         CatalogSort.entries.firstOrNull { it.name == prefs.getString(LIBRARY_SORT, null) } ?: CatalogSort.DEFAULT,
     )
     val librarySort: StateFlow<CatalogSort> = _librarySort.asStateFlow()
+
+    private val _uiSoundsEnabled = MutableStateFlow(prefs.getBoolean(UI_SOUNDS_ENABLED, true))
+    val uiSoundsEnabled: StateFlow<Boolean> = _uiSoundsEnabled.asStateFlow()
 
     var lastDestination: String?
         get() = prefs.getString(DESTINATION, null)
@@ -70,12 +73,18 @@ class SettingsStore(context: Context) {
         _librarySort.value = sort
     }
 
+    fun setUiSoundsEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(UI_SOUNDS_ENABLED, enabled).apply()
+        _uiSoundsEnabled.value = enabled
+    }
+
     private fun readLastActive(): BookKey? = BookKey.fromMediaId(prefs.getString(LAST_BOOK, null))
 
     companion object {
         private const val LAST_BOOK = "last_active_book"
         private const val SPEED = "speed"
         private const val LIBRARY_SORT = "library_sort"
+        private const val UI_SOUNDS_ENABLED = "ui_sounds_enabled"
         private const val DESTINATION = "last_destination"
         private const val NOTIFICATIONS_NOTICE = "notifications_notice_consumed"
         private const val NOTIFICATIONS_NOTICE_PENDING = "notifications_notice_pending"

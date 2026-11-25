@@ -34,6 +34,7 @@ import ch.lkmc.pageworn.ui.components.PaperScreen
 import ch.lkmc.pageworn.ui.components.PencilIcon
 import ch.lkmc.pageworn.ui.components.TextAction
 import ch.lkmc.pageworn.ui.components.paperSwitchColors
+import ch.lkmc.pageworn.ui.components.rememberTapSound
 import ch.lkmc.pageworn.ui.model.AddressRow
 import ch.lkmc.pageworn.ui.model.AddressesUiState
 import ch.lkmc.pageworn.ui.model.Copy
@@ -41,9 +42,10 @@ import ch.lkmc.pageworn.ui.theme.PagewornTheme
 
 @Composable
 fun AddressesScreen(state: AddressesUiState, onBack: () -> Unit, onAdd: () -> Unit, onEditLabel: (String, String) -> Unit, onMoveUp: (String) -> Unit, onMoveDown: (String) -> Unit, onToggleEnabled: (String) -> Unit, onTest: (String) -> Unit, onRemove: (String) -> Unit, onTrust: (String) -> Unit, onAllowLocalNetwork: (String) -> Unit, onSignIn: (String) -> Unit, onSetAutomatic: (Boolean) -> Unit, onPin: (String) -> Unit) {
+    val sound = rememberTapSound()
     PaperScreen("Server addresses", onBack) {
         PaperCard {
-            Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).selectable(state.automatic, role = Role.RadioButton) { onSetAutomatic(true) }.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).selectable(state.automatic, role = Role.RadioButton) { if (!state.automatic) sound(); onSetAutomatic(true) }.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 RadioButton(state.automatic, onClick = null)
                 Column(Modifier.padding(start = 12.dp)) {
                     Text("Automatic", color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.rowTitle)
@@ -66,6 +68,7 @@ fun AddressesScreen(state: AddressesUiState, onBack: () -> Unit, onAdd: () -> Un
 private fun AddressEntry(row: AddressRow, pinned: Boolean, canMoveUp: Boolean, canMoveDown: Boolean, onEditLabel: (String) -> Unit, onMoveUp: () -> Unit, onMoveDown: () -> Unit, onToggleEnabled: () -> Unit, onTest: () -> Unit, onRemove: () -> Unit, onTrust: () -> Unit, onAllowLocalNetwork: () -> Unit, onSignIn: () -> Unit, onPin: () -> Unit) {
     var editing by remember(row.addressId) { mutableStateOf(false) }
     var draft by remember(row.addressId, row.label) { mutableStateOf(row.label) }
+    val sound = rememberTapSound()
     val colors = PagewornTheme.colors
     val type = PagewornTheme.type
     PaperCard(Modifier.semantics {
@@ -80,7 +83,7 @@ private fun AddressEntry(row: AddressRow, pinned: Boolean, canMoveUp: Boolean, c
                 else Text(row.label, color = colors.primaryInk, style = type.rowTitle)
                 Text(row.url, color = colors.secondaryInk, style = type.metadata)
             }
-            Switch(checked = row.enabled, onCheckedChange = { onToggleEnabled() }, colors = paperSwitchColors(), modifier = Modifier.semantics { contentDescription = "Enable ${row.label}" })
+            Switch(checked = row.enabled, onCheckedChange = { sound(); onToggleEnabled() }, colors = paperSwitchColors(), modifier = Modifier.semantics { contentDescription = "Enable ${row.label}" })
         }
         Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             if (row.isActive) StateMark("In use")

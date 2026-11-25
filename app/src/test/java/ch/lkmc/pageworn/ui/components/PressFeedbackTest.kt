@@ -56,6 +56,7 @@ class PressFeedbackTest {
     val compose = createComposeRule()
 
     private val haptics = RecordingHaptics()
+    private val sounds = mutableListOf<TapFeel>()
 
     @Test
     fun aKeyClicksOnceForEachTapItTakes() {
@@ -67,6 +68,7 @@ class PressFeedbackTest {
 
         assertThat(skips).isEqualTo(2)
         assertThat(haptics.played).containsExactly(HapticFeedbackType.VirtualKey, HapticFeedbackType.VirtualKey)
+        assertThat(sounds).containsExactly(TapFeel.KEY, TapFeel.KEY)
     }
 
     @Test
@@ -75,9 +77,11 @@ class PressFeedbackTest {
         show { SkipKey(back = true, width = 80.dp, onClick = { skips++ }, enabled = false, disabledReason = Copy.DAMAGED_COPY) }
 
         compose.onNodeWithContentDescription(Copy.BACK_15).performTouchInput { click() }
+        compose.onNodeWithContentDescription(Copy.BACK_15).performClick()
 
         assertThat(skips).isEqualTo(0)
         assertThat(haptics.played).isEmpty()
+        assertThat(sounds).isEmpty()
     }
 
     @Test
@@ -93,6 +97,7 @@ class PressFeedbackTest {
 
         assertThat(actions).containsExactly(KeyAction.PLAY)
         assertThat(haptics.played).containsExactly(HapticFeedbackType.VirtualKey)
+        assertThat(sounds).containsExactly(TapFeel.KEY)
     }
 
     @Test
@@ -102,6 +107,7 @@ class PressFeedbackTest {
         compose.onNodeWithText("Connect").performClick()
         assertThat(taps).isEqualTo(1)
         assertThat(haptics.played).containsExactly(HapticFeedbackType.VirtualKey)
+        assertThat(sounds).containsExactly(TapFeel.KEY)
     }
 
     @Test
@@ -109,8 +115,10 @@ class PressFeedbackTest {
         var taps = 0
         show { PaperButton("Connect", onClick = { taps++ }, enabled = false) }
         compose.onNodeWithText("Connect").performTouchInput { click() }
+        compose.onNodeWithText("Connect").performClick()
         assertThat(taps).isEqualTo(0)
         assertThat(haptics.played).isEmpty()
+        assertThat(sounds).isEmpty()
     }
 
     @Test
@@ -130,6 +138,7 @@ class PressFeedbackTest {
 
         assertThat(taps).isEqualTo(3)
         assertThat(haptics.played).containsExactly(HapticFeedbackType.ContextClick, HapticFeedbackType.ContextClick, HapticFeedbackType.ContextClick)
+        assertThat(sounds).containsExactly(TapFeel.LIGHT, TapFeel.LIGHT, TapFeel.LIGHT)
     }
 
     @Test
@@ -245,7 +254,10 @@ class PressFeedbackTest {
 
     private fun show(content: @Composable () -> Unit) {
         compose.setContent {
-            CompositionLocalProvider(LocalHapticFeedback provides haptics) {
+            CompositionLocalProvider(
+                LocalHapticFeedback provides haptics,
+                LocalPlayTapSound provides { sounds += it },
+            ) {
                 PagewornTheme {
                     Box(Modifier.background(PagewornTheme.colors.paper).padding(24.dp)) { content() }
                 }

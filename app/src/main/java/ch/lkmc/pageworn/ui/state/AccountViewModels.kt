@@ -39,7 +39,14 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     }.combine(confirming) { (profile, addresses), confirm ->
         SettingsUiState(profile?.accountName, addresses.any { it.sessionState == SessionState.SIGNED_IN }, "Pageworn ${BuildConfig.VERSION_NAME}", confirm)
     }.combine(container.sleepSettings.settings) { settings, sleep -> settings.copy(sleepSummary = sleepSummary(sleep)) }
-    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState(null, false, "Pageworn ${BuildConfig.VERSION_NAME}"))
+    .combine(container.settings.uiSoundsEnabled) { settings, sounds -> settings.copy(uiSoundsEnabled = sounds) }
+    .stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        SettingsUiState(null, false, "Pageworn ${BuildConfig.VERSION_NAME}", uiSoundsEnabled = container.settings.uiSoundsEnabled.value),
+    )
+
+    fun setUiSoundsEnabled(enabled: Boolean) = container.settings.setUiSoundsEnabled(enabled)
 
     fun askSignOut() { confirming.value = true }
     fun dismissSignOut() { confirming.value = false }

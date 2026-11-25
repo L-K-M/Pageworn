@@ -269,6 +269,7 @@ fun AppNavHost(container: AppContainer, openPlayer: Int, openDownloaded: Int, op
                 onBack = { navController.popBackStack() },
                 onOpenAddresses = { navController.navigate(Routes.ADDRESSES) },
                 onOpenSleep = { navController.navigate(Routes.SLEEP) },
+                onSetUiSoundsEnabled = settings::setUiSoundsEnabled,
                 onSignOut = settings::askSignOut,
                 onConfirmSignOut = { settings.signOut(); navController.popBackStack() },
                 onDismissSignOut = settings::dismissSignOut,
