@@ -40,7 +40,12 @@ private class InkWashNode(private val interactionSource: InteractionSource, priv
     private var hovered by mutableStateOf(false)
 
     override fun onAttach() {
+        // Interactions are not replayed. A node set aside for reuse, as a cover scrolled out of
+        // a list, lost its fade and any unfocus or exit when it detached, so it starts clean.
+        focused = false
+        hovered = false
         coroutineScope.launch {
+            press.snapTo(0f)
             // Only the next press or release replaces a press's fade; focus and hover arriving
             // while a released press is still shown must not leave the wash on.
             var fade: Job? = null

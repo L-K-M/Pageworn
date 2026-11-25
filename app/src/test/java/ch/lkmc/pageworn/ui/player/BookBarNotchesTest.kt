@@ -126,7 +126,7 @@ class BookBarNotchesTest {
 
     /** Chapters start at 25, 50 and 75 minutes of a 100-minute book. */
     private fun chapters(): PlayerUiState {
-        val chapters = listOf(0L, 25L, 50L, 75L).zipWithNext { a, b -> a to b }.plus(75L to 100L).mapIndexed { i, (a, b) ->
+        val chapters = listOf(0L, 25L, 50L, 75L, 100L).zipWithNext { a, b -> a to b }.mapIndexed { i, (a, b) ->
             ChapterSpan(a * MINUTE, b * MINUTE, "Chapter ${i + 1}", ChapterOrigin.SERVER)
         }
         val plan = EditionPlan(key, "gen", "fingerprint", "The Night Orchard", "Elin Ward", null, listOf(File("000.mp3")), BookTimeline(BookTimeline.contiguousTracks(listOf(100 * MINUTE)), chapters))

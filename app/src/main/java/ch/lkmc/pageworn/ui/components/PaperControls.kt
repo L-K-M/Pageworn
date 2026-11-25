@@ -44,10 +44,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.semantics.Role
@@ -172,7 +174,8 @@ fun PaperButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifie
                 spotShadowColor = colors.primaryInk
                 alpha = if (enabled) 1f else DISABLED_ALPHA
             }
-            .background(Brush.verticalGradient(listOf(lerp(LEATHER_HIGH, LEATHER_LOW, depth), LEATHER_LOW)), KEY_SHAPE)
+            // Read while drawing, so the press animates the leather without recomposing the button.
+            .drawBehind { drawOutline(KEY_SHAPE.createOutline(size, layoutDirection, this), Brush.verticalGradient(listOf(lerp(LEATHER_HIGH, LEATHER_LOW, depth), LEATHER_LOW))) }
             .border(if (focused) 3.dp else 2.dp, if (focused) colors.primaryInk else colors.brass, KEY_SHAPE)
             .clip(KEY_SHAPE)
             .clickable(interactionSource = interaction, indication = null, enabled = enabled, role = Role.Button) { tapFeel(); onClick() }
