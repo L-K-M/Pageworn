@@ -47,6 +47,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import ch.lkmc.pageworn.ui.model.Copy
 import ch.lkmc.pageworn.ui.model.Format
@@ -213,18 +214,21 @@ private fun Scrubber(look: ScrubberLook, scrub: ScrubState, positionMs: Long, sc
 
 /**
  * Cuts each notch through the filled bar, so the paper shows, and pencils it on the unfilled
- * rest in [mark]. Edges fall on whole pixels, so every notch is as crisp as the next.
+ * rest in [mark]. Edges fall on whole pixels, so every notch is as crisp as the next. Like the
+ * slider's fill, the bar starts at its right end in a right-to-left layout.
  */
 private fun Modifier.notched(notchesMs: List<Long>, scale: LongRange, filledFraction: Float, mark: Color): Modifier =
     graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen).drawWithContent {
         drawContent()
         val width = NOTCH_WIDTH.toPx().roundToInt().coerceAtLeast(1).toFloat()
         val filledTo = size.width * filledFraction
+        val rightToLeft = layoutDirection == LayoutDirection.Rtl
         for (notch in notchesMs) {
-            val x = notchX(notch, scale, size.width)
+            val along = notchX(notch, scale, size.width)
+            val x = if (rightToLeft) size.width - along else along
             val topLeft = Offset((x - width / 2).roundToInt().toFloat(), 0f)
             val notchSize = Size(width, size.height)
-            if (x <= filledTo) drawRect(Color.Black, topLeft, notchSize, blendMode = BlendMode.Clear)
+            if (along <= filledTo) drawRect(Color.Black, topLeft, notchSize, blendMode = BlendMode.Clear)
             else drawRect(mark, topLeft, notchSize)
         }
     }

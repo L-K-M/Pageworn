@@ -11,12 +11,14 @@ import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.core.timeline.BookTimeline
@@ -51,7 +53,19 @@ class BookBarNotchesTest {
     @GraphicsMode(GraphicsMode.Mode.NATIVE)
     fun chapterStartsAreCutIntoTheFilledBarAndMarkedOnTheRest() {
         show(chapters(), positionMs = 40 * MINUTE)
+        assertNotched(rightToLeft = false)
+    }
 
+    @Test
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun aRightToLeftBarIsNotchedFromItsRightEnd() {
+        // The slider fills from the right in a right-to-left layout, and the notches follow it.
+        show(chapters(), positionMs = 40 * MINUTE, direction = LayoutDirection.Rtl)
+        assertNotched(rightToLeft = true)
+    }
+
+    /** The bar of [chapters] at 40 minutes, filled from its left end or from its right. */
+    private fun assertNotched(rightToLeft: Boolean) {
         val bar = compose.onNode(bookBar()).captureToImage().toPixelMap()
         val y = bar.height / 2
         // The bar's round ends reach its centre line, so the first and last inked pixels on that
@@ -60,7 +74,7 @@ class BookBarNotchesTest {
         val inked = (0 until bar.width).filter { kotlin.math.abs(bar[it, y].luminance() - paper) > PLAIN }
         val start = inked.first().toFloat()
         val length = (inked.last() - inked.first()).toFloat()
-        fun at(fraction: Float) = bar[(start + length * fraction).toInt(), y]
+        fun at(fraction: Float) = bar[(start + length * (if (rightToLeft) 1f - fraction else fraction)).toInt(), y]
         val aside = with(compose.density) { NOTCH_ASIDE.toPx() } / length
 
         // Behind the thumb at 40 minutes, the notch at 25 is a cut: the paper shows through the ink.
@@ -119,9 +133,9 @@ class BookBarNotchesTest {
         return PlayerStates.player(plan, null, null, LivePlayback())
     }
 
-    private fun show(state: PlayerUiState, positionMs: Long = state.positionMs) {
+    private fun show(state: PlayerUiState, positionMs: Long = state.positionMs, direction: LayoutDirection = LayoutDirection.Ltr) {
         compose.setContent {
-            CompositionLocalProvider(LocalHapticFeedback provides haptics) {
+            CompositionLocalProvider(LocalHapticFeedback provides haptics, LocalLayoutDirection provides direction) {
                 PagewornTheme {
                     Box(Modifier.background(PagewornTheme.colors.paper).padding(horizontal = 20.dp)) {
                         PlayerScrubbers(state.copy(positionMs = positionMs), onSeekTo = {})
