@@ -26,6 +26,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Constraints
@@ -63,9 +64,12 @@ fun TextAction(label: String, spokenLabel: String? = null, modifier: Modifier = 
     val visible = if (spokenLabel == null) Modifier else Modifier.clearAndSetSemantics {}
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
+    val tapFeel = rememberTapFeel(TapFeel.LIGHT)
     Box(
         modifier.heightIn(min = 48.dp).widthIn(min = 48.dp)
-            .clickable(interactionSource = interaction, role = Role.Button, onClick = onClick)
+            // The press washes the same rounded patch the focus ring outlines.
+            .clip(FOCUS_SHAPE)
+            .clickable(interactionSource = interaction, role = Role.Button) { tapFeel(); onClick() }
             .then(if (focused) Modifier.border(2.dp, PagewornTheme.colors.primaryInk, FOCUS_SHAPE) else Modifier)
             .then(spoken).padding(horizontal = TEXT_ACTION_INSET),
         contentAlignment = Alignment.Center,
