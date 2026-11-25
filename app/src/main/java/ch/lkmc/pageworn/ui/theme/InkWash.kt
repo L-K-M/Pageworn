@@ -16,8 +16,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.node.DelegatableNode
 import androidx.compose.ui.node.DrawModifierNode
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 /**
@@ -39,12 +39,21 @@ private class InkWashNode(private val interactionSource: InteractionSource, priv
 
     override fun onAttach() {
         coroutineScope.launch {
-            interactionSource.interactions.collectLatest {
+            // Only the next press or release replaces a press's change; focus and hover arriving
+            // while a released press is still shown must not leave the wash on.
+            var change: Job? = null
+            interactionSource.interactions.collect {
                 when (it) {
-                    is PressInteraction.Press -> press.snapTo(1f)
+                    is PressInteraction.Press -> {
+                        change?.cancel()
+                        change = launch { press.snapTo(1f) }
+                    }
                     is PressInteraction.Release, is PressInteraction.Cancel -> {
-                        delay(MIN_PRESS_VISIBLE_MS)
-                        press.animateTo(0f, tween(WASH_FADE_MS))
+                        change?.cancel()
+                        change = launch {
+                            delay(MIN_PRESS_VISIBLE_MS)
+                            press.animateTo(0f, tween(WASH_FADE_MS))
+                        }
                     }
                     is FocusInteraction.Focus -> focused = true
                     is FocusInteraction.Unfocus -> focused = false

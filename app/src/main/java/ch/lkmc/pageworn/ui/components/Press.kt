@@ -12,7 +12,8 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import ch.lkmc.pageworn.ui.theme.MIN_PRESS_VISIBLE_MS
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 
 /**
  * How firmly a control answers a tap it takes. Android plays the haptic only while the phone's
@@ -36,18 +37,26 @@ fun rememberTapFeel(feel: TapFeel): () -> Unit {
 /**
  * Whether a control is drawn pressed. A quick tap presses and releases within one frame, and one
  * in a scrolling list is only reported once the finger has left, so a press stays visible for a
- * moment after the release.
+ * moment after the release. Only the next press cuts that moment short: focus and hover changes
+ * share the interaction stream and must not keep the control down.
  */
 @Composable
 fun rememberVisiblePress(interaction: InteractionSource): Boolean {
     var pressed by remember { mutableStateOf(false) }
     LaunchedEffect(interaction) {
-        interaction.interactions.collectLatest {
+        var release: Job? = null
+        interaction.interactions.collect {
             when (it) {
-                is PressInteraction.Press -> pressed = true
+                is PressInteraction.Press -> {
+                    release?.cancel()
+                    pressed = true
+                }
                 is PressInteraction.Release, is PressInteraction.Cancel -> {
-                    delay(MIN_PRESS_VISIBLE_MS)
-                    pressed = false
+                    release?.cancel()
+                    release = launch {
+                        delay(MIN_PRESS_VISIBLE_MS)
+                        pressed = false
+                    }
                 }
             }
         }

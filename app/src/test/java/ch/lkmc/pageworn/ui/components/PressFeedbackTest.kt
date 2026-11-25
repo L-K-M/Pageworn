@@ -1,12 +1,19 @@
 package ch.lkmc.pageworn.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.FocusInteraction
+import androidx.compose.foundation.interaction.HoverInteraction
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.hapticfeedback.HapticFeedback
@@ -25,9 +32,11 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.unit.dp
 import ch.lkmc.pageworn.ui.model.Copy
 import ch.lkmc.pageworn.ui.model.KeyAction
+import ch.lkmc.pageworn.ui.theme.InkWash
 import ch.lkmc.pageworn.ui.theme.PagewornTheme
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
+import kotlinx.coroutines.runBlocking
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -162,6 +171,50 @@ class PressFeedbackTest {
 
         compose.mainClock.advanceTimeBy(SETTLE_MS)
         assertWithMessage("faded").that(action.meanLuminance()).isWithin(RESTORED).of(resting)
+    }
+
+    @Test
+    fun aPressEndsEvenWhenFocusOrHoverArrivesWhileItIsHeld() {
+        // A click that moves focus, or a pointer leaving at once, reports a focus or hover change
+        // during the moment a released press stays drawn; the press must still end.
+        val source = MutableInteractionSource()
+        var pressed: Boolean? = null
+        compose.setContent { pressed = rememberVisiblePress(source) }
+        compose.mainClock.autoAdvance = false
+        val press = PressInteraction.Press(Offset.Zero)
+
+        runBlocking {
+            source.emit(press)
+            compose.mainClock.advanceTimeByFrame()
+            source.emit(PressInteraction.Release(press))
+            source.emit(FocusInteraction.Focus())
+        }
+        compose.mainClock.advanceTimeBy(SETTLE_MS)
+
+        assertThat(pressed).isFalse()
+    }
+
+    @Test
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun theInkWashFadesEvenWhenHoverChangesWhileItIsHeld() {
+        val source = MutableInteractionSource()
+        show { Box(Modifier.size(48.dp).semantics { contentDescription = "patch" }.indication(source, InkWash(PagewornTheme.colors.primaryInk))) }
+        val patch = compose.onNodeWithContentDescription("patch")
+        val resting = patch.meanLuminance()
+        compose.mainClock.autoAdvance = false
+        val press = PressInteraction.Press(Offset.Zero)
+        val hover = HoverInteraction.Enter()
+
+        runBlocking {
+            source.emit(press)
+            compose.mainClock.advanceTimeByFrame()
+            source.emit(PressInteraction.Release(press))
+            source.emit(hover)
+            source.emit(HoverInteraction.Exit(hover))
+        }
+        compose.mainClock.advanceTimeBy(SETTLE_MS)
+
+        assertWithMessage("faded").that(patch.meanLuminance()).isWithin(RESTORED).of(resting)
     }
 
     private fun show(content: @Composable () -> Unit) {
