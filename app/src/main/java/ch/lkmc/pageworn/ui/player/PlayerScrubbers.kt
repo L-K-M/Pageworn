@@ -1,5 +1,6 @@
 package ch.lkmc.pageworn.ui.player
 
+import android.os.SystemClock
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -22,11 +23,23 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
@@ -34,11 +47,14 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import ch.lkmc.pageworn.ui.model.Copy
 import ch.lkmc.pageworn.ui.model.Format
 import ch.lkmc.pageworn.ui.model.PlayerUiState
+import ch.lkmc.pageworn.ui.theme.LocalHighContrast
 import ch.lkmc.pageworn.ui.theme.PagewornTheme
+import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 
 /**
@@ -58,6 +74,8 @@ internal fun PlayerScrubbers(state: PlayerUiState, onSeekTo: (Long) -> Unit, mod
     val bookPosition = book.target?.positionMs ?: state.positionMs
     val elapsed = Format.clock(segmentPosition - segmentScale.first)
     val bookLine = book.target?.let { Format.bookLine(it.positionMs, state.bookDurationMs) } ?: state.bookLine
+    // The segment list is the timeline's own and outlives the live ticks, so this runs once a book.
+    val boundaries = remember(state.division, state.segments) { chapterBoundaries(state.division, state.segments) }
 
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         Scrubber(
@@ -74,7 +92,7 @@ internal fun PlayerScrubbers(state: PlayerUiState, onSeekTo: (Long) -> Unit, mod
                 color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.time,
             )
         }
-        Scrubber(ScrubberLook.BOOK, book, bookPosition, bookScale, state, name = "Book position", value = bookLine, onSeekTo = onSeekTo)
+        Scrubber(ScrubberLook.BOOK, book, bookPosition, bookScale, state, name = "Book position", value = bookLine, onSeekTo = onSeekTo, boundariesMs = boundaries)
         Text(bookLine, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.time, textAlign = TextAlign.Center)
     }
 }
@@ -93,11 +111,14 @@ private class ScrubState {
         private set
     private var dragging by mutableStateOf(false)
 
-    fun move(scale: LongRange, fraction: Float) {
+    /** Holds [fraction] of the scale; returns where the same drag held the thumb before, or null when this starts one. */
+    fun move(scale: LongRange, fraction: Float): Long? {
         // Playback can enter the next segment under the finger; the drag keeps the scale it began on.
-        val held = target?.takeIf { dragging }?.scale ?: scale
+        val previous = target?.takeIf { dragging }
+        val held = previous?.scale ?: scale
         dragging = true
         target = ScrubTarget(held, held.first + ((held.last - held.first).toDouble() * fraction).toLong())
+        return previous?.positionMs
     }
 
     fun drop(): Long? {
@@ -119,9 +140,13 @@ private class ScrubState {
     }
 }
 
+/**
+ * One scale. [boundariesMs] are notched into its bar: a cut through the filled part, a pencilled
+ * mark on the rest. A drag ticks under the finger as it reaches one of them.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun Scrubber(look: ScrubberLook, scrub: ScrubState, positionMs: Long, scale: LongRange, player: PlayerUiState, name: String, value: String, onSeekTo: (Long) -> Unit) {
+private fun Scrubber(look: ScrubberLook, scrub: ScrubState, positionMs: Long, scale: LongRange, player: PlayerUiState, name: String, value: String, onSeekTo: (Long) -> Unit, boundariesMs: List<Long> = emptyList()) {
     val length = scale.last - scale.first
     val fraction = if (length > 0) ((positionMs - scale.first).toDouble() / length).toFloat().coerceIn(0f, 1f) else 0f
     val enabled = player.transportEnabled && length > 0
@@ -135,9 +160,24 @@ private fun Scrubber(look: ScrubberLook, scrub: ScrubState, positionMs: Long, sc
         disabledActiveTrackColor = filled,
         disabledInactiveTrackColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = DISABLED_ALPHA),
     )
+    val density = LocalDensity.current
+    var trackWidthPx by remember { mutableFloatStateOf(0f) }
+    val notches = remember(boundariesMs, scale, trackWidthPx, density) {
+        with(density) { visibleNotches(boundariesMs, scale, trackWidthPx, look.trackHeight.toPx(), NOTCH_SPACING.toPx()) }
+    }
+    val markAlpha = (if (LocalHighContrast.current) 1f else NOTCH_MARK_ALPHA) * (if (enabled) 1f else DISABLED_ALPHA)
+    val mark = PagewornTheme.colors.secondaryInk.copy(alpha = markAlpha)
+    val haptic = LocalHapticFeedback.current
+    val ticks = remember { NotchTicks() }
     Slider(
         value = fraction,
-        onValueChange = { scrub.move(scale, it) },
+        onValueChange = {
+            val from = scrub.move(scale, it)
+            val to = scrub.target?.positionMs
+            if (from != null && to != null && crossesNotch(notches, from, to) && ticks.take(SystemClock.uptimeMillis())) {
+                haptic.performHapticFeedback(HapticFeedbackType.SegmentTick)
+            }
+        },
         onValueChangeFinished = { scrub.drop()?.let(onSeekTo) },
         enabled = enabled,
         interactionSource = interaction,
@@ -158,16 +198,47 @@ private fun Scrubber(look: ScrubberLook, scrub: ScrubState, positionMs: Long, sc
             }
         },
         track = {
+            // The slider lays the bar out between the thumb's two end positions, so a fraction of
+            // the bar's own width is where the thumb's centre stands at that fraction of the scale.
             SliderDefaults.Track(
-                it, Modifier.height(look.trackHeight), enabled = enabled, colors = colors,
+                it,
+                Modifier.height(look.trackHeight)
+                    .onSizeChanged { size -> trackWidthPx = size.width.toFloat() }
+                    .then(if (notches.isEmpty()) Modifier else Modifier.notched(notches, scale, fraction, mark)),
+                enabled = enabled, colors = colors,
                 drawStopIndicator = null, thumbTrackGapSize = 0.dp, trackInsideCornerSize = 0.dp,
             )
         },
     )
 }
 
+/**
+ * Cuts each notch through the filled bar, so the paper shows, and pencils it on the unfilled
+ * rest in [mark]. Edges fall on whole pixels, so every notch is as crisp as the next. Like the
+ * slider's fill, the bar starts at its right end in a right-to-left layout.
+ */
+private fun Modifier.notched(notchesMs: List<Long>, scale: LongRange, filledFraction: Float, mark: Color): Modifier =
+    graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen).drawWithContent {
+        drawContent()
+        val width = NOTCH_WIDTH.toPx().roundToInt().coerceAtLeast(1).toFloat()
+        val filledTo = size.width * filledFraction
+        val rightToLeft = layoutDirection == LayoutDirection.Rtl
+        for (notch in notchesMs) {
+            val along = notchX(notch, scale, size.width)
+            val x = if (rightToLeft) size.width - along else along
+            val topLeft = Offset((x - width / 2).roundToInt().toFloat(), 0f)
+            val notchSize = Size(width, size.height)
+            if (along <= filledTo) drawRect(Color.Black, topLeft, notchSize, blendMode = BlendMode.Clear)
+            else drawRect(mark, topLeft, notchSize)
+        }
+    }
+
 private val SCRUBBER_TARGET = 48.dp
 private val FOCUS_RING = 10.dp
+private val NOTCH_WIDTH = 2.dp
+/** The closest two notches may stand: closer boundaries share the first one's notch. */
+private val NOTCH_SPACING = 6.dp
+private const val NOTCH_MARK_ALPHA = 0.7f
 private const val DISABLED_ALPHA = 0.45f
 private const val RELEASE_HOLD_MS = 1_000L
 private const val BACK_MS = 15_000L

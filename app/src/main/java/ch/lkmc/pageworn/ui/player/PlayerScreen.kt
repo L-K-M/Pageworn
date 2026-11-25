@@ -53,12 +53,15 @@ import ch.lkmc.pageworn.core.timeline.Segment
 import ch.lkmc.pageworn.ui.components.BookCover
 import ch.lkmc.pageworn.ui.components.PaperRule
 import ch.lkmc.pageworn.ui.components.PaperSheet
+import ch.lkmc.pageworn.ui.components.PencilButton
 import ch.lkmc.pageworn.ui.components.PencilIcon
 import ch.lkmc.pageworn.ui.components.PlayPauseKey
 import ch.lkmc.pageworn.ui.components.RadioRow
 import ch.lkmc.pageworn.ui.components.SkipKey
+import ch.lkmc.pageworn.ui.components.TapFeel
 import ch.lkmc.pageworn.ui.components.TextAction
 import ch.lkmc.pageworn.ui.components.paperBackground
+import ch.lkmc.pageworn.ui.components.rememberTapFeel
 import ch.lkmc.pageworn.ui.model.Copy
 import ch.lkmc.pageworn.ui.model.Format
 import ch.lkmc.pageworn.ui.model.KeyAction
@@ -91,7 +94,7 @@ fun PlayerScreen(state: PlayerUiState, onCollapse: () -> Unit, onPlayPause: (Key
         val skipWidth = if (narrow) 66.dp else 80.dp
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).heightIn(min = maxHeight).padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
-                androidx.compose.material3.IconButton(onClick = onCollapse, modifier = Modifier.heightIn(min = 48.dp)) { PencilIcon(R.drawable.pw_pencil_collapse, "Collapse player", 24.dp) }
+                PencilButton(onClick = onCollapse) { PencilIcon(R.drawable.pw_pencil_collapse, "Collapse player", 24.dp) }
             }
             BookCover(state.face, coverSize, showRibbon = state.hasPlace)
             Text(state.face.title, Modifier.padding(top = if (short) 10.dp else 16.dp).semantics { heading() }, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.playerTitle, textAlign = TextAlign.Center)
@@ -143,7 +146,8 @@ fun PlayerScreen(state: PlayerUiState, onCollapse: () -> Unit, onPlayPause: (Key
 
 @Composable
 private fun Utility(label: String, description: String, target: String? = null, onClick: () -> Unit, icon: @Composable () -> Unit) {
-    Column(Modifier.heightIn(min = 60.dp).widthIn(min = 48.dp).clip(UTILITY_SHAPE).clickable(role = Role.Button, onClick = onClick).semantics { contentDescription = description }.padding(horizontal = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+    val tapFeel = rememberTapFeel(TapFeel.LIGHT)
+    Column(Modifier.heightIn(min = 60.dp).widthIn(min = 48.dp).clip(UTILITY_SHAPE).clickable(role = Role.Button) { tapFeel(); onClick() }.semantics { contentDescription = description }.padding(horizontal = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         icon()
         Text(label, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.ribbonLabel)
         // Tabular figures keep a ticking countdown from shifting the row every second.

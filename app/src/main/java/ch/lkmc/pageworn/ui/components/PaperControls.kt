@@ -1,11 +1,13 @@
 package ch.lkmc.pageworn.ui.components
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -40,12 +43,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -53,8 +59,10 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp
 import ch.lkmc.pageworn.R
 import ch.lkmc.pageworn.ui.theme.LocalHighContrast
+import ch.lkmc.pageworn.ui.theme.LocalReducedMotion
 import ch.lkmc.pageworn.ui.theme.PagewornTheme
 
 /** A page behind the bookmarks: a pencilled way back, its heading, and content that scrolls. */
@@ -75,8 +83,9 @@ fun PaperScreen(title: String, onBack: (() -> Unit)?, content: @Composable Colum
 
 @Composable
 fun BackAction(onBack: () -> Unit) {
+    val tapFeel = rememberTapFeel(TapFeel.LIGHT)
     Row(
-        Modifier.padding(start = 8.dp, top = 4.dp).heightIn(min = 48.dp).clip(CONTROL_SHAPE).clickable(role = Role.Button, onClick = onBack).padding(horizontal = 10.dp),
+        Modifier.padding(start = 8.dp, top = 4.dp).heightIn(min = 48.dp).clip(CONTROL_SHAPE).clickable(role = Role.Button) { tapFeel(); onBack() }.padding(horizontal = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
@@ -141,21 +150,35 @@ fun DisclosureRow(label: String, detail: String? = null, expanded: Boolean? = nu
     }
 }
 
-/** The main action of a screen, made like the Play key: oxblood leather in a brass rim. */
+/**
+ * The main action of a screen, made like the Play key: oxblood leather in a brass rim. A press
+ * sinks it, loses the light on its upper half and tightens its shadow, held for a moment after a
+ * quick tap as the keys' presses are, and a tap it takes clicks as a key does.
+ */
 @Composable
 fun PaperButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
     val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
+    val pressed = rememberVisiblePress(interaction)
     val focused by interaction.collectIsFocusedAsState()
+    val reduced = LocalReducedMotion.current
+    val tapFeel = rememberTapFeel(TapFeel.KEY)
+    val depth by animateFloatAsState(if (pressed) 1f else 0f, if (reduced) snap() else tween(if (pressed) PRESS_DOWN_MS else PRESS_UP_MS), label = "button depth")
     val colors = PagewornTheme.colors
     Box(
         modifier.heightIn(min = 48.dp).widthIn(min = 128.dp)
-            .alpha(if (enabled) 1f else DISABLED_ALPHA)
-            .shadow(if (pressed || !enabled) 0.dp else 3.dp, KEY_SHAPE)
-            .background(Brush.verticalGradient(if (pressed) listOf(LEATHER_LOW, LEATHER_LOW) else listOf(LEATHER_HIGH, LEATHER_LOW)), KEY_SHAPE)
+            .graphicsLayer {
+                translationY = if (reduced) 0f else BUTTON_SINK.toPx() * depth
+                shadowElevation = if (enabled) lerp(BUTTON_LIFT, BUTTON_PRESSED_LIFT, depth).toPx() else 0f
+                shape = KEY_SHAPE
+                ambientShadowColor = colors.primaryInk
+                spotShadowColor = colors.primaryInk
+                alpha = if (enabled) 1f else DISABLED_ALPHA
+            }
+            // Read while drawing, so the press animates the leather without recomposing the button.
+            .drawBehind { drawOutline(KEY_SHAPE.createOutline(size, layoutDirection, this), Brush.verticalGradient(listOf(lerp(LEATHER_HIGH, LEATHER_LOW, depth), LEATHER_LOW))) }
             .border(if (focused) 3.dp else 2.dp, if (focused) colors.primaryInk else colors.brass, KEY_SHAPE)
             .clip(KEY_SHAPE)
-            .clickable(interactionSource = interaction, indication = null, enabled = enabled, role = Role.Button, onClick = onClick)
+            .clickable(interactionSource = interaction, indication = null, enabled = enabled, role = Role.Button) { tapFeel(); onClick() }
             .padding(horizontal = 22.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -248,6 +271,16 @@ fun PaperSheet(title: String, state: SheetState, onDismiss: () -> Unit, content:
     }
 }
 
+/**
+ * A pencil mark that acts, such as Settings or the player's collapse mark, in a round 48 dp target:
+ * the paper's wash while pressed and a light tick when tapped.
+ */
+@Composable
+fun PencilButton(onClick: () -> Unit, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    val tapFeel = rememberTapFeel(TapFeel.LIGHT)
+    Box(modifier.size(48.dp).clip(CircleShape).clickable(role = Role.Button) { tapFeel(); onClick() }, contentAlignment = Alignment.Center) { content() }
+}
+
 private val CONTROL_SHAPE = RoundedCornerShape(10.dp)
 private val CARD_SHAPE = RoundedCornerShape(14.dp)
 private val KEY_SHAPE = RoundedCornerShape(percent = 50)
@@ -259,3 +292,8 @@ private const val QUARTER_TURN = 90f
 private const val RULE_ALPHA = 0.28f
 private const val CARD_EDGE_ALPHA = 0.18f
 private const val DISABLED_ALPHA = 0.45f
+private val BUTTON_SINK = 1.dp
+private val BUTTON_LIFT = 3.dp
+private val BUTTON_PRESSED_LIFT = 0.5.dp
+private const val PRESS_DOWN_MS = 40
+private const val PRESS_UP_MS = 140

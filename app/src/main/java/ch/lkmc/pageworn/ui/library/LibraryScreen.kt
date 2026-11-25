@@ -30,7 +30,6 @@ import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -55,6 +54,7 @@ import ch.lkmc.pageworn.catalog.CatalogSort
 import ch.lkmc.pageworn.core.BookKey
 import ch.lkmc.pageworn.ui.components.BookCover
 import ch.lkmc.pageworn.ui.components.EmptyStateView
+import ch.lkmc.pageworn.ui.components.PencilButton
 import ch.lkmc.pageworn.ui.components.PencilIcon
 import ch.lkmc.pageworn.ui.components.PlayPauseKey
 import ch.lkmc.pageworn.ui.components.ROW_COVER
@@ -146,7 +146,7 @@ private fun CatalogBookRow(row: CatalogRow, onOpenBook: (BookKey) -> Unit, onDow
 @Composable
 private fun CatalogActionView(row: CatalogRow, onDownload: (BookKey) -> Unit, onPlayPause: (BookKey, KeyAction) -> Unit, onPauseTransfer: (String) -> Unit, onResumeTransfer: (String) -> Unit) {
     when (val action = row.action) {
-        CatalogAction.Download -> IconButton(onClick = { onDownload(row.face.key) }, modifier = Modifier.size(48.dp)) { PencilIcon(R.drawable.pw_pencil_download, "Download ${row.face.title}", 26.dp) }
+        CatalogAction.Download -> PencilButton(onClick = { onDownload(row.face.key) }) { PencilIcon(R.drawable.pw_pencil_download, "Download ${row.face.title}", 26.dp) }
         is CatalogAction.Ready -> PlayPauseKey(action.showsPause, row.face.title, ROW_KEY, starting = action.starting, start = action.start) { onPlayPause(row.face.key, it) }
         is CatalogAction.Transferring -> {
             val t = action.transfer
@@ -194,7 +194,7 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
                     if (query.isEmpty()) Text(SEARCH_HINT, color = colors.secondaryInk, style = PagewornTheme.type.empty)
                     field()
                 }
-                if (query.isNotEmpty()) IconButton(onClick = { onQueryChange("") }, modifier = Modifier.size(48.dp)) {
+                if (query.isNotEmpty()) PencilButton(onClick = { onQueryChange("") }) {
                     Text("×", Modifier.semantics { contentDescription = "Clear search" }, color = colors.primaryInk, style = PagewornTheme.type.sheetTitle)
                 }
             }

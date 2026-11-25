@@ -3,6 +3,7 @@ package ch.lkmc.pageworn.ui.theme
 import android.content.Context
 import android.provider.Settings
 import android.view.accessibility.AccessibilityManager
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -120,7 +121,10 @@ fun PagewornTheme(content: @Composable () -> Unit) {
         outline = colors.secondaryInk, outlineVariant = track,
     )
     CompositionLocalProvider(LocalColors provides colors, LocalType provides typography, LocalReducedMotion provides reducedMotion, LocalHighContrast provides highContrast) {
-        MaterialTheme(colorScheme = scheme, content = content)
+        MaterialTheme(colorScheme = scheme) {
+            // Inside MaterialTheme, which provides its ripple as the default indication.
+            CompositionLocalProvider(LocalIndication provides InkWash(colors.primaryInk), content = content)
+        }
     }
 }
 

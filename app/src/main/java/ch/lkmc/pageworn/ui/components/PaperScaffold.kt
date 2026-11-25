@@ -191,7 +191,7 @@ fun MainScaffold(destination: Destination, onSelectDestination: (Destination) ->
 fun SectionHeader(title: String, onOpenSettings: () -> Unit) {
     Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(title, Modifier.weight(1f).semantics { heading() }, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.heading)
-        androidx.compose.material3.IconButton(onClick = onOpenSettings, modifier = Modifier.size(48.dp)) {
+        PencilButton(onClick = onOpenSettings) {
             PencilIcon(R.drawable.pw_pencil_settings, "Settings", 24.dp)
         }
     }
