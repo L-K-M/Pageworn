@@ -8,7 +8,9 @@ import ch.lkmc.pageworn.R
 /** Short foreground cues mixed by Android as sonification, without requesting audio focus. */
 internal class UiSounds(context: Context, private val enabled: () -> Boolean) {
     private val pool = SoundPool.Builder()
-        .setMaxStreams(1)
+        // A finished clip can still occupy its stream while Android drains the output.
+        // Leave room for nearby taps and for reusing a track for each cue.
+        .setMaxStreams(4)
         .setAudioAttributes(
             AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
@@ -42,6 +44,6 @@ internal class UiSounds(context: Context, private val enabled: () -> Boolean) {
     }
 
     private companion object {
-        const val VOLUME = 0.22f
+        const val VOLUME = 0.65f
     }
 }
