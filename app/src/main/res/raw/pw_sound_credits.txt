@@ -4,5 +4,6 @@ https://kenney.nl/assets/interface-sounds
 Creative Commons Zero 1.0 Universal (CC0-1.0)
 https://creativecommons.org/publicdomain/zero/1.0/
 
-click_001.ogg is bundled as pw_key_click.ogg.
-tick_001.ogg is bundled as pw_light_tick.ogg.
+click_001.ogg and tick_001.ogg were trimmed and resampled to 48 kHz
+for pw_key_click.wav and pw_light_tick.wav. The tick's peak was reduced
+slightly to leave room for resampling.
