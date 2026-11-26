@@ -1,6 +1,5 @@
 package ch.lkmc.pageworn.ui.player
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,7 +23,7 @@ import androidx.compose.ui.unit.dp
 import ch.lkmc.pageworn.ui.components.BookCover
 import ch.lkmc.pageworn.ui.components.PlayPauseKey
 import ch.lkmc.pageworn.ui.components.ROW_KEY
-import ch.lkmc.pageworn.ui.components.rememberTapSound
+import ch.lkmc.pageworn.ui.components.feedbackClickable
 import ch.lkmc.pageworn.ui.model.KeyAction
 import ch.lkmc.pageworn.ui.model.MiniPlayerUi
 import ch.lkmc.pageworn.ui.theme.PagewornTheme
@@ -34,13 +33,12 @@ fun MiniPlayer(state: MiniPlayerUi, onOpen: () -> Unit, onPlayPause: (KeyAction)
     // One line each for title and chapter, so that the list keeps the screen. At large text the cover
     // gives its width to the words.
     val showsCover = LocalDensity.current.fontScale < 1.5f
-    val sound = rememberTapSound()
     Column(Modifier.fillMaxWidth().background(PagewornTheme.colors.raisedSheet)) {
         HorizontalDivider(color = PagewornTheme.colors.secondaryInk.copy(alpha = .25f))
         Row(Modifier.fillMaxWidth().heightIn(min = 60.dp).padding(start = 20.dp, end = 14.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(
                 Modifier.weight(1f).heightIn(min = 48.dp)
-                    .clickable(role = Role.Button) { sound(); onOpen() }
+                    .feedbackClickable(Role.Button) { onOpen() }
                     .semantics { contentDescription = "Open player, ${state.face.title}" },
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),

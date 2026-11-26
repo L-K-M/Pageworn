@@ -1,5 +1,6 @@
 package ch.lkmc.pageworn.ui.components
 
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.FocusInteraction
@@ -7,8 +8,12 @@ import androidx.compose.foundation.interaction.HoverInteraction
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -19,6 +24,8 @@ import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalSoundEffect
+import androidx.compose.ui.platform.SoundEffect
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.test.SemanticsNodeInteraction
@@ -57,6 +64,7 @@ class PressFeedbackTest {
 
     private val haptics = RecordingHaptics()
     private val sounds = mutableListOf<TapFeel>()
+    private val platformSound = RecordingPlatformSound()
 
     @Test
     fun aKeyClicksOnceForEachTapItTakes() {
@@ -69,6 +77,90 @@ class PressFeedbackTest {
         assertThat(skips).isEqualTo(2)
         assertThat(haptics.played).containsExactly(HapticFeedbackType.VirtualKey, HapticFeedbackType.VirtualKey)
         assertThat(sounds).containsExactly(TapFeel.KEY, TapFeel.KEY)
+    }
+
+    @Test
+    fun aQuickTouchClicksOnDownAndActsOnUp() {
+        var skips = 0
+        show { SkipKey(back = false, width = 80.dp, onClick = { skips++ }) }
+        val key = compose.onNodeWithContentDescription(Copy.FORWARD_30)
+
+        key.performTouchInput { down(center) }
+        assertThat(haptics.played).containsExactly(HapticFeedbackType.VirtualKey)
+        assertThat(sounds).containsExactly(TapFeel.KEY)
+        assertThat(skips).isEqualTo(0)
+
+        key.performTouchInput { up() }
+        assertThat(haptics.played).hasSize(1)
+        assertThat(sounds).hasSize(1)
+        assertThat(skips).isEqualTo(1)
+        assertThat(platformSound.clicks).isEqualTo(0)
+    }
+
+    @Test
+    fun aHeldButtonAnswersReleaseWithALighterCue() {
+        var taps = 0
+        show { PaperButton("Connect", onClick = { taps++ }) }
+        val button = compose.onNodeWithText("Connect")
+
+        button.performTouchInput { down(center) }
+        assertThat(haptics.played).containsExactly(HapticFeedbackType.VirtualKey)
+        assertThat(sounds).containsExactly(TapFeel.KEY)
+        assertThat(taps).isEqualTo(0)
+
+        button.performTouchInput {
+            advanceEventTime(HOLD_MS)
+            up()
+        }
+        assertThat(haptics.played).containsExactly(HapticFeedbackType.VirtualKey, HapticFeedbackType.ContextClick).inOrder()
+        assertThat(sounds).containsExactly(TapFeel.KEY, TapFeel.LIGHT).inOrder()
+        assertThat(taps).isEqualTo(1)
+    }
+
+    @Test
+    fun cancellingAHeldPressDoesNotGiveAReleaseCueOrActivate() {
+        var taps = 0
+        show { TextAction(Copy.DISMISS) { taps++ } }
+        val action = compose.onNodeWithText(Copy.DISMISS)
+
+        action.performTouchInput { down(center) }
+        assertThat(haptics.played).containsExactly(HapticFeedbackType.ContextClick)
+        assertThat(sounds).containsExactly(TapFeel.LIGHT)
+
+        action.performTouchInput { cancel(HOLD_MS) }
+        assertThat(haptics.played).hasSize(1)
+        assertThat(sounds).hasSize(1)
+        assertThat(taps).isEqualTo(0)
+
+        action.performClick()
+        assertThat(sounds).hasSize(2)
+        assertThat(taps).isEqualTo(1)
+    }
+
+    @Test
+    fun draggingFromAButtonScrollsWithoutActivatingIt() {
+        var taps = 0
+        val scroll = ScrollState(0)
+        show {
+            Column(Modifier.height(180.dp).verticalScroll(scroll)) {
+                Spacer(Modifier.height(72.dp))
+                TextAction(Copy.DISMISS) { taps++ }
+                Spacer(Modifier.height(400.dp))
+            }
+        }
+        val action = compose.onNodeWithText(Copy.DISMISS)
+
+        action.performTouchInput { down(center) }
+        assertThat(sounds).containsExactly(TapFeel.LIGHT)
+
+        action.performTouchInput {
+            moveBy(Offset(0f, -100f), HOLD_MS)
+            up()
+        }
+        assertThat(scroll.value).isGreaterThan(0)
+        assertThat(sounds).containsExactly(TapFeel.LIGHT)
+        assertThat(haptics.played).containsExactly(HapticFeedbackType.ContextClick)
+        assertThat(taps).isEqualTo(0)
     }
 
     @Test
@@ -125,7 +217,7 @@ class PressFeedbackTest {
     fun typesetAndPencilledActionsTickLightly() {
         var taps = 0
         show {
-            androidx.compose.foundation.layout.Column {
+            Column {
                 TextAction(Copy.DISMISS) { taps++ }
                 PencilButton(onClick = { taps++ }) { Text("×", Modifier.semantics { contentDescription = "Clear search" }) }
                 BackAction { taps++ }
@@ -256,6 +348,7 @@ class PressFeedbackTest {
         compose.setContent {
             CompositionLocalProvider(
                 LocalHapticFeedback provides haptics,
+                LocalSoundEffect provides platformSound,
                 LocalPlayTapSound provides { sounds += it },
             ) {
                 PagewornTheme {
@@ -272,6 +365,15 @@ class PressFeedbackTest {
         return sum / (pixels.width * pixels.height)
     }
 
+    private class RecordingPlatformSound : SoundEffect {
+        var clicks = 0
+            private set
+
+        override fun playClickSound() {
+            clicks++
+        }
+    }
+
     private class RecordingHaptics : HapticFeedback {
         val played = mutableListOf<HapticFeedbackType>()
         override fun performHapticFeedback(hapticFeedbackType: HapticFeedbackType) {
@@ -282,6 +384,7 @@ class PressFeedbackTest {
     private companion object {
         /** Well inside the system's 300 ms double-tap time. */
         const val DOUBLE_TAP_GAP_MS = 120L
+        const val HOLD_MS = 250L
         /** Long enough for a press or release animation to finish. */
         const val SETTLE_MS = 600L
         /** Within the 100 ms a press stays drawn after the finger leaves. */

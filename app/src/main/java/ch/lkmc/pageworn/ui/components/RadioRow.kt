@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Text
@@ -20,10 +19,9 @@ import ch.lkmc.pageworn.ui.theme.PagewornTheme
 @Composable
 fun RadioRow(label: String, selected: Boolean, detail: String? = null, onClick: () -> Unit) {
     PaperRule()
-    val sound = rememberTapSound()
     Row(
         Modifier.fillMaxWidth().heightIn(min = 48.dp)
-            .selectable(selected = selected, role = Role.RadioButton) { sound(); onClick() }
+            .feedbackSelectable(selected, Role.RadioButton, onClick = onClick)
             .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

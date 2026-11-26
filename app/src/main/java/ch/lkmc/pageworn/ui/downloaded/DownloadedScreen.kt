@@ -1,6 +1,5 @@
 package ch.lkmc.pageworn.ui.downloaded
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -56,7 +55,7 @@ import ch.lkmc.pageworn.ui.components.StatusLineView
 import ch.lkmc.pageworn.ui.components.TextAction
 import ch.lkmc.pageworn.ui.components.TransferIndicator
 import ch.lkmc.pageworn.ui.components.TransferPauseKey
-import ch.lkmc.pageworn.ui.components.rememberTapSound
+import ch.lkmc.pageworn.ui.components.feedbackClickable
 import ch.lkmc.pageworn.ui.model.Copy
 import ch.lkmc.pageworn.ui.model.DownloadedUiState
 import ch.lkmc.pageworn.ui.model.KeyAction
@@ -164,11 +163,10 @@ fun DownloadedScreen(state: DownloadedUiState, listState: LazyGridState, onOpenB
 private fun DownloadTransferRow(row: TransferRow, onOpenBook: (BookKey) -> Unit, onPauseTransfer: (String) -> Unit, onResumeTransfer: (String) -> Unit, onRetryTransfer: (String) -> Unit, onCancelTransfer: (String) -> Unit) {
     val compact = LocalDensity.current.fontScale >= 1.5f
     val transfer = row.transfer
-    val sound = rememberTapSound()
     Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 14.dp, top = 9.dp, bottom = 9.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 14.dp)) {
             val coverSize = if (compact) ROW_COVER_LARGE_TYPE else ROW_COVER
-            Box(Modifier.width(coverSize).clickable(role = Role.Button) { sound(); onOpenBook(row.face.key) }.semantics { contentDescription = "Open ${row.face.title}" }) { BookCover(row.face, coverSize) }
+            Box(Modifier.width(coverSize).feedbackClickable(Role.Button) { onOpenBook(row.face.key) }.semantics { contentDescription = "Open ${row.face.title}" }) { BookCover(row.face, coverSize) }
             Column(Modifier.weight(1f)) {
                 Text(row.face.title, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.rowTitle)
                 row.face.author?.let { Text(it, color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.author) }
@@ -188,7 +186,6 @@ private fun DownloadTransferRow(row: TransferRow, onOpenBook: (BookKey) -> Unit,
 
 @Composable
 private fun LazyGridItemScope.DownloadedBookCell(row: ReadyBookRow, onOpenBook: (BookKey) -> Unit, onPlayPause: (BookKey, KeyAction) -> Unit) {
-    val sound = rememberTapSound()
     BoxWithConstraints(Modifier.animateItem().padding(bottom = SHELF_ROW_GAP)) {
         val cover = maxWidth
         val repair = row.badge as? ReadyBadge.RepairNeeded
@@ -200,7 +197,7 @@ private fun LazyGridItemScope.DownloadedBookCell(row: ReadyBookRow, onOpenBook: 
                     row.face, cover, showRibbon = row.hasPlace,
                     modifier = Modifier
                         .then(if (repair != null) Modifier.alpha(DAMAGED_COVER_ALPHA) else Modifier)
-                        .clickable(role = Role.Button) { sound(); onOpenBook(row.face.key) }
+                        .feedbackClickable(Role.Button) { onOpenBook(row.face.key) }
                         .semantics {
                             contentDescription = "Open ${row.face.title}"
                             stateDescription = row.spokenState()

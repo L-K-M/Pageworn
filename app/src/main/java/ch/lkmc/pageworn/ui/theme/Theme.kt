@@ -12,6 +12,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.SoundEffectOnInteraction
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -123,7 +124,10 @@ fun PagewornTheme(content: @Composable () -> Unit) {
     CompositionLocalProvider(LocalColors provides colors, LocalType provides typography, LocalReducedMotion provides reducedMotion, LocalHighContrast provides highContrast) {
         MaterialTheme(colorScheme = scheme) {
             // Inside MaterialTheme, which provides its ripple as the default indication.
-            CompositionLocalProvider(LocalIndication provides InkWash(colors.primaryInk), content = content)
+            CompositionLocalProvider(LocalIndication provides InkWash(colors.primaryInk)) {
+                // Pageworn provides its own cues and Sound effects setting.
+                SoundEffectOnInteraction(enabled = false, content = content)
+            }
         }
     }
 }

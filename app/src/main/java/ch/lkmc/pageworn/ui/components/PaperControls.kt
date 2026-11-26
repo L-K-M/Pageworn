@@ -5,7 +5,6 @@ import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -83,9 +82,8 @@ fun PaperScreen(title: String, onBack: (() -> Unit)?, content: @Composable Colum
 
 @Composable
 fun BackAction(onBack: () -> Unit) {
-    val tapFeel = rememberTapFeel(TapFeel.LIGHT)
     Row(
-        Modifier.padding(start = 8.dp, top = 4.dp).heightIn(min = 48.dp).clip(CONTROL_SHAPE).clickable(role = Role.Button) { tapFeel(); onBack() }.padding(horizontal = 10.dp),
+        Modifier.padding(start = 8.dp, top = 4.dp).heightIn(min = 48.dp).clip(CONTROL_SHAPE).feedbackClickable(Role.Button, TapFeel.LIGHT, onClick = onBack).padding(horizontal = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
@@ -133,14 +131,10 @@ fun PaperCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.()
 fun DisclosureRow(label: String, detail: String? = null, expanded: Boolean? = null, onClick: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
-    val sound = rememberTapSound()
     Row(
         Modifier.fillMaxWidth().heightIn(min = 56.dp)
             .semantics { expanded?.let { stateDescription = if (it) "Expanded" else "Collapsed" } }
-            .clickable(interactionSource = interaction, role = Role.Button) {
-                sound()
-                onClick()
-            }
+            .feedbackClickable(Role.Button, interactionSource = interaction, onClick = onClick)
             .then(if (focused) Modifier.border(2.dp, PagewornTheme.colors.primaryInk, CONTROL_SHAPE) else Modifier)
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -165,7 +159,6 @@ fun PaperButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifie
     val pressed = rememberVisiblePress(interaction)
     val focused by interaction.collectIsFocusedAsState()
     val reduced = LocalReducedMotion.current
-    val tapFeel = rememberTapFeel(TapFeel.KEY)
     val depth by animateFloatAsState(if (pressed) 1f else 0f, if (reduced) snap() else tween(if (pressed) PRESS_DOWN_MS else PRESS_UP_MS), label = "button depth")
     val colors = PagewornTheme.colors
     Box(
@@ -182,11 +175,9 @@ fun PaperButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifie
             .drawBehind { drawOutline(KEY_SHAPE.createOutline(size, layoutDirection, this), Brush.verticalGradient(listOf(lerp(LEATHER_HIGH, LEATHER_LOW, depth), LEATHER_LOW))) }
             .border(if (focused) 3.dp else 2.dp, if (focused) colors.primaryInk else colors.brass, KEY_SHAPE)
             .clip(KEY_SHAPE)
-            .clickable(interactionSource = interaction, indication = null, enabled = enabled, role = Role.Button) {
-                if (!enabled) return@clickable
-                tapFeel()
-                onClick()
-            }
+            .feedbackClickable(
+                Role.Button, TapFeel.KEY, enabled, interactionSource = interaction, indication = null, onClick = onClick,
+            )
             .padding(horizontal = 22.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -285,8 +276,7 @@ fun PaperSheet(title: String, state: SheetState, onDismiss: () -> Unit, content:
  */
 @Composable
 fun PencilButton(onClick: () -> Unit, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    val tapFeel = rememberTapFeel(TapFeel.LIGHT)
-    Box(modifier.size(48.dp).clip(CircleShape).clickable(role = Role.Button) { tapFeel(); onClick() }, contentAlignment = Alignment.Center) { content() }
+    Box(modifier.size(48.dp).clip(CircleShape).feedbackClickable(Role.Button, TapFeel.LIGHT, onClick = onClick), contentAlignment = Alignment.Center) { content() }
 }
 
 private val CONTROL_SHAPE = RoundedCornerShape(10.dp)

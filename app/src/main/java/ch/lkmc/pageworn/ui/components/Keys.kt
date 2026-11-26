@@ -10,7 +10,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Box
@@ -33,9 +32,6 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.PointerEventType
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -60,16 +56,14 @@ fun PencilIcon(resId: Int, contentDescription: String?, size: Dp = 26.dp, modifi
 /**
  * A drawn key. A press sinks the face and its inlay, shrinks them a little and shades them, and
  * the shadow they cast on the paper tightens, so the press shows around a finger that covers the
- * face. With reduced motion the key shades and its shadow tightens without moving. A tap the key
- * [takes] clicks once under the finger (docs/02-interface.md, Playback controls).
+ * face. With reduced motion the key shades and its shadow tightens without moving.
  */
 @Composable
-private fun Key(face: Int, inlay: Int?, title: String, faceWidth: Dp, faceHeight: Dp, shape: Shape, enabled: Boolean, disabledReason: String?, starting: Boolean, gestures: Modifier = Modifier, takes: () -> Boolean = { true }, onClick: () -> Unit) {
+private fun Key(face: Int, inlay: Int?, title: String, faceWidth: Dp, faceHeight: Dp, shape: Shape, enabled: Boolean, disabledReason: String?, starting: Boolean, collapseDoubleTaps: Boolean = false, onClick: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     val pressed = rememberVisiblePress(interaction)
     val focused by interaction.collectIsFocusedAsState()
     val reduced = LocalReducedMotion.current
-    val tapFeel = rememberTapFeel(TapFeel.KEY)
     // Down at once, up a little slower, as a key springs back.
     val depth by animateFloatAsState(
         if (pressed) 1f else 0f,
@@ -90,12 +84,15 @@ private fun Key(face: Int, inlay: Int?, title: String, faceWidth: Dp, faceHeight
                     stateDescription = Copy.STARTING
                 }
             }
-            .then(gestures)
-            .clickable(enabled = enabled, role = Role.Button, interactionSource = interaction, indication = null) {
-                if (!enabled || !takes()) return@clickable
-                tapFeel()
-                onClick()
-            },
+            .feedbackClickable(
+                role = Role.Button,
+                feel = TapFeel.KEY,
+                enabled = enabled,
+                interactionSource = interaction,
+                indication = null,
+                collapseDoubleTaps = collapseDoubleTaps,
+                onClick = onClick,
+            ),
         contentAlignment = Alignment.Center,
     ) {
         Box(
@@ -200,53 +197,14 @@ fun PlayPauseKey(showsPause: Boolean, title: String, size: Dp, starting: Boolean
         start == StartAction.RESUME -> "Resume"
         else -> "Play"
     }
-    val taps = remember { TapTimes() }
     Key(
         R.drawable.pw_key_oxblood,
         if (showsPause) R.drawable.pw_inlay_pause else R.drawable.pw_inlay_play,
         "$action $title", size, size, CircleShape, enabled, disabledReason, starting,
-        Modifier.pointerInput(taps) {
-            awaitPointerEventScope {
-                while (true) {
-                    val event = awaitPointerEvent(PointerEventPass.Initial)
-                    if (event.type == PointerEventType.Release) {
-                        event.changes.firstOrNull()?.let { taps.lifted(it.uptimeMillis, viewConfiguration.doubleTapTimeoutMillis) }
-                    }
-                }
-            }
-        },
-        // The second tap of a double tap is the same tap. Otherwise it would undo the first, and
-        // it does not click a second time either.
-        takes = { !taps.takeRepeat() },
+        // The second tap of a double tap would undo the first.
+        collapseDoubleTaps = true,
     ) {
         onClick(if (showsPause) KeyAction.PAUSE else KeyAction.PLAY)
-    }
-}
-
-/**
- * When the finger left the key, by the touch events' own times: while a book starts the main thread
- * can handle the second of two quick taps long after it was made.
- */
-private class TapTimes {
-    private var liftMs: Long? = null
-    private var timeoutMs = 0L
-    private var lastTapMs: Long? = null
-
-    fun lifted(atMs: Long, timeoutMs: Long) {
-        liftMs = atMs
-        this.timeoutMs = timeoutMs
-    }
-
-    /**
-     * Whether the click being handled repeats the tap before it. A click without a finger, as from
-     * TalkBack or a keyboard, never does, and neither does a touch that slid off before it lifted.
-     */
-    fun takeRepeat(): Boolean {
-        val lifted = liftMs ?: return false
-        liftMs = null
-        val repeats = lastTapMs?.let { lifted - it < timeoutMs } == true
-        lastTapMs = lifted
-        return repeats
     }
 }
 

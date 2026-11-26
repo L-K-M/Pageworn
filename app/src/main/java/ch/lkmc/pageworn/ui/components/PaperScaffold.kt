@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -102,7 +101,6 @@ fun Modifier.paperBackground(): Modifier {
 
 @Composable
 fun BindingFooter(destination: Destination, onSelect: (Destination) -> Unit, modifier: Modifier = Modifier, topPage: Color = PagewornTheme.colors.paper) {
-    val sound = rememberTapSound()
     val colors = PagewornTheme.colors
     val type = PagewornTheme.type
     val reducedMotion = LocalReducedMotion.current
@@ -125,8 +123,7 @@ fun BindingFooter(destination: Destination, onSelect: (Destination) -> Unit, mod
                 val selected = item == destination
                 val shift by animateDpAsState(if (selected) 6.dp else 0.dp, animationSpec = tween(if (reducedMotion) 0 else 140), label = "bookmark")
                 Box(
-                    Modifier.weight(1f).height(bandHeight).selectable(selected = selected, role = Role.Tab) {
-                        if (!selected) sound()
+                    Modifier.weight(1f).height(bandHeight).feedbackSelectable(selected, Role.Tab, feedbackEnabled = !selected) {
                         onSelect(item)
                     },
                     contentAlignment = Alignment.TopCenter,
