@@ -2,7 +2,6 @@ package ch.lkmc.pageworn.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -64,12 +63,11 @@ fun TextAction(label: String, spokenLabel: String? = null, modifier: Modifier = 
     val visible = if (spokenLabel == null) Modifier else Modifier.clearAndSetSemantics {}
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
-    val tapFeel = rememberTapFeel(TapFeel.LIGHT)
     Box(
         modifier.heightIn(min = 48.dp).widthIn(min = 48.dp)
             // The press washes the same rounded patch the focus ring outlines.
             .clip(FOCUS_SHAPE)
-            .clickable(interactionSource = interaction, role = Role.Button) { tapFeel(); onClick() }
+            .feedbackClickable(Role.Button, TapFeel.LIGHT, interactionSource = interaction, onClick = onClick)
             .then(if (focused) Modifier.border(2.dp, PagewornTheme.colors.primaryInk, FOCUS_SHAPE) else Modifier)
             .then(spoken).padding(horizontal = TEXT_ACTION_INSET),
         contentAlignment = Alignment.Center,

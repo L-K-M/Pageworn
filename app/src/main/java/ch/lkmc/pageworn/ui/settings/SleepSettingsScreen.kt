@@ -1,13 +1,11 @@
 package ch.lkmc.pageworn.ui.settings
 
 import android.text.format.DateFormat
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
@@ -38,8 +36,9 @@ import ch.lkmc.pageworn.ui.components.PaperRule
 import ch.lkmc.pageworn.ui.components.PaperScreen
 import ch.lkmc.pageworn.ui.components.SectionLabel
 import ch.lkmc.pageworn.ui.components.TextAction
+import ch.lkmc.pageworn.ui.components.feedbackClickable
+import ch.lkmc.pageworn.ui.components.feedbackToggleable
 import ch.lkmc.pageworn.ui.components.paperSwitchColors
-import ch.lkmc.pageworn.ui.components.rememberTapSound
 import ch.lkmc.pageworn.ui.model.SleepSettingsUiState
 import ch.lkmc.pageworn.ui.state.AddResult
 import ch.lkmc.pageworn.ui.theme.PagewornTheme
@@ -54,7 +53,6 @@ fun SleepSettingsScreen(
     onSetStart: (Int) -> Boolean,
     onSetEnd: (Int) -> Boolean,
 ) {
-    val sound = rememberTapSound()
     var adding by rememberSaveable { mutableStateOf(false) }
     var pickingStart by rememberSaveable { mutableStateOf(false) }
     var pickingEnd by rememberSaveable { mutableStateOf(false) }
@@ -84,7 +82,7 @@ fun SleepSettingsScreen(
         PaperCard {
             Row(
                 Modifier.fillMaxWidth().heightIn(min = 56.dp)
-                    .toggleable(value = state.automatic, role = Role.Switch) { sound(); onSetAutomatic(it) }
+                    .feedbackToggleable(state.automatic, onSetAutomatic)
                     .semantics { contentDescription = "Turn on automatically every night" }
                     .padding(horizontal = 16.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -131,9 +129,8 @@ private fun Note(text: String) {
 /** A window time and the picker it opens. */
 @Composable
 private fun TimeRow(label: String, timeText: String, onClick: () -> Unit) {
-    val sound = rememberTapSound()
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(role = Role.Button) { sound(); onClick() }.padding(horizontal = 16.dp, vertical = 12.dp),
+        Modifier.fillMaxWidth().heightIn(min = 56.dp).feedbackClickable(Role.Button) { onClick() }.padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(label, Modifier.weight(1f), color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.rowTitle)

@@ -1,6 +1,5 @@
 package ch.lkmc.pageworn.ui.library
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -33,7 +32,7 @@ import ch.lkmc.pageworn.ui.components.PaperSheet
 import ch.lkmc.pageworn.ui.components.PencilIcon
 import ch.lkmc.pageworn.ui.components.RadioRow
 import ch.lkmc.pageworn.ui.components.TapFeel
-import ch.lkmc.pageworn.ui.components.rememberTapFeel
+import ch.lkmc.pageworn.ui.components.feedbackClickable
 import ch.lkmc.pageworn.ui.model.Copy
 import ch.lkmc.pageworn.ui.theme.PagewornTheme
 
@@ -42,10 +41,9 @@ import ch.lkmc.pageworn.ui.theme.PagewornTheme
 @Composable
 internal fun LibrarySortControl(sort: CatalogSort, onSelect: (CatalogSort) -> Unit) {
     var open by rememberSaveable { mutableStateOf(false) }
-    val tapFeel = rememberTapFeel(TapFeel.LIGHT)
     Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.End) {
         Row(
-            Modifier.heightIn(min = 48.dp).clip(SORT_SHAPE).clickable(role = Role.Button) { tapFeel(); open = true }
+            Modifier.heightIn(min = 48.dp).clip(SORT_SHAPE).feedbackClickable(Role.Button, TapFeel.LIGHT) { open = true }
                 .semantics {
                     contentDescription = Copy.SORT_LIBRARY
                     stateDescription = Copy.sortName(sort)

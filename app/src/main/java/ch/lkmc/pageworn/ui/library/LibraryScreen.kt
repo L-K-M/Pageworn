@@ -2,7 +2,6 @@ package ch.lkmc.pageworn.ui.library
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -64,6 +63,7 @@ import ch.lkmc.pageworn.ui.components.SectionHeader
 import ch.lkmc.pageworn.ui.components.StatusLineView
 import ch.lkmc.pageworn.ui.components.TextAction
 import ch.lkmc.pageworn.ui.components.TransferIndicator
+import ch.lkmc.pageworn.ui.components.feedbackClickable
 import ch.lkmc.pageworn.ui.components.paperFieldColors
 import ch.lkmc.pageworn.ui.components.rememberTapSound
 import ch.lkmc.pageworn.ui.model.CatalogAction
@@ -121,12 +121,11 @@ fun LibraryScreen(state: LibraryUiState, listState: LazyListState, onQueryChange
 @Composable
 private fun CatalogBookRow(row: CatalogRow, onOpenBook: (BookKey) -> Unit, onDownload: (BookKey) -> Unit, onPlayPause: (BookKey, KeyAction) -> Unit, onPauseTransfer: (String) -> Unit, onResumeTransfer: (String) -> Unit, onCancelTransfer: (String) -> Unit) {
     val face = row.face
-    val sound = rememberTapSound()
     val compact = LocalDensity.current.fontScale >= 1.5f
     Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 14.dp, top = 9.dp, bottom = 9.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 14.dp)) {
             val coverSize = if (compact) ROW_COVER_LARGE_TYPE else ROW_COVER
-            Box(Modifier.width(coverSize).clickable(role = Role.Button) { sound(); onOpenBook(face.key) }.semantics { contentDescription = "Open ${face.title}" }) { BookCover(face, coverSize, showRibbon = (row.action as? CatalogAction.Ready)?.start == StartAction.RESUME) }
+            Box(Modifier.width(coverSize).feedbackClickable(Role.Button) { onOpenBook(face.key) }.semantics { contentDescription = "Open ${face.title}" }) { BookCover(face, coverSize, showRibbon = (row.action as? CatalogAction.Ready)?.start == StartAction.RESUME) }
             // The Play key says it is downloaded to the eye, and the title's state to TalkBack.
             Column(Modifier.weight(1f).semantics(mergeDescendants = true) { if (row.action is CatalogAction.Ready) stateDescription = "Downloaded" }) {
                 Text(face.title, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.rowTitle)
@@ -152,10 +151,9 @@ private fun CatalogActionView(row: CatalogRow, onDownload: (BookKey) -> Unit, on
         CatalogAction.Download -> PencilButton(onClick = { onDownload(row.face.key) }) { PencilIcon(R.drawable.pw_pencil_download, "Download ${row.face.title}", 26.dp) }
         is CatalogAction.Ready -> PlayPauseKey(action.showsPause, row.face.title, ROW_KEY, starting = action.starting, start = action.start) { onPlayPause(row.face.key, it) }
         is CatalogAction.Transferring -> {
-            val sound = rememberTapSound()
             val t = action.transfer
             val callback = when { t.canPause -> ({ onPauseTransfer(t.jobId) }); t.canResume -> ({ onResumeTransfer(t.jobId) }); else -> null }
-            Box((if (callback != null) Modifier.clickable(role = Role.Button) { sound(); callback() } else Modifier).semantics { if (callback != null) contentDescription = "${if (t.canPause) "Pause" else "Resume"} download of ${row.face.title}" }) { TransferIndicator(t, compact = true) }
+            Box((if (callback != null) Modifier.feedbackClickable(Role.Button) { callback() } else Modifier).semantics { if (callback != null) contentDescription = "${if (t.canPause) "Pause" else "Resume"} download of ${row.face.title}" }) { TransferIndicator(t, compact = true) }
         }
         else -> Unit
     }

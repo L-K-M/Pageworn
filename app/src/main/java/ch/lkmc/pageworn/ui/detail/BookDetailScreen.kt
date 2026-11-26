@@ -1,6 +1,5 @@
 package ch.lkmc.pageworn.ui.detail
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -32,7 +31,7 @@ import ch.lkmc.pageworn.ui.components.TextAction
 import ch.lkmc.pageworn.ui.components.TransferIndicator
 import ch.lkmc.pageworn.ui.components.TransferPauseKey
 import ch.lkmc.pageworn.ui.components.paperBackground
-import ch.lkmc.pageworn.ui.components.rememberTapSound
+import ch.lkmc.pageworn.ui.components.feedbackClickable
 import ch.lkmc.pageworn.ui.model.BookDetailUiState
 import ch.lkmc.pageworn.ui.model.Copy
 import ch.lkmc.pageworn.ui.model.DetailAction
@@ -49,7 +48,6 @@ internal fun showsPlaceRibbon(action: DetailAction): Boolean =
 
 @Composable
 fun BookDetailScreen(state: BookDetailUiState, onBack: () -> Unit, onDownload: () -> Unit, onRetry: () -> Unit, onPlayPause: (KeyAction) -> Unit, onRepair: () -> Unit, onPauseTransfer: (String) -> Unit, onResumeTransfer: (String) -> Unit, onCancelTransfer: (String) -> Unit, onSelectSegment: (Long) -> Unit, onRemove: () -> Unit, onDismissPlayNotice: () -> Unit = {}) {
-    val sound = rememberTapSound()
     // One lazy list: a long part list composes only the rows near the viewport, instead of paying
     // for every row before the cover and primary action can appear. Chapter keys keep each row's
     // identity while the list scrolls.
@@ -107,7 +105,7 @@ fun BookDetailScreen(state: BookDetailUiState, onBack: () -> Unit, onDownload: (
             }
             items(state.segments, key = { it.index }) { segment ->
                 PaperRule()
-                Row(Modifier.fillMaxWidth().then(if (state.segmentsPlayable) Modifier.clickable(role = Role.Button) { sound(); onSelectSegment(segment.startMs) }.semantics { contentDescription = "Play ${segment.title} in ${state.face.title}" } else Modifier).padding(vertical = 16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().then(if (state.segmentsPlayable) Modifier.feedbackClickable(Role.Button) { onSelectSegment(segment.startMs) }.semantics { contentDescription = "Play ${segment.title} in ${state.face.title}" } else Modifier).padding(vertical = 16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text(segment.title, Modifier.weight(1f), color = if (segment.generated) PagewornTheme.colors.secondaryInk else PagewornTheme.colors.primaryInk, style = PagewornTheme.type.author)
                     Text(segment.durationText, Modifier.padding(start = 8.dp), color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.metadata)
                 }

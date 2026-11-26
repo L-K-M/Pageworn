@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -33,6 +32,7 @@ import ch.lkmc.pageworn.ui.components.PaperRule
 import ch.lkmc.pageworn.ui.components.PaperScreen
 import ch.lkmc.pageworn.ui.components.PencilIcon
 import ch.lkmc.pageworn.ui.components.TextAction
+import ch.lkmc.pageworn.ui.components.feedbackSelectable
 import ch.lkmc.pageworn.ui.components.paperSwitchColors
 import ch.lkmc.pageworn.ui.components.rememberTapSound
 import ch.lkmc.pageworn.ui.model.AddressRow
@@ -42,10 +42,9 @@ import ch.lkmc.pageworn.ui.theme.PagewornTheme
 
 @Composable
 fun AddressesScreen(state: AddressesUiState, onBack: () -> Unit, onAdd: () -> Unit, onEditLabel: (String, String) -> Unit, onMoveUp: (String) -> Unit, onMoveDown: (String) -> Unit, onToggleEnabled: (String) -> Unit, onTest: (String) -> Unit, onRemove: (String) -> Unit, onTrust: (String) -> Unit, onAllowLocalNetwork: (String) -> Unit, onSignIn: (String) -> Unit, onSetAutomatic: (Boolean) -> Unit, onPin: (String) -> Unit) {
-    val sound = rememberTapSound()
     PaperScreen("Server addresses", onBack) {
         PaperCard {
-            Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).selectable(state.automatic, role = Role.RadioButton) { if (!state.automatic) sound(); onSetAutomatic(true) }.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).feedbackSelectable(state.automatic, Role.RadioButton, feedbackEnabled = !state.automatic) { onSetAutomatic(true) }.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 RadioButton(state.automatic, onClick = null)
                 Column(Modifier.padding(start = 12.dp)) {
                     Text("Automatic", color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.rowTitle)

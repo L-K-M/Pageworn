@@ -1,6 +1,5 @@
 package ch.lkmc.pageworn.ui.player
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -60,9 +59,8 @@ import ch.lkmc.pageworn.ui.components.RadioRow
 import ch.lkmc.pageworn.ui.components.SkipKey
 import ch.lkmc.pageworn.ui.components.TapFeel
 import ch.lkmc.pageworn.ui.components.TextAction
+import ch.lkmc.pageworn.ui.components.feedbackClickable
 import ch.lkmc.pageworn.ui.components.paperBackground
-import ch.lkmc.pageworn.ui.components.rememberTapFeel
-import ch.lkmc.pageworn.ui.components.rememberTapSound
 import ch.lkmc.pageworn.ui.model.Copy
 import ch.lkmc.pageworn.ui.model.Format
 import ch.lkmc.pageworn.ui.model.KeyAction
@@ -147,8 +145,7 @@ fun PlayerScreen(state: PlayerUiState, onCollapse: () -> Unit, onPlayPause: (Key
 
 @Composable
 private fun Utility(label: String, description: String, target: String? = null, onClick: () -> Unit, icon: @Composable () -> Unit) {
-    val tapFeel = rememberTapFeel(TapFeel.LIGHT)
-    Column(Modifier.heightIn(min = 60.dp).widthIn(min = 48.dp).clip(UTILITY_SHAPE).clickable(role = Role.Button) { tapFeel(); onClick() }.semantics { contentDescription = description }.padding(horizontal = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(Modifier.heightIn(min = 60.dp).widthIn(min = 48.dp).clip(UTILITY_SHAPE).feedbackClickable(Role.Button, TapFeel.LIGHT) { onClick() }.semantics { contentDescription = description }.padding(horizontal = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         icon()
         Text(label, color = PagewornTheme.colors.primaryInk, style = PagewornTheme.type.ribbonLabel)
         // Tabular figures keep a ticking countdown from shifting the row every second.
@@ -165,7 +162,6 @@ private fun SpeedSheet(selected: Float, onSelect: (Float) -> Unit) {
 
 @Composable
 private fun SegmentsSheet(division: Division, segmentName: String, segments: List<Segment>, segmentIndex: Int, onSelect: (Long) -> Unit) {
-    val sound = rememberTapSound()
     // A long book has dozens of parts: open on the one playing, with some before it for context.
     // Find the row by its domain index rather than assuming it is also the list position.
     // A -1 (no match) coerces to 0: better to open at the top than crash on a stale index.
@@ -175,7 +171,7 @@ private fun SegmentsSheet(division: Division, segmentName: String, segments: Lis
             items(segments, key = { it.index }) { segment ->
                 PaperRule()
                 val current = segment.index == segmentIndex
-                Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(role = Role.Button) { sound(); onSelect(segment.startMs) }.semantics { if (current) stateDescription = "Current ${segmentName.lowercase()}" }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).feedbackClickable(Role.Button) { onSelect(segment.startMs) }.semantics { if (current) stateDescription = "Current ${segmentName.lowercase()}" }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     if (current) Image(painterResource(R.drawable.pw_place_ribbon), null, Modifier.padding(end = 8.dp).size(12.dp, 18.dp))
                     Text(PlayerStates.segmentTitle(division, segment), Modifier.weight(1f), color = if (segment.generated) PagewornTheme.colors.secondaryInk else PagewornTheme.colors.primaryInk, style = PagewornTheme.type.rowTitle)
                     Text(Format.clock(segment.durationMs), Modifier.padding(start = 8.dp), color = PagewornTheme.colors.secondaryInk, style = PagewornTheme.type.metadata)
