@@ -12,6 +12,8 @@ build/
 # IDE
 .idea/
 *.iml
+dist/
+.vscode/
 .DS_Store
 
 # Generated audio fixtures (regenerate with fixtures/generate.py)

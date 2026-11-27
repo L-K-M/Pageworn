@@ -9,9 +9,20 @@ permissions:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  scripts:
+    name: Shell scripts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: shellcheck
+        run: shellcheck scripts/*.sh
+
   build:
     name: Debug build and JVM tests
     runs-on: ubuntu-latest
@@ -42,6 +53,9 @@ jobs:
 
       - name: Lint and compile the instrumented tests
         run: ./gradlew --console=plain :app:lintDebug :app:compileDebugAndroidTestKotlin
+
+      - name: Check license notices in the APK
+        run: scripts/check_apk_notices.sh app/build/outputs/apk/debug/app-debug.apk
 
       - name: Upload test reports
         if: failure()
