@@ -10,6 +10,7 @@ permissions:
 
 concurrency:
   group: release-${{ github.ref }}
+  # Releases for different tags may run in parallel; same-tag runs queue.
   cancel-in-progress: false
 
 jobs:
@@ -95,12 +96,7 @@ jobs:
             exit 1
           fi
 
-          for entry in res/raw/aboutlibraries.json res/raw/spectral_ofl.txt res/raw/pw_sound_credits.txt; do
-            unzip -l "$apk" "$entry" | grep -q "$entry" || {
-              echo "::error::$entry missing from the release APK"
-              exit 1
-            }
-          done
+          scripts/check_apk_notices.sh "$apk" "the release APK"
 
           mkdir -p artifacts
           cp "$apk" "artifacts/pageworn-$GITHUB_REF_NAME.apk"

@@ -55,15 +55,7 @@ jobs:
         run: ./gradlew --console=plain :app:lintDebug :app:compileDebugAndroidTestKotlin
 
       - name: Check license notices in the APK
-        run: |
-          set -euo pipefail
-          apk=app/build/outputs/apk/debug/app-debug.apk
-          for entry in res/raw/aboutlibraries.json res/raw/spectral_ofl.txt res/raw/pw_sound_credits.txt; do
-            unzip -l "$apk" "$entry" | grep -q "$entry" || {
-              echo "::error::$entry missing from $apk"
-              exit 1
-            }
-          done
+        run: scripts/check_apk_notices.sh app/build/outputs/apk/debug/app-debug.apk
 
       - name: Upload test reports
         if: failure()
