@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: release
+  group: release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -94,6 +94,13 @@ jobs:
             echo '::error::The APK package ID or version does not match the release tag.'
             exit 1
           fi
+
+          for entry in res/raw/aboutlibraries.json res/raw/spectral_ofl.txt res/raw/pw_sound_credits.txt; do
+            unzip -l "$apk" "$entry" | grep -q "$entry" || {
+              echo "::error::$entry missing from the release APK"
+              exit 1
+            }
+          done
 
           mkdir -p artifacts
           cp "$apk" "artifacts/pageworn-$GITHUB_REF_NAME.apk"
